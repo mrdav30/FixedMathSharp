@@ -43,21 +43,25 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// <summary>
     /// The upward direction vector in the canonical 3D basis (0, 1, 0).
     /// </summary>
+    /// <value>The positive Y unit vector.</value>
     public static Vector3d Up => new(0, 1, 0);
 
     /// <summary>
     /// The right direction vector in the canonical 3D basis (1, 0, 0).
     /// </summary>
+    /// <value>The positive X unit vector.</value>
     public static Vector3d Right => new(1, 0, 0);
 
     /// <summary>
     /// The downward direction vector in the canonical 3D basis (0, -1, 0).
     /// </summary>
+    /// <value>The negative Y unit vector.</value>
     public static Vector3d Down => new(0, -1, 0);
 
     /// <summary>
     /// The left direction vector in the canonical 3D basis (-1, 0, 0).
     /// </summary>
+    /// <value>The negative X unit vector.</value>
     public static Vector3d Left => new(-1, 0, 0);
 
     /// <summary>
@@ -68,26 +72,31 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// <see cref="CoordinateConvention3d"/> at adapter boundaries when an external API uses
     /// different semantic axes, such as <c>-Z</c> forward or <c>+X</c> forward with <c>+Z</c> up.
     /// </remarks>
+    /// <value>The positive Z unit vector.</value>
     public static Vector3d Forward => new(0, 0, 1);
 
     /// <summary>
     /// The backward direction vector in the canonical 3D basis (0, 0, -1).
     /// </summary>
+    /// <value>The negative Z unit vector.</value>
     public static Vector3d Backward => new(0, 0, -1);
 
     /// <summary>
     /// (1, 1, 1)
     /// </summary>
+    /// <value>All components equal to one.</value>
     public static Vector3d One => new(1, 1, 1);
 
     /// <summary>
     /// (-1, -1, -1)
     /// </summary>
+    /// <value>All components equal to −1.</value>
     public static Vector3d Negative => new(-1, -1, -1);
 
     /// <summary>
     /// (0, 0, 0)
     /// </summary>
+    /// <value>All components equal to zero.</value>
     public static Vector3d Zero => new(0, 0, 0);
 
     #endregion
@@ -139,18 +148,13 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
         Z = z;
     }
 
-    /// <summary>
-    /// Initializes a new instance of the Vector3d structure using the specified X, Y, and Z coordinates as
-    /// double-precision floating-point values.
-    /// </summary>
-    /// <remarks>This constructor allows for convenient creation of a Vector3d from double values, which are
-    /// internally converted to the Fixed64 representation used by the structure. Components are converted
-    /// through <see cref="Fixed64.FromDouble(double)"/>, so non-finite values throw
-    /// <see cref="ArgumentOutOfRangeException"/> and finite values outside the Q32.32 range throw
-    /// <see cref="OverflowException"/>.</remarks>
-    /// <param name="xDoub">The X coordinate of the vector, specified as a double-precision floating-point value.</param>
-    /// <param name="yDoub">The Y coordinate of the vector, specified as a double-precision floating-point value.</param>
-    /// <param name="zDoub">The Z coordinate of the vector, specified as a double-precision floating-point value.</param>
+    /// <summary>Creates a vector from double-precision components.</summary>
+    /// <param name="xDoub">The X component.</param>
+    /// <param name="yDoub">The Y component.</param>
+    /// <param name="zDoub">The Z component.</param>
+    /// <returns>A vector whose components are rounded to the nearest Q32.32 value with ties to even.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">A component is NaN or infinity.</exception>
+    /// <exception cref="OverflowException">A rounded component lies outside the Q32.32 range.</exception>
     public static Vector3d FromDouble(double xDoub, double yDoub, double zDoub) =>
         new(Fixed64.FromDouble(xDoub),
             Fixed64.FromDouble(yDoub),
@@ -167,6 +171,7 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// Note that the positive direction of rotation is defined by the right-hand rule:
     /// If your right hand's thumb points in the positive Y direction, then your fingers curl in the positive direction of rotation.
     /// </remarks>
+    /// <value>The copy <c>(Z, Y, −X)</c>, rotated 90 degrees about positive Y.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Vector3d RightHandNormal
@@ -178,6 +183,7 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// <summary>
     /// Provides a rotated version of the current vector, where rotation is a 90 degrees rotation around the Y axis in the clockwise direction.
     /// </summary>
+    /// <value>The copy <c>(−Z, Y, X)</c>, rotated 90 degrees about negative Y.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Vector3d LeftHandNormal
@@ -186,7 +192,8 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
         get => new(-Z, Y, X);
     }
 
-    /// <inheritdoc cref="GetNormalized(Vector3d)"/>
+    /// <summary>Gets a normalized copy of the vector.</summary>
+    /// <value>The approximate unit vector in the same direction, or zero for a zero vector.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Vector3d Normalized
@@ -198,6 +205,7 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// <summary>
     /// Returns the actual length of this vector (RO).
     /// </summary>
+    /// <value>The Euclidean length in input units, saturated to <see cref="Fixed64.MaxValue"/> when too large. Values within the normalization tolerance report one.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Fixed64 Magnitude
@@ -206,12 +214,8 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
         get => GetMagnitude(this);
     }
 
-    /// <summary>
-    /// This vector's squared magnitude (aka length squared).
-    /// If you're doing distance checks, use MagnitudeSquared and square the distance you're checking against.
-    /// If you need to know the actual distance, use Magnitude.
-    /// </summary>
-    /// <returns>The magnitude.</returns>
+    /// <summary>Gets the squared length of the vector.</summary>
+    /// <value>The rounded sum of the squared components, in squared input units and saturated at <see cref="Fixed64.MaxValue"/>.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Fixed64 MagnitudeSquared
@@ -229,6 +233,7 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// At zero pitch and yaw this returns <see cref="Forward"/>.
     /// Positive pitch rotates the forward direction toward <see cref="Down"/>.
     /// </remarks>
+    /// <value>The approximate forward unit direction for pitch X and yaw Y in radians. Z is ignored.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Vector3d Direction
@@ -242,10 +247,8 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
         }
     }
 
-    /// <summary>
-    /// Are all components of this vector equal to zero?
-    /// </summary>
-    /// <returns></returns>
+    /// <summary>Tests whether all components equal zero.</summary>
+    /// <value><see langword="true"/> if all components are exactly zero, otherwise <see langword="false"/>.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public bool IsZero
@@ -257,6 +260,7 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// <summary>
     /// Returns a long hash of the vector based on its x, y, and z values.
     /// </summary>
+    /// <value>A deterministic weighted sum of the raw components using wrapping 64-bit arithmetic.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public long LongStateHash
@@ -268,6 +272,7 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// <summary>
     /// Returns a hash of the vector based on its state.
     /// </summary>
+    /// <value>The signed remainder of <see cref="LongStateHash"/> modulo <see cref="int.MaxValue"/>.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public int StateHash
@@ -279,13 +284,9 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// <summary>
     /// Gets or sets the component value at the specified index.
     /// </summary>
-    /// <remarks>
-    /// Use this indexer to access or modify the x, y, or z components of the vector by index. 
-    /// Index 0 corresponds to x, 1 to y, and 2 to z.
-    /// </remarks>
-    /// <param name="index">The zero-based index of the component to access. Valid values are 0 (x), 1 (y), or 2 (z).</param>
-    /// <returns>The value of the component at the specified index.</returns>
-    /// <exception cref="IndexOutOfRangeException">Thrown if index is less than 0 or greater than 2.</exception>
+    /// <param name="index">The zero-based component index in X, Y, Z order.</param>
+    /// <value>The selected component. Setting it replaces only that component.</value>
+    /// <exception cref="IndexOutOfRangeException"><paramref name="index"/> is outside the interval [0, 2].</exception>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Fixed64 this[int index]
@@ -327,9 +328,10 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// <summary>
     /// Set x, y and z components of an existing Vector3.
     /// </summary>
-    /// <param name="newX"></param>
-    /// <param name="newY"></param>
-    /// <param name="newZ"></param>
+    /// <param name="newX">The new X component.</param>
+    /// <param name="newY">The new Y component.</param>
+    /// <param name="newZ">The new Z component.</param>
+    /// <returns>A copy of this vector after all components have been assigned.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector3d Set(Fixed64 newX, Fixed64 newY, Fixed64 newZ)
     {
@@ -342,9 +344,10 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// <summary>
     /// Adds the specified values to the components of the vector in place and returns the modified vector.
     /// </summary>
-    /// <param name="xAmount">The amount to add to the x component.</param>
-    /// <param name="yAmount">The amount to add to the y component.</param>
-    /// <param name="zAmount">The amount to add to the z component.</param>
+    /// <param name="xAmount">The amount to add for the X component.</param>
+    /// <param name="yAmount">The amount to add for the Y component.</param>
+    /// <param name="zAmount">The amount to add for the Z component.</param>
+    /// <returns>A copy of this vector after computing the sum of its corresponding components. Each result saturates at the representable endpoints.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector3d AddInPlace(Fixed64 xAmount, Fixed64 yAmount, Fixed64 zAmount)
     {
@@ -357,24 +360,26 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// <summary>
     /// Adds the specified values to the components of the vector in place and returns the modified vector.
     /// </summary>
-    /// <param name="amount">The amount to add to the components.</param>
-    /// <returns>The modified vector after addition.</returns>
+    /// <param name="amount">The scalar to add for all components.</param>
+    /// <returns>A copy of this vector after computing the sum of its components. Each result saturates at the representable endpoints.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector3d AddInPlace(Fixed64 amount) => AddInPlace(amount, amount, amount);
 
     /// <summary>
     /// Adds the specified vector components to the corresponding components of the in place vector and returns the modified vector.
     /// </summary>
-    /// <param name="other">The other vector to add the components.</param>
+    /// <param name="other">The per-component values to add.</param>
+    /// <returns>A copy of this vector after computing the sum of its corresponding components. Each result saturates at the representable endpoints.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector3d AddInPlace(Vector3d other) => AddInPlace(other.X, other.Y, other.Z);
 
     /// <summary>
     /// Subtracts the specified values from the components of the vector in place and returns the modified vector.
     /// </summary>
-    /// <param name="xAmount">The amount to subtract from the x component.</param>
-    /// <param name="yAmount">The amount to subtract from the y component.</param>
-    /// <param name="zAmount">The amount to subtract from the z component.</param>
+    /// <param name="xAmount">The amount to subtract for the X component.</param>
+    /// <param name="yAmount">The amount to subtract for the Y component.</param>
+    /// <param name="zAmount">The amount to subtract for the Z component.</param>
+    /// <returns>A copy of this vector after computing the difference of its corresponding components. Each result saturates at the representable endpoints.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector3d SubtractInPlace(Fixed64 xAmount, Fixed64 yAmount, Fixed64 zAmount)
     {
@@ -387,19 +392,26 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// <summary>
     /// Subtracts the specified value from all components of the vector in place and returns the modified vector.
     /// </summary>
-    /// <param name="amount">The amount to subtract from each component.</param>
+    /// <param name="amount">The scalar to subtract for all components.</param>
+    /// <returns>A copy of this vector after computing the difference of its components. Each result saturates at the representable endpoints.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector3d SubtractInPlace(Fixed64 amount) => SubtractInPlace(amount, amount, amount);
 
     /// <summary>
     /// Subtracts the specified vector from the components of the vector in place and returns the modified vector.
     /// </summary>
+    /// <param name="other">The per-component values to subtract.</param>
+    /// <returns>A copy of this vector after computing the difference of its corresponding components. Each result saturates at the representable endpoints.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector3d SubtractInPlace(Vector3d other) => SubtractInPlace(other.X, other.Y, other.Z);
 
     /// <summary>
     /// Multiplies each component of the vector by the corresponding factor in place and returns the modified vector.
     /// </summary>
+    /// <param name="factorX">The amount to multiply by for the X component.</param>
+    /// <param name="factorY">The amount to multiply by for the Y component.</param>
+    /// <param name="factorZ">The amount to multiply by for the Z component.</param>
+    /// <returns>A copy of this vector after computing the product of its corresponding components. Each result saturates at the representable endpoints.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector3d MultiplyInPlace(Fixed64 factorX, Fixed64 factorY, Fixed64 factorZ)
     {
@@ -412,20 +424,26 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// <summary>
     /// Multiplies the components of the vector by the specified scalar factor in place and returns the modified vector.
     /// </summary>
-    /// <param name="factor">The scalar factor to multiply each component by.</param>
+    /// <param name="factor">The scalar to multiply by for all components.</param>
+    /// <returns>A copy of this vector after computing the product of its components. Each result saturates at the representable endpoints.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector3d MultiplyInPlace(Fixed64 factor) => MultiplyInPlace(factor, factor, factor);
 
     /// <summary>
     /// Multiplies each component of the vector by the corresponding component of the given vector in place and returns the modified vector.
     /// </summary>
-    /// <param name="factor">The vector containing the multiplication factors for each component.</param>
+    /// <param name="factor">The per-component values to multiply by.</param>
+    /// <returns>A copy of this vector after computing the product of its corresponding components. Each result saturates at the representable endpoints.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector3d MultiplyInPlace(Vector3d factor) => MultiplyInPlace(factor.X, factor.Y, factor.Z);
 
     /// <summary>
     /// Divides each component of the vector by the corresponding divisor in place and returns the modified vector.
     /// </summary>
+    /// <param name="divisorX">The amount to divide by for the X component.</param>
+    /// <param name="divisorY">The amount to divide by for the Y component.</param>
+    /// <param name="divisorZ">The amount to divide by for the Z component.</param>
+    /// <returns>A copy of this vector after computing the quotient of its corresponding components. Each result saturates at the representable endpoints. A zero divisor sets the corresponding component to zero.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector3d DivideInPlace(Fixed64 divisorX, Fixed64 divisorY, Fixed64 divisorZ)
     {
@@ -438,6 +456,8 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// <summary>
     /// Divides each component of the vector by the specified scalar divisor in place and returns the modified vector.
     /// </summary>
+    /// <param name="divisor">The scalar to divide by for all components.</param>
+    /// <returns>A copy of this vector after computing the quotient of its components. Each result saturates at the representable endpoints. A zero divisor sets the corresponding component to zero.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector3d DivideInPlace(Fixed64 divisor)
     {
@@ -453,26 +473,19 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// <summary>
     /// Divides each component of the vector by the corresponding component of the given vector in place and returns the modified vector.
     /// </summary>
+    /// <param name="divisor">The per-component values to divide by.</param>
+    /// <returns>A copy of this vector after computing the quotient of its corresponding components. Each result saturates at the representable endpoints. A zero divisor sets the corresponding component to zero.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector3d DivideInPlace(Vector3d divisor) => DivideInPlace(divisor.X, divisor.Y, divisor.Z);
 
-    /// <summary>
-    /// Normalizes this vector in place, making its magnitude (length) equal to 1, and returns the modified vector.
-    /// </summary>
-    /// <remarks>
-    /// If the vector is zero-length or already normalized, no operation is performed. 
-    /// This method modifies the current vector in place and supports method chaining.
-    /// </remarks>
-    /// <returns>The normalized vector.</returns>
+    /// <summary>Normalizes this vector in place.</summary>
+    /// <returns>A copy of this vector after normalization. The zero vector stays zero.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector3d NormalizeInPlace() => this = GetNormalized(this);
 
-    /// <summary>
-    /// Normalizes this vector in place and outputs its original magnitude.
-    /// </summary>
-    /// <remarks>
-    /// If the vector is zero-length or already normalized, no operation is performed, but the original magnitude will still be output.
-    /// </remarks>
+    /// <summary>Normalizes this vector in place.</summary>
+    /// <param name="mag">The computed original length. It reports one inside the normalization tolerance and saturates to <see cref="Fixed64.MaxValue"/> if necessary.</param>
+    /// <returns>A copy of this vector after normalization. The zero vector stays zero.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector3d NormalizeInPlace(out Fixed64 mag)
     {
@@ -513,6 +526,7 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// Checks whether the nonzero squared magnitude is within
     /// <see cref="Fixed64.Epsilon"/> of 1.
     /// </summary>
+    /// <returns><see langword="true"/> if the vector is nonzero and its squared length differs from one by at most <see cref="Fixed64.Epsilon"/>, otherwise <see langword="false"/>.</returns>
     public bool IsNormalized()
     {
         Fixed64 sqrMagnitude = MagnitudeSquared;
@@ -523,10 +537,8 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// Attempts to return this vector's magnitude rounded outward to the
     /// smallest containing Q32.32 value.
     /// </summary>
-    /// <returns>
-    /// <see langword="false"/> only when the final ceiling exceeds the
-    /// positive <see cref="Fixed64"/> domain.
-    /// </returns>
+    /// <param name="magnitude">The smallest Q32.32 value at least as large as the exact Euclidean length on success, or zero on failure.</param>
+    /// <returns><see langword="true"/> if the outward-rounded length is representable, otherwise <see langword="false"/>.</returns>
     public readonly bool TryGetMagnitudeCeiling(
         out Fixed64 magnitude) =>
         WideGeometry.TryGetMagnitudeCeiling(
@@ -535,9 +547,8 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
             Z,
             out magnitude);
 
-    /// <summary>
-    /// Checks whether all components are strictly greater than <see cref="Fixed64.Epsilon"/>.
-    /// </summary>
+    /// <summary>Checks the absolute values of all components against epsilon.</summary>
+    /// <returns><see langword="true"/> if every component magnitude strictly exceeds <see cref="Fixed64.Epsilon"/>, otherwise <see langword="false"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool AllComponentsGreaterThanEpsilon() =>
         X.Abs() > Fixed64.Epsilon && Y.Abs() > Fixed64.Epsilon && Z.Abs() > Fixed64.Epsilon;
@@ -587,7 +598,10 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// <summary>
     /// Calculates the squared distance between two vectors, avoiding the need for a square root operation.
     /// </summary>
-    /// <returns>The squared distance between the two vectors.</returns>
+    /// <param name="otherX">The X component in the same coordinate space as this vector.</param>
+    /// <param name="otherY">The Y component in the same coordinate space as this vector.</param>
+    /// <param name="otherZ">The Z component in the same coordinate space as this vector.</param>
+    /// <returns>The squared Euclidean distance in squared coordinate units, with saturation at <see cref="Fixed64.MaxValue"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Fixed64 DistanceSquared(Fixed64 otherX, Fixed64 otherY, Fixed64 otherZ)
     {
@@ -611,13 +625,11 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     public Fixed64 Dot(Fixed64 otherX, Fixed64 otherY, Fixed64 otherZ) =>
         X * otherX + Y * otherY + Z * otherZ;
 
-    /// <summary>
-    /// Computes the cross product magnitude of this vector with another vector.
-    /// </summary>
+    /// <summary>Sums the three components of the cross product.</summary>
     /// <param name="otherX">The X component of the other vector.</param>
     /// <param name="otherY">The Y component of the other vector.</param>
     /// <param name="otherZ">The Z component of the other vector.</param>
-    /// <returns>The cross product magnitude.</returns>
+    /// <returns>The signed sum of the right-handed cross product components, using rounded, saturating component arithmetic.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Fixed64 CrossProduct(Fixed64 otherX, Fixed64 otherY, Fixed64 otherZ) =>
         (Y * otherZ - Z * otherY) + (Z * otherX - X * otherZ) + (X * otherY - Y * otherX);
@@ -626,6 +638,9 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// Returns the cross vector of this vector with another vector.
     /// </summary>
     /// <returns>A new vector representing the cross product.</returns>
+    /// <param name="otherX">The X component of the second vector in the same coordinate space.</param>
+    /// <param name="otherY">The Y component of the second vector in the same coordinate space.</param>
+    /// <param name="otherZ">The Z component of the second vector in the same coordinate space.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector3d Cross(Fixed64 otherX, Fixed64 otherY, Fixed64 otherZ) =>
         new(Y * otherZ - Z * otherY,

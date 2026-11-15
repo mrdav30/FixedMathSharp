@@ -18,11 +18,15 @@ public partial struct Fixed4x4
 {
     #region Equality and HashCode Overrides
 
-    /// <inheritdoc/>
+    /// <summary>Tests whether an object is a matrix with the same entries.</summary>
+    /// <param name="obj">The object to compare with this matrix.</param>
+    /// <returns><see langword="true"/> if the object is a <see cref="Fixed4x4"/> and all entries match exactly.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override bool Equals(object? obj) => obj is Fixed4x4 x && Equals(x);
 
-    /// <inheritdoc/>
+    /// <summary>Tests two matrices for exact component equality.</summary>
+    /// <param name="other">The matrix to compare with this instance.</param>
+    /// <returns><see langword="true"/> if all sixteen entries match exactly.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Equals(Fixed4x4 other) =>
         M11 == other.M11 && M12 == other.M12 && M13 == other.M13 && M14 == other.M14 &&
@@ -30,7 +34,8 @@ public partial struct Fixed4x4
         M31 == other.M31 && M32 == other.M32 && M33 == other.M33 && M34 == other.M34 &&
         M41 == other.M41 && M42 == other.M42 && M43 == other.M43 && M44 == other.M44;
 
-    /// <inheritdoc/>
+    /// <summary>Computes a hash code from the sixteen matrix entries.</summary>
+    /// <returns>The hash code for this matrix value.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override int GetHashCode()
     {
@@ -60,12 +65,17 @@ public partial struct Fixed4x4
     /// <summary>
     /// Returns a string that represents the current matrix in a readable format.
     /// </summary>
+    /// <returns>The matrix entries in row order using invariant culture and general numeric formatting.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override string ToString() => ToString(null, CultureInfo.InvariantCulture);
 
     /// <summary>
     /// Returns a string that represents the current matrix in a readable format.
     /// </summary>
+    /// <param name="format">The numeric format for each entry, or <see langword="null"/> for general format.</param>
+    /// <param name="formatProvider">The culture-specific formatting provider, or <see langword="null"/> for invariant culture.</param>
+    /// <returns>The formatted matrix entries in row order.</returns>
+    /// <exception cref="FormatException">The numeric format is invalid.</exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public string ToString(string? format, IFormatProvider? formatProvider)
     {
@@ -77,6 +87,12 @@ public partial struct Fixed4x4
     /// <summary>
     /// Formats this matrix into the provided destination buffer.
     /// </summary>
+    /// <param name="destination">The caller-owned character buffer. Formatting starts at index zero and can write a prefix before failure.</param>
+    /// <param name="charsWritten">The number of characters written on success, or zero if the buffer is too small.</param>
+    /// <param name="format">The numeric format for each entry, or an empty span for general format.</param>
+    /// <param name="provider">The culture-specific formatting provider, or <see langword="null"/> for invariant culture.</param>
+    /// <returns><see langword="true"/> if the complete formatted matrix fits in the destination.</returns>
+    /// <exception cref="FormatException">An invalid numeric format is encountered.</exception>
     public bool TryFormat(
         Span<char> destination,
         out int charsWritten,

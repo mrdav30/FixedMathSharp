@@ -20,6 +20,15 @@ public partial struct FixedTriangle
     /// this triangle and <paramref name="second"/> in their respective rigid
     /// frames.
     /// </summary>
+    /// <param name="firstOrigin">The first shape frame's origin in world coordinates.</param>
+    /// <param name="firstRotation">The first shape's normalized local-to-world rotation.</param>
+    /// <param name="secondOrigin">The second shape frame's origin in world coordinates.</param>
+    /// <param name="secondRotation">The second shape's normalized local-to-world rotation.</param>
+    /// <param name="second">The other triangle, expressed in its own rigid frame.</param>
+    /// <param name="contact">
+    /// The paired shape-local witnesses, world normal, and depth on success. Use this result only when the method
+    /// returns <see langword="true"/>.
+    /// </param>
     /// <remarks>
     /// Exact touching is a contact with zero depth. The normal points from the
     /// first triangle toward the second, and each returned anchor remains in

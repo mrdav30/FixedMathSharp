@@ -19,6 +19,29 @@ public partial struct FixedSegment
     /// Returns whether two centered capsules in normalized rigid frames have
     /// strictly positive radial overlap, excluding exact tangency.
     /// </summary>
+    /// <param name="firstCenter">The first shape center in the query coordinate space.</param>
+    /// <param name="firstRotation">The first shape's normalized local-to-world rotation.</param>
+    /// <param name="firstLocalAxisDirection">The normalized first shape axis in shape-local coordinates.</param>
+    /// <param name="firstAxisLength">The full nonnegative length of the first shape's central segment.</param>
+    /// <param name="firstRadius">The first shape's nonnegative radius in coordinate units.</param>
+    /// <param name="secondCenter">The second shape center in the query coordinate space.</param>
+    /// <param name="secondRotation">The second shape's normalized local-to-world rotation.</param>
+    /// <param name="secondLocalAxisDirection">The normalized second shape axis in shape-local coordinates.</param>
+    /// <param name="secondAxisLength">The full nonnegative length of the second shape's central segment.</param>
+    /// <param name="secondRadius">The second shape's nonnegative radius in coordinate units.</param>
+    /// <returns>
+    /// <see langword="true"/> when the exact closest core distance is strictly less than the combined radius and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="firstRotation"/> is not normalized, <paramref name="firstLocalAxisDirection"/> is not
+    /// normalized, <paramref name="secondRotation"/> is not normalized, or
+    /// <paramref name="secondLocalAxisDirection"/> is not normalized.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="firstAxisLength"/> is negative, <paramref name="firstRadius"/> is negative,
+    /// <paramref name="secondAxisLength"/> is negative, or <paramref name="secondRadius"/> is negative.
+    /// </exception>
     /// <remarks>
     /// Each axis is expressed in its capsule's local frame. The exact rational
     /// quaternion rotation remains authoritative; derived rounded world axes,
@@ -58,6 +81,26 @@ public partial struct FixedSegment
     /// Returns whether the exact distance between two centered capsule axes is
     /// strictly less than their radius sum. Exact tangency is excluded.
     /// </summary>
+    /// <param name="firstCenter">The first shape center in the query coordinate space.</param>
+    /// <param name="firstAxisDirection">The normalized first shape axis in world coordinates.</param>
+    /// <param name="firstAxisLength">The full nonnegative length of the first shape's central segment.</param>
+    /// <param name="firstRadius">The first shape's nonnegative radius in coordinate units.</param>
+    /// <param name="secondCenter">The second shape center in the query coordinate space.</param>
+    /// <param name="secondAxisDirection">The normalized second shape axis in world coordinates.</param>
+    /// <param name="secondAxisLength">The full nonnegative length of the second shape's central segment.</param>
+    /// <param name="secondRadius">The second shape's nonnegative radius in coordinate units.</param>
+    /// <returns>
+    /// <see langword="true"/> when the exact closest core distance is strictly less than the combined radius and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="firstAxisDirection"/> is not normalized or <paramref name="secondAxisDirection"/> is not
+    /// normalized.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="firstAxisLength"/> is negative, <paramref name="firstRadius"/> is negative,
+    /// <paramref name="secondAxisLength"/> is negative, or <paramref name="secondRadius"/> is negative.
+    /// </exception>
     /// <remarks>
     /// Classification precedes endpoint, distance, and contact-depth rounding.
     /// Zero-length axes are points; a zero radius sum has no strict overlap.
@@ -95,6 +138,13 @@ public partial struct FixedSegment
     /// True when the final distance is representable; otherwise false and
     /// <paramref name="distance"/> is <see cref="Fixed64.MaxValue"/>.
     /// </returns>
+    /// <param name="point">The point in the query coordinate space.</param>
+    /// <param name="center">The center in the query coordinate space.</param>
+    /// <param name="axisDirection">The normalized axis direction in world coordinates.</param>
+    /// <param name="axisLength">The full nonnegative length of the central segment. Zero makes the core a point.</param>
+    /// <param name="distance">The rounded nonnegative distance in coordinate units on success.</param>
+    /// <exception cref="ArgumentException"><paramref name="axisDirection"/> is not normalized.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="axisLength"/> is negative.</exception>
     public static bool TryGetDistanceToCenteredAxis(
         Vector3d point,
         Vector3d center,
@@ -119,6 +169,20 @@ public partial struct FixedSegment
     /// True when the final distance is representable; otherwise false and
     /// <paramref name="distance"/> is <see cref="Fixed64.MaxValue"/>.
     /// </returns>
+    /// <param name="firstCenter">The first shape center in the query coordinate space.</param>
+    /// <param name="firstAxisDirection">The normalized first shape axis in world coordinates.</param>
+    /// <param name="firstAxisLength">The full nonnegative length of the first shape's central segment.</param>
+    /// <param name="secondCenter">The second shape center in the query coordinate space.</param>
+    /// <param name="secondAxisDirection">The normalized second shape axis in world coordinates.</param>
+    /// <param name="secondAxisLength">The full nonnegative length of the second shape's central segment.</param>
+    /// <param name="distance">The rounded nonnegative distance in coordinate units on success.</param>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="firstAxisDirection"/> is not normalized or <paramref name="secondAxisDirection"/> is not
+    /// normalized.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="firstAxisLength"/> is negative or <paramref name="secondAxisLength"/> is negative.
+    /// </exception>
     public static bool TryGetDistanceBetweenCenteredAxes(
         Vector3d firstCenter,
         Vector3d firstAxisDirection,
@@ -152,6 +216,26 @@ public partial struct FixedSegment
     /// Returns whether two conceptual centered capsules overlap, including
     /// exact tangency, without narrowing their axis distance or radius sum.
     /// </summary>
+    /// <param name="firstCenter">The first shape center in the query coordinate space.</param>
+    /// <param name="firstAxisDirection">The normalized first shape axis in world coordinates.</param>
+    /// <param name="firstAxisLength">The full nonnegative length of the first shape's central segment.</param>
+    /// <param name="firstRadius">The first shape's nonnegative radius in coordinate units.</param>
+    /// <param name="secondCenter">The second shape center in the query coordinate space.</param>
+    /// <param name="secondAxisDirection">The normalized second shape axis in world coordinates.</param>
+    /// <param name="secondAxisLength">The full nonnegative length of the second shape's central segment.</param>
+    /// <param name="secondRadius">The second shape's nonnegative radius in coordinate units.</param>
+    /// <returns>
+    /// <see langword="true"/> when the exact closest core distance is at most the combined radius and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="firstAxisDirection"/> is not normalized or <paramref name="secondAxisDirection"/> is not
+    /// normalized.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="firstAxisLength"/> is negative, <paramref name="firstRadius"/> is negative,
+    /// <paramref name="secondAxisLength"/> is negative, or <paramref name="secondRadius"/> is negative.
+    /// </exception>
     public static bool DoCenteredCapsulesOverlap(
         Vector3d firstCenter,
         Vector3d firstAxisDirection,
@@ -192,6 +276,20 @@ public partial struct FixedSegment
     /// Attempts to materialize one endpoint of a conceptual centered finite
     /// axis from its normalized direction and full length.
     /// </summary>
+    /// <param name="center">The center in the query coordinate space.</param>
+    /// <param name="axisDirection">The normalized axis direction in world coordinates.</param>
+    /// <param name="axisLength">The full nonnegative length of the central segment. Zero makes the core a point.</param>
+    /// <param name="positive">
+    /// <see langword="true"/> selects the endpoint in the supplied axis direction. <see langword="false"/> selects
+    /// the opposite endpoint.
+    /// </param>
+    /// <param name="endpoint">The selected endpoint in query coordinates on success.</param>
+    /// <returns>
+    /// <see langword="true"/> when the requested rounded result is representable and <see langword="false"/>
+    /// otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException"><paramref name="axisDirection"/> is not normalized.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="axisLength"/> is negative.</exception>
     /// <remarks>
     /// The endpoint is rounded only after combining its center and half-length
     /// contribution. Failure is atomic.
@@ -216,6 +314,20 @@ public partial struct FixedSegment
     /// Attempts to materialize the support point of a conceptual centered
     /// capsule in a world-space direction.
     /// </summary>
+    /// <param name="center">The center in the query coordinate space.</param>
+    /// <param name="axisDirection">The normalized axis direction in world coordinates.</param>
+    /// <param name="axisLength">The full nonnegative length of the central segment. Zero makes the core a point.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="direction">The world-space direction used to select support. Its magnitude is used as supplied.</param>
+    /// <param name="support">The selected support point in world coordinates on success.</param>
+    /// <returns>
+    /// <see langword="true"/> when the requested rounded result is representable and <see langword="false"/>
+    /// otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException"><paramref name="axisDirection"/> is not normalized.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="axisLength"/> is negative or <paramref name="radius"/> is negative.
+    /// </exception>
     /// <remarks>
     /// The direction need not be normalized. A zero direction and an exact
     /// axial tie select the axis center.
@@ -245,6 +357,19 @@ public partial struct FixedSegment
     /// Attempts to return the support offset of a conceptual centered capsule
     /// relative to its center.
     /// </summary>
+    /// <param name="axisDirection">The normalized axis direction in world coordinates.</param>
+    /// <param name="axisLength">The full nonnegative length of the central segment. Zero makes the core a point.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="direction">The world-space direction used to select support. Its magnitude is used as supplied.</param>
+    /// <param name="supportOffset">The selected support point relative to the center, expressed along world axes on success.</param>
+    /// <returns>
+    /// <see langword="true"/> when the requested rounded result is representable and <see langword="false"/>
+    /// otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException"><paramref name="axisDirection"/> is not normalized.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="axisLength"/> is negative or <paramref name="radius"/> is negative.
+    /// </exception>
     /// <remarks>
     /// The direction need not be normalized. A zero direction and an exact
     /// axial tie select the axis center.
@@ -273,6 +398,16 @@ public partial struct FixedSegment
     /// Returns the support anchor of a centered capsule whose local positive Y
     /// axis is its conceptual center axis.
     /// </summary>
+    /// <param name="center">The center in the query coordinate space.</param>
+    /// <param name="rotation">The normalized quaternion from local coordinates to world coordinates.</param>
+    /// <param name="axisLength">The full nonnegative length of the central segment. Zero makes the core a point.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="direction">The world-space direction used to select support. Its magnitude is used as supplied.</param>
+    /// <returns>A support anchor retaining the selected shape-local feature and its world frame.</returns>
+    /// <exception cref="ArgumentException"><paramref name="rotation"/> is not normalized.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="axisLength"/> is negative or <paramref name="radius"/> is negative.
+    /// </exception>
     /// <remarks>
     /// The rigid frame remains authoritative, so support construction does not
     /// feed the rounded derived world axis back into the geometry. The
@@ -309,6 +444,20 @@ public partial struct FixedSegment
     /// Attempts to materialize the support point of a conceptual centered
     /// finite cylinder in a world-space direction.
     /// </summary>
+    /// <param name="center">The center in the query coordinate space.</param>
+    /// <param name="axisDirection">The normalized axis direction in world coordinates.</param>
+    /// <param name="axisLength">The full positive distance between the cap centers.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="direction">The world-space direction used to select support. Its magnitude is used as supplied.</param>
+    /// <param name="support">The selected support point in world coordinates on success.</param>
+    /// <returns>
+    /// <see langword="true"/> when the requested rounded result is representable and <see langword="false"/>
+    /// otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException"><paramref name="axisDirection"/> is not normalized.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="axisLength"/> is not positive or <paramref name="radius"/> is negative.
+    /// </exception>
     /// <remarks>
     /// The direction need not be normalized. A zero direction and an exact
     /// axial tie select the negative cap center. A direction parallel to the
@@ -342,6 +491,19 @@ public partial struct FixedSegment
     /// Attempts to return the support offset of a conceptual centered finite
     /// cylinder relative to its center.
     /// </summary>
+    /// <param name="axisDirection">The normalized axis direction in world coordinates.</param>
+    /// <param name="axisLength">The full positive distance between the cap centers.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="direction">The world-space direction used to select support. Its magnitude is used as supplied.</param>
+    /// <param name="supportOffset">The selected support point relative to the center, expressed along world axes on success.</param>
+    /// <returns>
+    /// <see langword="true"/> when the requested rounded result is representable and <see langword="false"/>
+    /// otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException"><paramref name="axisDirection"/> is not normalized.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="axisLength"/> is not positive or <paramref name="radius"/> is negative.
+    /// </exception>
     public static bool TryGetCenteredFiniteCylinderSupportOffset(
         Vector3d axisDirection,
         Fixed64 axisLength,
@@ -369,6 +531,16 @@ public partial struct FixedSegment
     /// Returns the support anchor of a centered finite cylinder whose local
     /// positive Y axis is its conceptual center axis.
     /// </summary>
+    /// <param name="center">The center in the query coordinate space.</param>
+    /// <param name="rotation">The normalized quaternion from local coordinates to world coordinates.</param>
+    /// <param name="axisLength">The full positive distance between the cap centers.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="direction">The world-space direction used to select support. Its magnitude is used as supplied.</param>
+    /// <returns>A support anchor retaining the selected shape-local feature and its world frame.</returns>
+    /// <exception cref="ArgumentException"><paramref name="rotation"/> is not normalized.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="axisLength"/> is not positive or <paramref name="radius"/> is negative.
+    /// </exception>
     /// <remarks>
     /// The rigid frame remains authoritative. Axial full-length/2 and radial
     /// direction-times-radius terms remain exact through final world-point or
@@ -404,6 +576,20 @@ public partial struct FixedSegment
     /// Attempts to materialize the support point of a conceptual centered
     /// finite cone in a world-space direction.
     /// </summary>
+    /// <param name="center">The center in the query coordinate space.</param>
+    /// <param name="axisDirection">The normalized axis direction in world coordinates.</param>
+    /// <param name="height">The full positive distance from the cone apex to its base center.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="direction">The world-space direction used to select support. Its magnitude is used as supplied.</param>
+    /// <param name="support">The selected support point in world coordinates on success.</param>
+    /// <returns>
+    /// <see langword="true"/> when the requested rounded result is representable and <see langword="false"/>
+    /// otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException"><paramref name="axisDirection"/> is not normalized.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="height"/> is not positive or <paramref name="radius"/> is negative.
+    /// </exception>
     /// <remarks>
     /// The axis points from the base toward the apex. The direction need not
     /// be normalized. Equal apex and base projections, including a zero
@@ -437,6 +623,19 @@ public partial struct FixedSegment
     /// Attempts to return the support offset of a conceptual centered finite
     /// cone relative to its center.
     /// </summary>
+    /// <param name="axisDirection">The normalized axis direction in world coordinates.</param>
+    /// <param name="height">The full positive distance from the cone apex to its base center.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="direction">The world-space direction used to select support. Its magnitude is used as supplied.</param>
+    /// <param name="supportOffset">The selected support point relative to the center, expressed along world axes on success.</param>
+    /// <returns>
+    /// <see langword="true"/> when the requested rounded result is representable and <see langword="false"/>
+    /// otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException"><paramref name="axisDirection"/> is not normalized.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="height"/> is not positive or <paramref name="radius"/> is negative.
+    /// </exception>
     public static bool TryGetCenteredFiniteConeSupportOffset(
         Vector3d axisDirection,
         Fixed64 height,
@@ -464,6 +663,16 @@ public partial struct FixedSegment
     /// Returns the support point of a centered finite cone as a local point in
     /// its rigid frame without materializing an absolute world coordinate.
     /// </summary>
+    /// <param name="center">The center in the query coordinate space.</param>
+    /// <param name="rotation">The normalized quaternion from local coordinates to world coordinates.</param>
+    /// <param name="height">The full positive distance from the cone apex to its base center.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="direction">The world-space direction used to select support. Its magnitude is used as supplied.</param>
+    /// <returns>A support anchor retaining the selected shape-local feature and its world frame.</returns>
+    /// <exception cref="ArgumentException"><paramref name="rotation"/> is not normalized.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="height"/> is not positive or <paramref name="radius"/> is negative.
+    /// </exception>
     /// <remarks>
     /// The cone's local positive Y axis points from the base toward the apex.
     /// The direction need not be normalized. Equal apex and base projections,
@@ -500,6 +709,16 @@ public partial struct FixedSegment
     /// canonical axis frame without materializing an absolute world
     /// coordinate.
     /// </summary>
+    /// <param name="center">The center in the query coordinate space.</param>
+    /// <param name="axisDirection">The normalized axis direction in world coordinates.</param>
+    /// <param name="height">The full positive distance from the cone apex to its base center.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="direction">The world-space direction used to select support. Its magnitude is used as supplied.</param>
+    /// <returns>A support anchor retaining the selected shape-local feature and its world frame.</returns>
+    /// <exception cref="ArgumentException"><paramref name="axisDirection"/> is not normalized.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="height"/> is not positive or <paramref name="radius"/> is negative.
+    /// </exception>
     public static FixedPointAnchor GetCenteredFiniteConeSupportAnchor(
         Vector3d center,
         Vector3d axisDirection,
@@ -541,6 +760,10 @@ public partial struct FixedSegment
     /// <see langword="true"/> to exclude the side and both flat caps;
     /// otherwise, boundaries are included.
     /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the point satisfies the requested containment test and <see langword="false"/>
+    /// otherwise.
+    /// </returns>
     /// <exception cref="ArgumentException">
     /// <paramref name="axisDirection"/> is zero or not normalized.
     /// </exception>
@@ -590,6 +813,15 @@ public partial struct FixedSegment
     /// <param name="strict">
     /// <see langword="true"/> to exclude every expanded boundary.
     /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the point satisfies the requested containment test and <see langword="false"/>
+    /// otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException"><paramref name="axisDirection"/> is not normalized.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="axisLength"/> is not positive, <paramref name="radius"/> is negative,
+    /// <paramref name="axialTolerance"/> is negative, or <paramref name="radialTolerance"/> is negative.
+    /// </exception>
     public static bool ContainsPointInCenteredFiniteCylinder(
         Vector3d point,
         Vector3d center,
@@ -622,11 +854,16 @@ public partial struct FixedSegment
             strict);
     }
 
-    /// <summary>
-    /// Returns the rounded nonnegative distance from a point to a conceptual
-    /// centered capsule surface, saturating to <see cref="Fixed64.MaxValue"/>
-    /// when the distance is not representable.
-    /// </summary>
+    /// <summary>Measures the nonnegative distance to a closed centered capsule.</summary>
+    /// <param name="point">The point in the query coordinate space.</param>
+    /// <param name="center">The center in the query coordinate space.</param>
+    /// <param name="axisDirection">The normalized axis direction in world coordinates.</param>
+    /// <param name="axisLength">The full nonnegative length of the central segment. Zero makes the core a point.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <returns>
+    /// The rounded distance to the closed capsule, zero for a contained point, or <see cref="Fixed64.MaxValue"/>
+    /// for an unrepresentable distance.
+    /// </returns>
     /// <remarks>
     /// The final value uses round-half-to-even. Points inside or on the capsule
     /// return zero.
@@ -659,6 +896,12 @@ public partial struct FixedSegment
     /// Attempts to return the rounded nonnegative distance from a point to a
     /// conceptual centered capsule surface.
     /// </summary>
+    /// <param name="point">The point in the query coordinate space.</param>
+    /// <param name="center">The center in the query coordinate space.</param>
+    /// <param name="axisDirection">The normalized axis direction in world coordinates.</param>
+    /// <param name="axisLength">The full nonnegative length of the central segment. Zero makes the core a point.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="distance">The rounded nonnegative distance in coordinate units on success.</param>
     /// <remarks>The final value uses round-half-to-even.</remarks>
     /// <returns>
     /// True when the final distance is representable; otherwise false and
@@ -696,6 +939,15 @@ public partial struct FixedSegment
     /// <summary>
     /// Returns whether a point lies inside or on a conceptual centered capsule.
     /// </summary>
+    /// <param name="point">The point in the query coordinate space.</param>
+    /// <param name="center">The center in the query coordinate space.</param>
+    /// <param name="axisDirection">The normalized axis direction in world coordinates.</param>
+    /// <param name="axisLength">The full nonnegative length of the central segment. Zero makes the core a point.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <returns>
+    /// <see langword="true"/> when the point is inside or on the boundary of the closed shape and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
     /// <exception cref="ArgumentException">
     /// Thrown when <paramref name="axisDirection"/> is zero or not normalized.
     /// </exception>
@@ -722,6 +974,23 @@ public partial struct FixedSegment
     /// Returns whether a point lies strictly inside or inclusively within a
     /// conceptual centered capsule.
     /// </summary>
+    /// <param name="point">The point in the query coordinate space.</param>
+    /// <param name="center">The center in the query coordinate space.</param>
+    /// <param name="axisDirection">The normalized axis direction in world coordinates.</param>
+    /// <param name="axisLength">The full nonnegative length of the central segment. Zero makes the core a point.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="strict">
+    /// <see langword="true"/> to require strict interior containment. <see langword="false"/> includes the
+    /// boundary.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the point satisfies the requested containment test and <see langword="false"/>
+    /// otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException"><paramref name="axisDirection"/> is not normalized.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="axisLength"/> is negative or <paramref name="radius"/> is negative.
+    /// </exception>
     public static bool ContainsPointInCenteredCapsule(
         Vector3d point,
         Vector3d center,
@@ -742,6 +1011,16 @@ public partial struct FixedSegment
     /// Returns whether a point lies inside or on a conceptual centered capsule,
     /// including a nonnegative radial expansion.
     /// </summary>
+    /// <param name="point">The point in the query coordinate space.</param>
+    /// <param name="center">The center in the query coordinate space.</param>
+    /// <param name="axisDirection">The normalized axis direction in world coordinates.</param>
+    /// <param name="axisLength">The full nonnegative length of the central segment. Zero makes the core a point.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="radiusExpansion">A nonnegative addition to the radius in coordinate units.</param>
+    /// <returns>
+    /// <see langword="true"/> when the point is inside or on the boundary of the closed shape and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
     /// <exception cref="ArgumentException">
     /// Thrown when <paramref name="axisDirection"/> is zero or not normalized.
     /// </exception>
@@ -769,6 +1048,25 @@ public partial struct FixedSegment
     /// Returns whether a point lies strictly inside or inclusively within a
     /// conceptual centered capsule with nonnegative radial expansion.
     /// </summary>
+    /// <param name="point">The point in the query coordinate space.</param>
+    /// <param name="center">The center in the query coordinate space.</param>
+    /// <param name="axisDirection">The normalized axis direction in world coordinates.</param>
+    /// <param name="axisLength">The full nonnegative length of the central segment. Zero makes the core a point.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="radiusExpansion">A nonnegative addition to the radius in coordinate units.</param>
+    /// <param name="strict">
+    /// <see langword="true"/> to require strict interior containment. <see langword="false"/> includes the
+    /// boundary.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the point satisfies the requested containment test and <see langword="false"/>
+    /// otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException"><paramref name="axisDirection"/> is not normalized.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="axisLength"/> is negative, <paramref name="radius"/> is negative, or
+    /// <paramref name="radiusExpansion"/> is negative.
+    /// </exception>
     public static bool ContainsPointInCenteredCapsule(
         Vector3d point,
         Vector3d center,
@@ -799,6 +1097,14 @@ public partial struct FixedSegment
     /// centered finite axis toward <paramref name="point"/>, or zero when the
     /// point lies on that axis.
     /// </summary>
+    /// <param name="point">The point in the query coordinate space.</param>
+    /// <param name="center">The center in the query coordinate space.</param>
+    /// <param name="axisDirection">The normalized axis direction in world coordinates.</param>
+    /// <param name="axisLength">The full nonnegative length of the central segment. Zero makes the core a point.</param>
+    /// <returns>
+    /// The normalized world direction from the closest point on the finite axis toward the query point, or zero for
+    /// a point on the axis.
+    /// </returns>
     /// <remarks>
     /// The conceptual endpoints are
     /// <c>center +/- axisDirection * (axisLength / 2)</c>. They are never
@@ -833,6 +1139,21 @@ public partial struct FixedSegment
     /// <see langword="true"/> when both final world points are representable;
     /// otherwise <see langword="false"/> and both outputs are zero.
     /// </returns>
+    /// <param name="firstCenter">The first shape center in the query coordinate space.</param>
+    /// <param name="firstAxisDirection">The normalized first shape axis in world coordinates.</param>
+    /// <param name="firstAxisLength">The full nonnegative length of the first shape's central segment.</param>
+    /// <param name="secondCenter">The second shape center in the query coordinate space.</param>
+    /// <param name="secondAxisDirection">The normalized second shape axis in world coordinates.</param>
+    /// <param name="secondAxisLength">The full nonnegative length of the second shape's central segment.</param>
+    /// <param name="firstPoint">The closest point on the first axis in world coordinates on success.</param>
+    /// <param name="secondPoint">The closest point on the second axis in world coordinates on success.</param>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="firstAxisDirection"/> is not normalized or <paramref name="secondAxisDirection"/> is not
+    /// normalized.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="firstAxisLength"/> is negative or <paramref name="secondAxisLength"/> is negative.
+    /// </exception>
     public static bool TryGetClosestPointsBetweenCenteredAxes(
         Vector3d firstCenter,
         Vector3d firstAxisDirection,
@@ -868,6 +1189,25 @@ public partial struct FixedSegment
     /// Attempts to return the closest offsets on two conceptual centered
     /// finite axes, each relative to its own center.
     /// </summary>
+    /// <param name="firstCenter">The first shape center in the query coordinate space.</param>
+    /// <param name="firstAxisDirection">The normalized first shape axis in world coordinates.</param>
+    /// <param name="firstAxisLength">The full nonnegative length of the first shape's central segment.</param>
+    /// <param name="secondCenter">The second shape center in the query coordinate space.</param>
+    /// <param name="secondAxisDirection">The normalized second shape axis in world coordinates.</param>
+    /// <param name="secondAxisLength">The full nonnegative length of the second shape's central segment.</param>
+    /// <param name="firstCenterOffset">The closest point on the first axis, relative to its center on success.</param>
+    /// <param name="secondCenterOffset">The closest point on the second axis, relative to its center on success.</param>
+    /// <returns>
+    /// <see langword="true"/> when both selected witnesses can be represented and <see langword="false"/>
+    /// otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="firstAxisDirection"/> is not normalized or <paramref name="secondAxisDirection"/> is not
+    /// normalized.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="firstAxisLength"/> is negative or <paramref name="secondAxisLength"/> is negative.
+    /// </exception>
     /// <remarks>
     /// This relation remains usable when either absolute closest point would
     /// exceed the public scalar coordinate range.
@@ -907,6 +1247,23 @@ public partial struct FixedSegment
     /// Returns the normalized direction from the closest point on the first
     /// conceptual centered axis to the closest point on the second.
     /// </summary>
+    /// <param name="firstCenter">The first shape center in the query coordinate space.</param>
+    /// <param name="firstAxisDirection">The normalized first shape axis in world coordinates.</param>
+    /// <param name="firstAxisLength">The full nonnegative length of the first shape's central segment.</param>
+    /// <param name="secondCenter">The second shape center in the query coordinate space.</param>
+    /// <param name="secondAxisDirection">The normalized second shape axis in world coordinates.</param>
+    /// <param name="secondAxisLength">The full nonnegative length of the second shape's central segment.</param>
+    /// <returns>
+    /// The normalized direction from the closest point on the first axis toward its counterpart on the second, or
+    /// zero for coincident witnesses.
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="firstAxisDirection"/> is not normalized or <paramref name="secondAxisDirection"/> is not
+    /// normalized.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="firstAxisLength"/> is negative or <paramref name="secondAxisLength"/> is negative.
+    /// </exception>
     /// <remarks>
     /// Coincident closest points return zero. The direction is resolved from
     /// the exact wide relation without materializing either world point.
@@ -942,6 +1299,30 @@ public partial struct FixedSegment
     /// Attempts to build the exact contact relation between two conceptual
     /// centered capsules without narrowing either finite axis.
     /// </summary>
+    /// <param name="firstCenter">The first shape center in the query coordinate space.</param>
+    /// <param name="firstRotation">The first shape's normalized local-to-world rotation.</param>
+    /// <param name="firstLocalAxisDirection">The normalized first shape axis in shape-local coordinates.</param>
+    /// <param name="firstAxisLength">The full nonnegative length of the first shape's central segment.</param>
+    /// <param name="firstRadius">The first shape's nonnegative radius in coordinate units.</param>
+    /// <param name="secondCenter">The second shape center in the query coordinate space.</param>
+    /// <param name="secondRotation">The second shape's normalized local-to-world rotation.</param>
+    /// <param name="secondLocalAxisDirection">The normalized second shape axis in shape-local coordinates.</param>
+    /// <param name="secondAxisLength">The full nonnegative length of the second shape's central segment.</param>
+    /// <param name="secondRadius">The second shape's nonnegative radius in coordinate units.</param>
+    /// <param name="fallbackNormal">The normalized world-space normal used when the closest features coincide.</param>
+    /// <param name="contact">
+    /// The paired shape-local witnesses, world normal, and depth on success. Use this result only when the method
+    /// returns <see langword="true"/>.
+    /// </param>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="firstRotation"/> is not normalized, <paramref name="firstLocalAxisDirection"/> is not
+    /// normalized, <paramref name="secondRotation"/> is not normalized, <paramref name="secondLocalAxisDirection"/>
+    /// is not normalized, or <paramref name="fallbackNormal"/> is not normalized.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="firstAxisLength"/> is negative, <paramref name="firstRadius"/> is negative,
+    /// <paramref name="secondAxisLength"/> is negative, or <paramref name="secondRadius"/> is negative.
+    /// </exception>
     /// <remarks>
     /// Each capsule axis is expressed in its normalized rigid frame. The
     /// returned normal points from the first capsule toward the second.

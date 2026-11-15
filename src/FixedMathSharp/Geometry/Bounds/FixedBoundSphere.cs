@@ -53,6 +53,8 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     /// <summary>
     /// Initializes a new instance of the FixedBoundSphere struct with the specified center and radius.
     /// </summary>
+    /// <param name="center">The center in the bound's coordinate space.</param>
+    /// <param name="radius">The radius in coordinate units. Negative values are normalized by absolute value.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public FixedBoundSphere(Vector3d center, Fixed64 radius)
     {
@@ -63,6 +65,7 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     /// <summary>
     /// Initializes a new instance from serialized or caller-provided state.
     /// </summary>
+    /// <param name="state">The bound state to normalize and copy.</param>
     [JsonConstructor]
     public FixedBoundSphere(BoundingSphereState state)
     {
@@ -77,6 +80,7 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     /// <summary>
     /// The center point of the sphere.
     /// </summary>
+    /// <value>The current center in the bound's coordinate space.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Vector3d Center { get; set; }
@@ -84,6 +88,7 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     /// <summary>
     /// The non-negative radius of the sphere. Assigned values are normalized by absolute value.
     /// </summary>
+    /// <value>The nonnegative radius in coordinate units.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Fixed64 Radius
@@ -98,6 +103,7 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     /// <summary>
     /// Gets the coordinates of the minimum corner of the bounding box that contains the sphere.
     /// </summary>
+    /// <value>The componentwise min corner of the enclosing box, clipped to the scalar domain.</value>
     /// <remarks>
     /// The minimum corner is calculated by subtracting the radius from each component of the sphere's center. 
     /// This property is useful for spatial queries and bounding box calculations.
@@ -113,6 +119,7 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     /// <summary>
     /// Gets the coordinates of the maximum corner of the bounding box that contains the sphere.
     /// </summary>
+    /// <value>The componentwise max corner of the enclosing box, clipped to the scalar domain.</value>
     /// <remarks>
     /// The maximum corner is calculated as the center of the sphere plus the radius in each dimension. 
     /// This property is useful for spatial queries and bounding volume calculations.
@@ -128,6 +135,7 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     /// <summary>
     /// Gets the current normalized state of the sphere.
     /// </summary>
+    /// <value>A copy of the current center and normalized radius.</value>
     [JsonInclude]
     [MemoryPackInclude]
     public BoundingSphereState State => new(Center, Radius);
@@ -139,6 +147,8 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     /// <summary>
     /// Creates a bounding sphere that contains the specified axis-aligned bounding box.
     /// </summary>
+    /// <param name="box">The axis-aligned box in the same coordinate space as this sphere.</param>
+    /// <returns>A containing sphere with a radius rounded outward as needed.</returns>
     /// <exception cref="OverflowException">
     /// Thrown when this construction requires an unrepresentable radius.
     /// </exception>
@@ -158,6 +168,8 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     /// <summary>
     /// Creates a bounding sphere that contains the specified frustum.
     /// </summary>
+    /// <param name="frustum">The frustum in the same coordinate space as this sphere.</param>
+    /// <returns>A containing sphere with a radius rounded outward as needed.</returns>
     /// <exception cref="OverflowException">
     /// Thrown when this construction requires an unrepresentable radius.
     /// </exception>
@@ -169,6 +181,14 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     /// <summary>
     /// Creates a bounding sphere that contains the specified points.
     /// </summary>
+    /// <param name="points">
+    /// A nonempty collection of points in a common coordinate space. The collection is read during the call and its
+    /// storage is never retained.
+    /// </param>
+    /// <returns>A containing sphere with a radius rounded outward as needed.</returns>
+    /// <remarks>Non-indexable sequences are enumerated once and materialized.</remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="points"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="points"/> is empty.</exception>
     /// <exception cref="OverflowException">
     /// Thrown when this construction requires an unrepresentable radius.
     /// </exception>
@@ -190,6 +210,13 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     /// <summary>
     /// Creates a bounding sphere that contains the specified points.
     /// </summary>
+    /// <param name="points">
+    /// A nonempty collection of points in a common coordinate space. The collection is read during the call and its
+    /// storage is never retained.
+    /// </param>
+    /// <returns>A containing sphere with a radius rounded outward as needed.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="points"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="points"/> is empty.</exception>
     /// <exception cref="OverflowException">
     /// Thrown when this construction requires an unrepresentable radius.
     /// </exception>
@@ -204,6 +231,12 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     /// <summary>
     /// Creates a bounding sphere that contains the specified points.
     /// </summary>
+    /// <param name="points">
+    /// A nonempty collection of points in a common coordinate space. The collection is read during the call and its
+    /// storage is never retained.
+    /// </param>
+    /// <returns>A containing sphere with a radius rounded outward as needed.</returns>
+    /// <exception cref="ArgumentException"><paramref name="points"/> is empty.</exception>
     /// <exception cref="OverflowException">
     /// Thrown when this construction requires an unrepresentable radius.
     /// </exception>
@@ -215,6 +248,12 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     /// <summary>
     /// Creates a deterministic sphere that contains the two specified spheres.
     /// </summary>
+    /// <param name="original">The first sphere.</param>
+    /// <param name="additional">The second sphere, in the same coordinate space as <paramref name="original"/>.</param>
+    /// <returns>
+    /// A containing sphere. If either input already contains the other, that input is returned, preferring the
+    /// first on equality.
+    /// </returns>
     /// <exception cref="OverflowException">
     /// Thrown when this construction cannot produce a containing sphere with a
     /// representable radius.
@@ -554,6 +593,8 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     /// <summary>
     /// Returns whether the point lies strictly inside this sphere.
     /// </summary>
+    /// <param name="point">The point in the same coordinate space as this sphere.</param>
+    /// <returns><see langword="true"/> when the point lies in the interior and <see langword="false"/> otherwise.</returns>
     /// <remarks>
     /// Boundary points and every point tested against a zero-radius sphere
     /// return <see langword="false"/>.
@@ -566,6 +607,12 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     /// <summary>
     /// Tests a bounding box against this sphere.
     /// </summary>
+    /// <param name="box">The axis-aligned box in the same coordinate space as this sphere.</param>
+    /// <returns>
+    /// <see cref="FixedEnclosureType.Contains"/> if the supplied box is wholly inside, including the boundary,
+    /// <see cref="FixedEnclosureType.Intersects"/> for other overlap or contact, or
+    /// <see cref="FixedEnclosureType.Disjoint"/> for separation.
+    /// </returns>
     public FixedEnclosureType Contains(FixedBoundBox box)
     {
         return ContainsBoxLike(box.Min, box.Max);
@@ -574,6 +621,12 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     /// <summary>
     /// Tests another sphere against this sphere.
     /// </summary>
+    /// <param name="sphere">The sphere in the same coordinate space as this sphere.</param>
+    /// <returns>
+    /// <see cref="FixedEnclosureType.Contains"/> if the supplied sphere is wholly inside, including the boundary,
+    /// <see cref="FixedEnclosureType.Intersects"/> for other overlap or contact, or
+    /// <see cref="FixedEnclosureType.Disjoint"/> for separation.
+    /// </returns>
     public FixedEnclosureType Contains(FixedBoundSphere sphere)
     {
         if (WideGeometry.CompareDistanceToRadiusSum(Center, sphere.Center, Radius, sphere.Radius) > 0)
@@ -594,6 +647,12 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     /// <summary>
     /// Tests a frustum against this sphere.
     /// </summary>
+    /// <param name="frustum">The frustum in the same coordinate space as this sphere.</param>
+    /// <returns>
+    /// <see cref="FixedEnclosureType.Contains"/> if all frustum corners are contained, otherwise the result of the
+    /// frustum's intersection test with this sphere as <see cref="FixedEnclosureType.Intersects"/> or
+    /// <see cref="FixedEnclosureType.Disjoint"/>.
+    /// </returns>
     public FixedEnclosureType Contains(FixedBoundFrustum frustum)
     {
         bool containsAllCorners = true;
@@ -618,24 +677,32 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     /// <summary>
     /// Checks whether a bounding box intersects this sphere, including boundary-only contact.
     /// </summary>
+    /// <param name="box">The axis-aligned box in the same coordinate space as this sphere.</param>
+    /// <returns><see langword="true"/> when the shapes overlap or touch and <see langword="false"/> otherwise.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Intersects(FixedBoundBox box) => Contains(box) != FixedEnclosureType.Disjoint;
 
     /// <summary>
     /// Checks whether another sphere intersects this sphere, including boundary-only contact.
     /// </summary>
+    /// <param name="sphere">The sphere in the same coordinate space as this sphere.</param>
+    /// <returns><see langword="true"/> when the shapes overlap or touch and <see langword="false"/> otherwise.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Intersects(FixedBoundSphere sphere) => Contains(sphere) != FixedEnclosureType.Disjoint;
 
     /// <summary>
     /// Checks whether a bounding box overlaps this sphere with positive volume.
     /// </summary>
+    /// <param name="box">The axis-aligned box in the same coordinate space as this sphere.</param>
+    /// <returns><see langword="true"/> when the shared region has positive volume and <see langword="false"/> otherwise.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool IntersectsStrict(FixedBoundBox box) => box.IntersectsStrict(this);
 
     /// <summary>
     /// Checks whether another sphere overlaps this sphere with positive volume.
     /// </summary>
+    /// <param name="sphere">The sphere in the same coordinate space as this sphere.</param>
+    /// <returns><see langword="true"/> when the shared region has positive volume and <see langword="false"/> otherwise.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool IntersectsStrict(FixedBoundSphere sphere)
     {
@@ -644,9 +711,12 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
             && WideGeometry.CompareDistanceToRadiusSum(Center, sphere.Center, Radius, sphere.Radius) < 0;
     }
 
-    /// <summary>
-    /// Checks whether a frustum intersects this sphere.
-    /// </summary>
+    /// <summary>Tests this bound against all six frustum planes.</summary>
+    /// <param name="frustum">The frustum in the same coordinate space as this sphere.</param>
+    /// <returns>
+    /// <see langword="true"/> when no frustum plane excludes the entire sphere and <see langword="false"/>
+    /// otherwise.
+    /// </returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Intersects(FixedBoundFrustum frustum)
     {
@@ -656,18 +726,29 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     /// <summary>
     /// Classifies this sphere relative to a plane.
     /// </summary>
+    /// <param name="plane">The plane in the same coordinate space as this sphere.</param>
+    /// <returns>
+    /// <see cref="FixedPlaneIntersectionType.Front"/> when wholly in front,
+    /// <see cref="FixedPlaneIntersectionType.Back"/> when wholly behind, or
+    /// <see cref="FixedPlaneIntersectionType.Intersecting"/> if the sphere touches or crosses the plane.
+    /// </returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public FixedPlaneIntersectionType Intersects(FixedPlane plane) => plane.Intersects(this);
 
     /// <summary>
     /// Finds the first forward ray intersection with this sphere.
     /// </summary>
+    /// <param name="ray">The ray in the same coordinate space as this sphere.</param>
+    /// <returns>
+    /// The first nonnegative ray parameter, or <see langword="null"/> when the ray misses. A ray starting inside or
+    /// on the boundary returns zero.
+    /// </returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Fixed64? Intersects(FixedRay ray) => ray.Intersects(this);
 
-    /// <summary>
-    /// Projects a point onto the bounding sphere. If the point is outside the sphere, it returns the closest point on the surface.
-    /// </summary>
+    /// <summary>Projects a point radially onto the sphere surface.</summary>
+    /// <param name="point">The point in the same coordinate space as this sphere.</param>
+    /// <returns>The point on the radial surface toward the supplied point, or the center when the direction is zero.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector3d ProjectPoint(Vector3d point)
     {
@@ -680,6 +761,8 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     /// <summary>
     /// Clamps a point to this sphere, returning the point unchanged when it is already inside the sphere.
     /// </summary>
+    /// <param name="point">The point in the same coordinate space as this sphere.</param>
+    /// <returns>The supplied point if it is contained, or its closest point on the boundary.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector3d ClampPoint(Vector3d point)
     {
@@ -689,19 +772,27 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
         return ProjectPoint(point);
     }
 
-    /// <summary>
-    /// Calculates the distance from a point to the surface of the sphere.
-    /// </summary>
+    /// <summary>Calculates the signed radial distance to the sphere surface.</summary>
     /// <param name="point">The point to calculate the distance from.</param>
-    /// <returns>The distance from the point to the surface of the sphere.</returns>
+    /// <returns>The distance from the center minus the radius. An interior point has a negative result.</returns>
     public Fixed64 DistanceToSurface(Vector3d point)
     {
         return Vector3d.Distance(Center, point) - Radius;
     }
 
-    /// <summary>
-    /// Creates a sphere that contains this sphere transformed by the specified matrix.
-    /// </summary>
+    /// <summary>Transforms the center and scales the radius by the largest basis-vector length.</summary>
+    /// <param name="matrix">
+    /// The matrix applied to the center. An affine transform with orthogonal basis vectors uses its largest axis
+    /// scale.
+    /// </param>
+    /// <returns>
+    /// The transformed center and the original radius multiplied by the largest length among the first three matrix
+    /// rows, using their XYZ components.
+    /// </returns>
+    /// <remarks>
+    /// The radius uses fixed-point multiplication and length calculation. Shear can stretch a direction by more
+    /// than the selected scale.
+    /// </remarks>
     public FixedBoundSphere Transform(Fixed4x4 matrix)
     {
         Vector3d center = Fixed4x4.TransformPoint(matrix, Center);
@@ -713,6 +804,8 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     /// <summary>
     /// Deconstructs this sphere into its center and radius.
     /// </summary>
+    /// <param name="center">The current center.</param>
+    /// <param name="radius">The normalized radius.</param>
     public void Deconstruct(out Vector3d center, out Fixed64 radius)
     {
         center = Center;
@@ -760,15 +853,17 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
 
     #region Operators
 
-    /// <summary>
-    /// Determines whether two FixedBoundSphere instances are equal.
-    /// </summary>
+    /// <summary>Tests whether the stored geometry is equal.</summary>
+    /// <param name="left">The first value to compare.</param>
+    /// <param name="right">The second value to compare.</param>
+    /// <returns><see langword="true"/> when the centers and radii match and <see langword="false"/> otherwise.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator ==(FixedBoundSphere left, FixedBoundSphere right) => left.Equals(right);
 
-    /// <summary>
-    /// Determines whether two FixedBoundSphere instances are not equal.
-    /// </summary>
+    /// <summary>Tests whether the stored geometry is different.</summary>
+    /// <param name="left">The first value to compare.</param>
+    /// <param name="right">The second value to compare.</param>
+    /// <returns><see langword="true"/> when the stored values differ and <see langword="false"/> otherwise.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator !=(FixedBoundSphere left, FixedBoundSphere right) => !left.Equals(right);
 
@@ -776,15 +871,23 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
 
     #region Equality and HashCode Overrides
 
-    /// <inheritdoc/>
+    /// <summary>Compares the stored geometry for equality.</summary>
+    /// <param name="obj">The value to compare with this instance.</param>
+    /// <returns>
+    /// <see langword="true"/> when <paramref name="obj"/> is a <see cref="FixedBoundSphere"/> and the centers and
+    /// radii match and <see langword="false"/> otherwise.
+    /// </returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override bool Equals(object? obj) => obj is FixedBoundSphere other && Equals(other);
 
-    /// <inheritdoc/>
+    /// <summary>Compares the stored geometry for equality.</summary>
+    /// <param name="other">The value to compare with this instance.</param>
+    /// <returns><see langword="true"/> when the centers and radii match and <see langword="false"/> otherwise.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Equals(FixedBoundSphere other) => Center.Equals(other.Center) && Radius.Equals(other.Radius);
 
-    /// <inheritdoc/>
+    /// <summary>Computes a hash code for the stored geometry.</summary>
+    /// <returns>A hash code consistent with structural equality.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override int GetHashCode()
     {
@@ -800,11 +903,17 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     /// <summary>
     /// Returns a string that represents the current FixedBoundSphere.
     /// </summary>
+    /// <returns>The center and radius formatted as a diagnostic string.</returns>
+    /// <remarks>Uses invariant culture and the default scalar format.</remarks>
     public override string ToString() => ToString(null, CultureInfo.InvariantCulture);
 
     /// <summary>
     /// Returns a string that represents the current FixedBoundSphere.
     /// </summary>
+    /// <param name="format">The scalar format for all components, or <see langword="null"/> for the default.</param>
+    /// <param name="formatProvider">The scalar format provider, or <see langword="null"/> for invariant culture.</param>
+    /// <returns>The center and radius formatted as a diagnostic string.</returns>
+    /// <exception cref="FormatException">The scalar format is invalid.</exception>
     public string ToString(string? format, IFormatProvider? formatProvider)
     {
         FixedBoundSphere value = this;
@@ -815,6 +924,14 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     /// <summary>
     /// Formats this sphere into the provided destination buffer.
     /// </summary>
+    /// <param name="destination">
+    /// Caller-owned storage written from its first element. A failed attempt may leave a written prefix.
+    /// </param>
+    /// <param name="charsWritten">The number of characters written on success, or zero on failure.</param>
+    /// <param name="format">The scalar format for all components, or an empty span for the default.</param>
+    /// <param name="provider">The scalar format provider, or <see langword="null"/> for invariant culture.</param>
+    /// <returns><see langword="true"/> when the entire diagnostic string was written and <see langword="false"/> otherwise.</returns>
+    /// <exception cref="FormatException">The scalar format is invalid.</exception>
     public bool TryFormat(
         Span<char> destination,
         out int charsWritten,

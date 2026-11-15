@@ -21,8 +21,8 @@ public partial struct Fixed4x4
     /// <summary>
     /// Creates a translation matrix from the specified 3-dimensional vector.
     /// </summary>
-    /// <param name="position"></param>
     /// <returns>The translation matrix.</returns>
+    /// <param name="position">The translation offsets along X, Y, and Z.</param>
     public static Fixed4x4 CreateTranslation(Vector3d position)
     {
         Fixed4x4 result = default;
@@ -48,6 +48,10 @@ public partial struct Fixed4x4
     /// <summary>
     /// Creates a translation matrix from the specified coordinates.
     /// </summary>
+    /// <param name="x">The X translation offset.</param>
+    /// <param name="y">The Y translation offset.</param>
+    /// <param name="z">The Z translation offset.</param>
+    /// <returns>A row-vector matrix that applies the specified translation.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed4x4 CreateTranslation(Fixed64 x, Fixed64 y, Fixed64 z) =>
         CreateTranslation(new Vector3d(x, y, z));
@@ -72,30 +76,44 @@ public partial struct Fixed4x4
     /// <summary>
     /// Creates a rotation matrix around the X axis.
     /// </summary>
+    /// <param name="angle">The rotation angle in radians.</param>
+    /// <returns>A row-vector rotation matrix.</returns>
     public static Fixed4x4 CreateRotationX(Fixed64 angle) =>
         FromRotationMatrix(Fixed3x3.CreateRotationX(angle));
 
     /// <summary>
     /// Creates a rotation matrix around the Y axis.
     /// </summary>
+    /// <param name="angle">The rotation angle in radians.</param>
+    /// <returns>A row-vector rotation matrix.</returns>
     public static Fixed4x4 CreateRotationY(Fixed64 angle) =>
         FromRotationMatrix(Fixed3x3.CreateRotationY(angle));
 
     /// <summary>
     /// Creates a rotation matrix around the Z axis.
     /// </summary>
+    /// <param name="angle">The rotation angle in radians.</param>
+    /// <returns>A row-vector rotation matrix.</returns>
     public static Fixed4x4 CreateRotationZ(Fixed64 angle) =>
         FromRotationMatrix(Fixed3x3.CreateRotationZ(angle));
 
     /// <summary>
     /// Creates a rotation matrix from an axis and angle.
     /// </summary>
+    /// <param name="axis">The rotation axis. A nonzero axis is normalized as needed.</param>
+    /// <param name="angle">The rotation angle in radians.</param>
+    /// <returns>A row-vector rotation matrix, or the identity matrix for a zero axis.</returns>
     public static Fixed4x4 CreateFromAxisAngle(Vector3d axis, Fixed64 angle) =>
         CreateRotation(FixedQuaternion.FromAxisAngle(axis, angle));
 
     /// <summary>
     /// Creates a rotation matrix from pitch, yaw, and roll angles in radians.
     /// </summary>
+    /// <param name="pitch">The X rotation in radians.</param>
+    /// <param name="yaw">The Y rotation in radians.</param>
+    /// <param name="roll">The Z rotation in radians.</param>
+    /// <returns>A row-vector rotation matrix.</returns>
+    /// <remarks>The orientation applies roll, pitch, then yaw.</remarks>
     public static Fixed4x4 CreateFromEulerAngles(Fixed64 pitch, Fixed64 yaw, Fixed64 roll) =>
         CreateRotation(FixedQuaternion.FromEulerAngles(pitch, yaw, roll));
 
@@ -114,23 +132,35 @@ public partial struct Fixed4x4
     /// <summary>
     /// Creates a uniform scale matrix.
     /// </summary>
+    /// <param name="scale">The signed scale factor for all three axes.</param>
+    /// <returns>A diagonal matrix with the supplied scale on X, Y, and Z and a homogeneous entry of one.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed4x4 CreateScale(Fixed64 scale) => CreateScale(new Vector3d(scale, scale, scale));
 
     /// <summary>
     /// Creates a non-uniform scale matrix from individual scale components.
     /// </summary>
+    /// <param name="x">The signed X scale factor.</param>
+    /// <param name="y">The signed Y scale factor.</param>
+    /// <param name="z">The signed Z scale factor.</param>
+    /// <returns>A diagonal matrix with the supplied scale factors and a homogeneous entry of one.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed4x4 CreateScale(Fixed64 x, Fixed64 y, Fixed64 z) => CreateScale(new Vector3d(x, y, z));
 
     /// <summary>
-    /// Creates a view matrix looking from a camera position toward a target.
+    /// Constructs a camera matrix from a position, target, and preferred up direction.
     /// </summary>
     /// <remarks>
-    /// The view direction is expressed in FixedMathSharp's canonical <c>+Z</c>-forward basis and
-    /// the resulting matrix follows the row-vector convention used by <see cref="TransformPoint(Fixed4x4, Vector3d)"/>.
-    /// Convert engine-specific camera conventions at adapter boundaries.
+    /// The matrix stores the normalized camera right, up, and forward vectors in rows.
+    /// Its translation is the negative dot product of each basis vector with the camera position.
+    /// For a rotated camera, this layout can map the camera position away from the origin when
+    /// used with <see cref="TransformPoint(Fixed4x4, Vector3d)"/>.
     /// </remarks>
+    /// <param name="cameraPosition">The camera position in world coordinates.</param>
+    /// <param name="cameraTarget">The look target in world coordinates.</param>
+    /// <param name="cameraUpVector">The preferred up direction in world coordinates.</param>
+    /// <returns>An affine matrix with right, up, and forward basis rows and a translation derived from the camera position.</returns>
+    /// <exception cref="ArgumentException">The view direction or its cross product with the up vector has zero squared magnitude.</exception>
     public static Fixed4x4 CreateLookAt(Vector3d cameraPosition, Vector3d cameraTarget, Vector3d cameraUpVector)
     {
         Vector3d forward = cameraTarget - cameraPosition;
@@ -160,6 +190,13 @@ public partial struct Fixed4x4
     /// <summary>
     /// Creates an orthographic projection matrix centered on the origin.
     /// </summary>
+    /// <param name="width">The positive horizontal span in view-space units. Its fixed-point half must be nonzero.</param>
+    /// <param name="height">The positive vertical span in view-space units. Its fixed-point half must be nonzero.</param>
+    /// <param name="zNearPlane">The nonnegative near plane distance along +Z.</param>
+    /// <param name="zFarPlane">The far plane distance along +Z, strictly greater than the near plane distance.</param>
+    /// <returns>A +Z-forward row-vector orthographic matrix using the zero-to-one depth convention.</returns>
+    /// <remarks>Fixed-point rounding and saturation of the coefficients can affect the projected depth.</remarks>
+    /// <exception cref="ArgumentOutOfRangeException">A span is nonpositive or rounds to zero when halved, the near distance is negative, or the far distance is at or below the near distance.</exception>
     public static Fixed4x4 CreateOrthographic(Fixed64 width, Fixed64 height, Fixed64 zNearPlane, Fixed64 zFarPlane)
     {
         if (width <= Fixed64.Zero)
@@ -176,6 +213,15 @@ public partial struct Fixed4x4
     /// <summary>
     /// Creates an off-center orthographic projection matrix.
     /// </summary>
+    /// <param name="left">The X coordinate of the left edge.</param>
+    /// <param name="right">The X coordinate of the right edge. It must differ from the left edge.</param>
+    /// <param name="bottom">The Y coordinate of the bottom edge.</param>
+    /// <param name="top">The Y coordinate of the top edge. It must differ from the bottom edge.</param>
+    /// <param name="zNearPlane">The nonnegative near plane distance along +Z.</param>
+    /// <param name="zFarPlane">The far plane distance along +Z, strictly greater than the near plane distance.</param>
+    /// <returns>A +Z-forward row-vector orthographic matrix using the zero-to-one depth convention.</returns>
+    /// <remarks>Fixed-point rounding and saturation of the coefficients can affect the projected depth.</remarks>
+    /// <exception cref="ArgumentOutOfRangeException">The horizontal or vertical endpoints coincide, the near distance is negative, or the far distance is at or below the near distance.</exception>
     public static Fixed4x4 CreateOrthographicOffCenter(
         Fixed64 left,
         Fixed64 right,
@@ -209,6 +255,13 @@ public partial struct Fixed4x4
     /// <summary>
     /// Creates a perspective projection matrix centered on the near plane.
     /// </summary>
+    /// <param name="width">The positive width of the near plane in view-space units.</param>
+    /// <param name="height">The positive height of the near plane in view-space units.</param>
+    /// <param name="nearPlaneDistance">The positive near plane distance along +Z.</param>
+    /// <param name="farPlaneDistance">The far plane distance along +Z, strictly greater than the near plane distance.</param>
+    /// <returns>A +Z-forward row-vector perspective matrix using the zero-to-one depth convention.</returns>
+    /// <remarks>Fixed-point rounding and saturation of the coefficients can affect the projected depth.</remarks>
+    /// <exception cref="ArgumentOutOfRangeException">The width, height, or near distance is nonpositive, or the far distance is at or below the near distance.</exception>
     public static Fixed4x4 CreatePerspective(
         Fixed64 width,
         Fixed64 height,
@@ -236,6 +289,14 @@ public partial struct Fixed4x4
     /// <summary>
     /// Creates a perspective projection matrix from a vertical field of view.
     /// </summary>
+    /// <param name="fieldOfView">The vertical field of view in radians, strictly between zero and pi.</param>
+    /// <param name="aspectRatio">The positive ratio of width to height.</param>
+    /// <param name="nearPlaneDistance">The positive near plane distance along +Z.</param>
+    /// <param name="farPlaneDistance">The far plane distance along +Z, strictly greater than the near plane distance.</param>
+    /// <returns>A +Z-forward row-vector perspective matrix using the zero-to-one depth convention.</returns>
+    /// <remarks>Fixed-point rounding and saturation of the coefficients can affect the projected depth.</remarks>
+    /// <exception cref="ArgumentOutOfRangeException">The field of view is outside its open interval, the aspect ratio or near distance is nonpositive, or the far distance is at or below the near distance.</exception>
+    /// <exception cref="DivideByZeroException">The tangent of the fixed-point half angle is zero.</exception>
     public static Fixed4x4 CreatePerspectiveFieldOfView(
         Fixed64 fieldOfView,
         Fixed64 aspectRatio,
@@ -264,6 +325,15 @@ public partial struct Fixed4x4
     /// <summary>
     /// Creates an off-center perspective projection matrix.
     /// </summary>
+    /// <param name="left">The X coordinate of the left near-plane edge.</param>
+    /// <param name="right">The X coordinate of the right near-plane edge. It must differ from the left edge.</param>
+    /// <param name="bottom">The Y coordinate of the bottom near-plane edge.</param>
+    /// <param name="top">The Y coordinate of the top near-plane edge. It must differ from the bottom edge.</param>
+    /// <param name="nearPlaneDistance">The positive near plane distance along +Z.</param>
+    /// <param name="farPlaneDistance">The far plane distance along +Z, strictly greater than the near plane distance.</param>
+    /// <returns>A +Z-forward row-vector perspective matrix using the zero-to-one depth convention.</returns>
+    /// <remarks>Fixed-point rounding and saturation of the coefficients can affect the projected depth.</remarks>
+    /// <exception cref="ArgumentOutOfRangeException">The horizontal or vertical endpoints coincide, the near distance is nonpositive, or the far distance is at or below the near distance.</exception>
     public static Fixed4x4 CreatePerspectiveOffCenter(
         Fixed64 left,
         Fixed64 right,
@@ -303,6 +373,11 @@ public partial struct Fixed4x4
     /// in FixedMathSharp's canonical coordinate space. The returned matrix stores right, up, and
     /// forward basis rows for row-vector transforms.
     /// </remarks>
+    /// <param name="position">The local origin in world coordinates.</param>
+    /// <param name="forward">The desired +Z direction in world coordinates.</param>
+    /// <param name="up">The preferred +Y direction in world coordinates.</param>
+    /// <returns>The row-vector local-to-world matrix with an orthonormal basis, to fixed-point precision.</returns>
+    /// <exception cref="ArgumentException">The forward direction or its cross product with the up vector has zero squared magnitude.</exception>
     public static Fixed4x4 CreateWorld(Vector3d position, Vector3d forward, Vector3d up)
     {
         if (forward.MagnitudeSquared == Fixed64.Zero)
@@ -325,20 +400,16 @@ public partial struct Fixed4x4
     }
 
     /// <summary>
-    /// Constructs a transformation matrix from translation, scale, and rotation.
-    /// This method ensures that the rotation is properly normalized, applies the scale to the
-    /// rotational basis, and sets the translation component separately.
+    /// Builds an affine matrix that applies local scale, then rotation, then translation.
     /// </summary>
     /// <remarks>
-    /// - Quaternion magnitude does not affect the rotation matrix; zero represents identity.
-    /// - Applies non-uniform scaling to the rotation before setting translation.
-    /// - Preferred when ensuring transformations remain mathematically correct.
-    /// - For explicit matrix-composition order, see <see cref="ScaleRotateTranslate"/>.
+    /// Quaternion magnitude does not affect the rotation matrix. A zero quaternion represents identity.
+    /// Use <see cref="TranslateRotateScale"/> to apply the offset before rotation and scaling.
     /// </remarks>
-    /// <param name="translation">The translation vector.</param>
-    /// <param name="scale">The scale vector.</param>
-    /// <param name="rotation">The rotation quaternion.</param>
-    /// <returns>A transformation matrix incorporating translation, rotation, and scale.</returns>
+    /// <param name="translation">The offset in the output space.</param>
+    /// <param name="rotation">The rotation to apply after scaling.</param>
+    /// <param name="scale">The signed scale factors along the input X, Y, and Z axes.</param>
+    /// <returns>The composed row-vector affine transform.</returns>
     public static Fixed4x4 CreateTransform(Vector3d translation, FixedQuaternion rotation, Vector3d scale) =>
         CreateTransform(translation, rotation.ToMatrix3x3(), scale);
 
@@ -378,32 +449,23 @@ public partial struct Fixed4x4
         return true;
     }
 
-    /// <summary>
-    /// Constructs a transformation matrix from translation, rotation, and scale by multiplying
-    /// separate matrices in the order: Scale * Rotation * Translation.
-    /// </summary>
-    /// <remarks>
-    /// - This method directly multiplies the scale, rotation, and translation matrices.
-    /// - Ensures that scale is applied first to preserve correct axis scaling.
-    /// - Then rotation is applied so that rotation is not affected by non-uniform scaling.
-    /// - Finally, translation moves the object to its correct world position.
-    /// </remarks>
+    /// <inheritdoc cref="CreateTransform(Vector3d, FixedQuaternion, Vector3d)"/>
     public static Fixed4x4 ScaleRotateTranslate(Vector3d translation, FixedQuaternion rotation, Vector3d scale)
     {
         return CreateTransform(translation, rotation, scale);
     }
 
     /// <summary>
-    /// Constructs a transformation matrix from translation, rotation, and scale by multiplying
-    /// matrices in the order: Translation * Rotation * Scale (T * R * S).
+    /// Builds an affine matrix that applies translation, then rotation, then scale.
     /// </summary>
     /// <remarks>
-    /// - Use this method when transformations need to be applied **relative to an object's local origin**.
-    /// - Example use cases include **animation systems**, **hierarchical transformations**, and **UI transformations**.
-    /// - If you need to apply world-space transformations, use
-    ///   <see cref="CreateTransform(Vector3d, FixedQuaternion, Vector3d)"/> instead.
-    /// - Quaternion magnitude does not affect the rotation matrix; zero represents identity.
+    /// The composed translation row includes the effects of rotation and scale on the input offset.
+    /// Use <see cref="CreateTransform(Vector3d, FixedQuaternion, Vector3d)"/> to apply the offset last.
     /// </remarks>
+    /// <param name="translation">The offset applied before rotation and scale.</param>
+    /// <param name="rotation">The rotation to apply after translation. A zero quaternion represents identity.</param>
+    /// <param name="scale">The signed scale factors along the final X, Y, and Z axes.</param>
+    /// <returns>A row-vector matrix that applies translation, rotation, then scale.</returns>
     public static Fixed4x4 TranslateRotateScale(Vector3d translation, FixedQuaternion rotation, Vector3d scale)
     {
         Fixed3x3 rotationMatrix = rotation.ToMatrix3x3();

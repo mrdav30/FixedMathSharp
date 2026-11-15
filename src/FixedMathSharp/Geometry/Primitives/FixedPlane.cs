@@ -42,6 +42,8 @@ public partial struct FixedPlane : IEquatable<FixedPlane>
     /// <summary>
     /// Initializes a new plane from a normal and distance component.
     /// </summary>
+    /// <param name="normal">The normal in plane coordinates. The constructor retains its magnitude.</param>
+    /// <param name="d">The constant in the plane equation <c>dot(Normal, point) + D = 0</c>.</param>
     [JsonConstructor]
     public FixedPlane(Vector3d normal, Fixed64 d)
     {
@@ -52,6 +54,10 @@ public partial struct FixedPlane : IEquatable<FixedPlane>
     /// <summary>
     /// Initializes a new plane from the normal components and distance component.
     /// </summary>
+    /// <param name="x">The X component of the normal.</param>
+    /// <param name="y">The Y component of the normal.</param>
+    /// <param name="z">The Z component of the normal.</param>
+    /// <param name="d">The constant in the plane equation <c>dot(Normal, point) + D = 0</c>.</param>
     public FixedPlane(Fixed64 x, Fixed64 y, Fixed64 z, Fixed64 d)
         : this(new Vector3d(x, y, z), d)
     {
@@ -60,6 +66,9 @@ public partial struct FixedPlane : IEquatable<FixedPlane>
     /// <summary>
     /// Initializes a new plane that contains the specified points.
     /// </summary>
+    /// <param name="a">The first point on the plane in winding order.</param>
+    /// <param name="b">The second point on the plane.</param>
+    /// <param name="c">The third point, noncollinear with the first two for a valid plane.</param>
     public FixedPlane(Vector3d a, Vector3d b, Vector3d c)
     {
         Vector3d ab = b - a;
@@ -72,6 +81,8 @@ public partial struct FixedPlane : IEquatable<FixedPlane>
     /// <summary>
     /// Initializes a new plane that contains the specified point with the specified normal.
     /// </summary>
+    /// <param name="pointOnPlane">A point on the plane in the same coordinate space as the normal.</param>
+    /// <param name="normal">The normal in plane coordinates. The constructor retains its magnitude.</param>
     public FixedPlane(Vector3d pointOnPlane, Vector3d normal)
     {
         Normal = normal;
@@ -85,6 +96,8 @@ public partial struct FixedPlane : IEquatable<FixedPlane>
     /// <summary>
     /// Gets the dot product of the specified coordinate and this plane.
     /// </summary>
+    /// <param name="value">The point in the plane's coordinate space.</param>
+    /// <returns>The plane equation evaluated at the point. With a unit normal, this is a signed distance.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Fixed64 DotCoordinate(Vector3d value)
     {
@@ -94,6 +107,8 @@ public partial struct FixedPlane : IEquatable<FixedPlane>
     /// <summary>
     /// Gets the dot product of the specified vector and this plane's normal.
     /// </summary>
+    /// <param name="value">The vector in the same coordinate space as the normal.</param>
+    /// <returns>The signed dot product with the normal, independent of the plane's constant term.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Fixed64 DotNormal(Vector3d value)
     {
@@ -101,16 +116,28 @@ public partial struct FixedPlane : IEquatable<FixedPlane>
     }
 
     /// <summary>
-    /// Normalizes this plane in place.
+    /// Rescales this plane in place using the reciprocal of its normal length.
     /// </summary>
+    /// <exception cref="ArithmeticException">The normal length is zero.</exception>
+    /// <remarks>
+    /// Uses the rounded, saturating scale of <see cref="GetNormalized(FixedPlane)"/>.
+    /// The plane is replaced only after the calculation succeeds.
+    /// </remarks>
     public void NormalizeInPlace()
     {
         this = GetNormalized(this);
     }
 
     /// <summary>
-    /// Gets a normalized copy of the specified plane.
+    /// Rescales a plane using the reciprocal of its normal length.
     /// </summary>
+    /// <param name="value">The plane to normalize.</param>
+    /// <returns>A copy with both the normal and constant term multiplied by the fixed-point reciprocal.</returns>
+    /// <remarks>
+    /// The reciprocal and products use rounded, saturating fixed-point arithmetic. In particular,
+    /// a very small normal length can saturate the reciprocal and produce a normal shorter than one.
+    /// </remarks>
+    /// <exception cref="ArithmeticException">The normal length is zero.</exception>
     public static FixedPlane GetNormalized(FixedPlane value)
     {
         Fixed64 length = value.Normal.Magnitude;
@@ -125,6 +152,12 @@ public partial struct FixedPlane : IEquatable<FixedPlane>
     /// <summary>
     /// Classifies a bounding box relative to this plane.
     /// </summary>
+    /// <param name="box">The box in the same coordinate space as this instance.</param>
+    /// <returns>
+    /// <see cref="FixedPlaneIntersectionType.Front"/> on the positive side,
+    /// <see cref="FixedPlaneIntersectionType.Back"/> on the negative side, or
+    /// <see cref="FixedPlaneIntersectionType.Intersecting"/> for touching or crossing.
+    /// </returns>
     public FixedPlaneIntersectionType Intersects(FixedBoundBox box)
     {
         return IntersectsBoxLike(box.Min, box.Max);
@@ -133,6 +166,13 @@ public partial struct FixedPlane : IEquatable<FixedPlane>
     /// <summary>
     /// Classifies a bounding sphere relative to this plane.
     /// </summary>
+    /// <param name="sphere">The sphere in the same coordinate space as this instance.</param>
+    /// <returns>
+    /// <see cref="FixedPlaneIntersectionType.Front"/> on the positive side,
+    /// <see cref="FixedPlaneIntersectionType.Back"/> on the negative side, or
+    /// <see cref="FixedPlaneIntersectionType.Intersecting"/> for touching or crossing.
+    /// </returns>
+    /// <remarks>The radius comparison assumes a unit-length plane normal.</remarks>
     public FixedPlaneIntersectionType Intersects(FixedBoundSphere sphere)
     {
         Fixed64 distance = DotCoordinate(sphere.Center);
@@ -185,6 +225,8 @@ public partial struct FixedPlane : IEquatable<FixedPlane>
     /// <summary>
     /// Deconstructs the plane into its normal and distance components.
     /// </summary>
+    /// <param name="normal">The stored normal vector.</param>
+    /// <param name="d">The stored constant term.</param>
     public void Deconstruct(out Vector3d normal, out Fixed64 d)
     {
         normal = Normal;
@@ -195,15 +237,17 @@ public partial struct FixedPlane : IEquatable<FixedPlane>
 
     #region Operators
 
-    /// <summary>
-    /// Determines whether two planes are equal.
-    /// </summary>
+    /// <summary>Tests whether the stored geometry is equal.</summary>
+    /// <param name="left">The first value to compare.</param>
+    /// <param name="right">The second value to compare.</param>
+    /// <returns><see langword="true"/> when the normals and constant terms match and <see langword="false"/> otherwise.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator ==(FixedPlane left, FixedPlane right) => left.Equals(right);
 
-    /// <summary>
-    /// Determines whether two planes are not equal.
-    /// </summary>
+    /// <summary>Tests whether the stored geometry is different.</summary>
+    /// <param name="left">The first value to compare.</param>
+    /// <param name="right">The second value to compare.</param>
+    /// <returns><see langword="true"/> when the stored values differ and <see langword="false"/> otherwise.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator !=(FixedPlane left, FixedPlane right) => !left.Equals(right);
 
@@ -211,15 +255,23 @@ public partial struct FixedPlane : IEquatable<FixedPlane>
 
     #region Equality
 
-    /// <inheritdoc/>
+    /// <summary>Compares the stored geometry for equality.</summary>
+    /// <param name="obj">The value to compare with this instance.</param>
+    /// <returns>
+    /// <see langword="true"/> when <paramref name="obj"/> is a <see cref="FixedPlane"/> and the normals and
+    /// constant terms match and <see langword="false"/> otherwise.
+    /// </returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override bool Equals(object? obj) => obj is FixedPlane other && Equals(other);
 
-    /// <inheritdoc/>
+    /// <summary>Compares the stored geometry for equality.</summary>
+    /// <param name="other">The value to compare with this instance.</param>
+    /// <returns><see langword="true"/> when the normals and constant terms match and <see langword="false"/> otherwise.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Equals(FixedPlane other) => Normal.Equals(other.Normal) && D.Equals(other.D);
 
-    /// <inheritdoc/>
+    /// <summary>Computes a hash code for the stored geometry.</summary>
+    /// <returns>A hash code consistent with structural equality.</returns>
     public override int GetHashCode()
     {
         unchecked

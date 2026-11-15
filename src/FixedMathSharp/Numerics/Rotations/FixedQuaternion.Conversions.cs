@@ -17,16 +17,9 @@ public partial struct FixedQuaternion
 {
     #region Conversion
 
-    /// <summary>
-    /// Converts this quaternion to Euler angles in degrees.
-    /// Returns angles as (pitch, yaw, roll), where:
-    /// pitch = rotation around X
-    /// yaw   = rotation around Y
-    /// roll  = rotation around Z
-    /// 
-    /// The extraction matches FromEulerAngles(), which composes rotations in YXZ order:
-    /// q = qy * qx * qz
-    /// </summary>
+    /// <summary>Converts this rotation to YXZ Euler angles.</summary>
+    /// <returns>Pitch about X, yaw about Y, and roll about Z, in degrees and stored in X, Y, Z order.</returns>
+    /// <remarks>The extraction corresponds to the composition <c>qy * qx * qz</c>. At gimbal lock, the method sets roll to zero and chooses a corresponding yaw.</remarks>
     public Vector3d ToEulerAngles()
     {
         Fixed3x3 m = ToMatrix3x3();
@@ -66,14 +59,9 @@ public partial struct FixedQuaternion
             FixedMath.RadToDeg(roll));
     }
 
-    /// <summary>
-    /// Converts this FixedQuaternion to the rotated canonical forward direction.
-    /// </summary>
-    /// <remarks>
-    /// The identity quaternion returns <see cref="Vector3d.Forward"/> because FixedMathSharp's
-    /// canonical 3D forward direction is <c>+Z</c>.
-    /// </remarks>
-    /// <returns>A Vector3d representing the rotated canonical forward direction.</returns>
+    /// <summary>Expresses canonical forward in the local axes of a rotation.</summary>
+    /// <returns>For a unit quaternion, the inverse-rotated <see cref="Vector3d.Forward"/> direction.</returns>
+    /// <remarks>The formula uses the supplied components directly. Normalize nonunit quaternions before using the result as a rotation direction. Zero returns canonical forward.</remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector3d ToDirection() =>
         new(2 * (X * Z - W * Y),
@@ -144,6 +132,10 @@ public partial struct FixedQuaternion
     /// <summary>
     /// Deconstructs the quaternion into its four Fixed64 components.
     /// </summary>
+    /// <param name="x">The fixed-point X component.</param>
+    /// <param name="y">The fixed-point Y component.</param>
+    /// <param name="z">The fixed-point Z component.</param>
+    /// <param name="w">The fixed-point W component.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Deconstruct(out Fixed64 x, out Fixed64 y, out Fixed64 z, out Fixed64 w)
     {
@@ -156,6 +148,10 @@ public partial struct FixedQuaternion
     /// <summary>
     /// Deconstructs the quaternion into its four int components.
     /// </summary>
+    /// <param name="x">The X component rounded to the nearest integer with ties to even.</param>
+    /// <param name="y">The Y component rounded to the nearest integer with ties to even.</param>
+    /// <param name="z">The Z component rounded to the nearest integer with ties to even.</param>
+    /// <param name="w">The W component rounded to the nearest integer with ties to even.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Deconstruct(out int x, out int y, out int z, out int w)
     {
@@ -168,6 +164,10 @@ public partial struct FixedQuaternion
     /// <summary>
     /// Deconstructs the quaternion into its four long components.
     /// </summary>
+    /// <param name="x">The signed 64-bit raw Q32.32 payload of the X component.</param>
+    /// <param name="y">The signed 64-bit raw Q32.32 payload of the Y component.</param>
+    /// <param name="z">The signed 64-bit raw Q32.32 payload of the Z component.</param>
+    /// <param name="w">The signed 64-bit raw Q32.32 payload of the W component.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Deconstruct(out long x, out long y, out long z, out long w)
     {
@@ -180,6 +180,10 @@ public partial struct FixedQuaternion
     /// <summary>
     /// Deconstructs the quaternion into its four double components.
     /// </summary>
+    /// <param name="x">The double-precision approximation of the X component.</param>
+    /// <param name="y">The double-precision approximation of the Y component.</param>
+    /// <param name="z">The double-precision approximation of the Z component.</param>
+    /// <param name="w">The double-precision approximation of the W component.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Deconstruct(out double x, out double y, out double z, out double w)
     {

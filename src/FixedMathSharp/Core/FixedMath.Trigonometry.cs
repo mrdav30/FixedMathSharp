@@ -34,11 +34,7 @@ public static partial class FixedMath
     /// <summary>
     /// Provides a lookup table of integer powers of 10 from 10^0 to 10^9.
     /// </summary>
-    /// <remarks>
-    /// This array can be used to efficiently retrieve the value of 10 raised to an integer
-    /// exponent within the supported range, avoiding repeated calculations. 
-    /// The index corresponds to the exponent.
-    /// </remarks>
+    /// <value>A read-only view over the shared table. Each index is the exponent. Calls do not invalidate the view.</value>
     public static ReadOnlySpan<int> Pow10Lookup => s_pow10Lookup;
 
     // Trigonometric and logarithmic constants
@@ -93,6 +89,7 @@ public static partial class FixedMath
     /// Consumers that propagate sine/cosine error through rotations must
     /// also account for their own multiply, add, and normalization error.
     /// </remarks>
+    /// <value>2,048 raw units of absolute error for the canonical angle range.</value>
     public static Fixed64 CanonicalSinCosErrorBound => Fixed64.FromRaw(DEFAULT_TOLERANCE_L * 8);
 
     private static readonly long[] s_pow2PositiveFractionLookup =
@@ -186,15 +183,16 @@ public static partial class FixedMath
     #region FixedTrigonometry Operations
 
     /// <summary>
-    /// Raises the base number b to the power of exp.
-    /// Uses logarithms to compute power efficiently for fixed-point values.
+    /// Raises a nonnegative fixed-point base to a fixed-point power.
     /// </summary>
-    /// <exception cref="DivideByZeroException">
-    /// The base was Fixed64.Zero, with a negative expFixed64.Onent
-    /// </exception>
-    /// <exception cref="ArgumentOutOfRangeException">
-    /// The base was negative, with a non-Fixed64.Zero expFixed64.Onent
-    /// </exception>
+    /// <param name="b">The base. A negative base is accepted only with a zero exponent.</param>
+    /// <param name="exp">The exponent.</param>
+    /// <returns>
+    /// One for a zero exponent, zero for a zero base with a positive exponent,
+    /// and the fixed-point power otherwise. Positive bases use <see cref="Log2(Fixed64)"/> and <see cref="Pow2(Fixed64)"/>.
+    /// </returns>
+    /// <exception cref="DivideByZeroException"><paramref name="b"/> is zero and <paramref name="exp"/> is negative.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="b"/> is negative and <paramref name="exp"/> is nonzero.</exception>
     public static Fixed64 Pow(Fixed64 b, Fixed64 exp)
     {
         if (b == Fixed64.One)
@@ -216,9 +214,10 @@ public static partial class FixedMath
     }
 
     /// <summary>
-    /// Raises 2 to the power of x.
-    /// Provides high accuracy for small values of x.
+    /// Raises two to a fixed-point power.
     /// </summary>
+    /// <param name="x">The exponent.</param>
+    /// <returns>The approximate power. Exponents at least 31 return <see cref="Fixed64.MaxValue"/> and exponents at most −32 return <see cref="Fixed64.MinIncrement"/>.</returns>
     public static Fixed64 Pow2(Fixed64 x)
     {
         if (x.m_rawValue == 0)
@@ -253,9 +252,11 @@ public static partial class FixedMath
     }
 
     /// <summary>
-    /// Returns the base-2 logarithm of a specified number.
-    /// Provides at least 9 decimals of accuracy.
+    /// Computes the base-2 logarithm.
     /// </summary>
+    /// <param name="x">The positive value whose logarithm is computed.</param>
+    /// <returns>The approximate base-2 logarithm of <paramref name="x"/>.</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="x"/> is zero or negative.</exception>
     /// <remarks>
     /// This implementation is based on Clay. S. Turner's fast binary logarithm algorithm 
     /// (C. S. Turner,  "A Fast Binary Logarithm Algorithm", IEEE Signal Processing Mag., pp. 124,140, Sep. 2010.)
@@ -292,9 +293,11 @@ public static partial class FixedMath
     }
 
     /// <summary>
-    /// Returns the natural logarithm of a specified fixed-point number.
-    /// Provides at least 7 decimals of accuracy.
+    /// Computes the natural logarithm.
     /// </summary>
+    /// <param name="x">The positive value whose logarithm is computed.</param>
+    /// <returns>The approximate natural logarithm of <paramref name="x"/>.</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="x"/> is zero or negative.</exception>
     public static Fixed64 Ln(Fixed64 x)
     {
         if (x.m_rawValue <= 0)
@@ -374,6 +377,9 @@ public static partial class FixedMath
     /// <summary>
     /// Returns the square root of a specified fixed-point number.
     /// </summary>
+    /// <param name="x">The nonnegative radicand.</param>
+    /// <returns>The nonnegative fixed-point square root.</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="x"/> is negative.</exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 Sqrt(Fixed64 x)
     {
@@ -436,6 +442,8 @@ public static partial class FixedMath
     /// <summary>
     /// Converts a value in radians to degrees.
     /// </summary>
+    /// <param name="rad">The angle in radians.</param>
+    /// <returns>The equivalent angle in degrees, saturated at the representable endpoints.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 RadToDeg(Fixed64 rad) =>
         Fixed64.MultiplyDivide(rad, Fixed64.OneEighty, Fixed64.Pi, out _);
@@ -443,6 +451,8 @@ public static partial class FixedMath
     /// <summary>
     /// Converts a value in degrees to radians.
     /// </summary>
+    /// <param name="deg">The angle in degrees.</param>
+    /// <returns>The equivalent angle in radians.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 DegToRad(Fixed64 deg) =>
         Fixed64.MultiplyDivide(deg, Fixed64.Pi, Fixed64.OneEighty, out _);
@@ -560,23 +570,25 @@ public static partial class FixedMath
     }
 
     /// <summary>
-    /// Calculates the cosine value corresponding to a given sine value, assuming the angle is in the first or
-    /// second quadrant.
+    /// Computes the nonnegative cosine magnitude corresponding to a sine.
     /// </summary>
     /// <remarks>
-    /// This method returns the principal (non-negative) value of the cosine. 
-    /// If the input is outside the valid range for sine values, the result may not be meaningful.
+    /// The sine alone is compatible with either cosine sign. Choose the sign according to the angle's quadrant.
     /// </remarks>
     /// <param name="sin">The sine of the angle. Must be in the range [-1, 1].</param>
-    /// <returns>The cosine of the angle, computed as the positive square root of (1 - sin²).</returns>
+    /// <returns>The nonnegative square root of (1 - sin²).</returns>
+    /// <exception cref="ArgumentOutOfRangeException">The sine is outside [−1, 1].</exception>
     public static Fixed64 SinToCos(Fixed64 sin) => Sqrt(Fixed64.One - sin * sin);
 
     /// <summary>
-    /// Returns the tangent of x.
+    /// Computes the tangent of an angle.
     /// </summary>
+    /// <param name="x">The angle in radians.</param>
+    /// <returns>The ratio of the reduced-angle sine and cosine approximations, saturated when the quotient exceeds the representable range.</returns>
     /// <remarks>
-    /// This function is not well-tested. It may be wildly inaccurate.
+    /// The angle is reduced modulo <see cref="Fixed64.Pi"/>. Results near odd multiples of π/2 are sensitive to fixed-point rounding.
     /// </remarks>
+    /// <exception cref="DivideByZeroException">The reduced-angle cosine is zero.</exception>
     public static Fixed64 Tan(Fixed64 x)
     {
         // Check for special cases
@@ -632,15 +644,11 @@ public static partial class FixedMath
     }
 
     /// <summary>
-    /// Returns the arc-sine of a fixed-point number x, which is the angle in radians 
-    /// whose sine is x, using a combination of a Taylor series expansion and trigonometric identities.
-    /// 
-    /// For values of x near ±1, the identity asin(x) = π/2 - acos(x) is used for stability.
-    /// For values of x near 0, a Taylor series expansion is used.
+    /// Computes the principal arcsine.
     /// </summary>
     /// <param name="x">The input value (sine) whose arcsine is to be computed. Should be in the range [-1, 1].</param>
-    /// <returns>The arc-sine of x in radians.</returns>
-    /// <exception cref="ArithmeticException">Thrown if x is outside the domain [-1, 1].</exception>
+    /// <returns>The arcsine in radians, in the interval [−π/2, π/2].</returns>
+    /// <exception cref="ArithmeticException"><paramref name="x"/> is outside [−1, 1].</exception>
     public static Fixed64 Asin(Fixed64 x)
     {
         // Ensure x is within the domain [-1, 1]
@@ -670,11 +678,11 @@ public static partial class FixedMath
     }
 
     /// <summary>
-    /// Returns the arccosine of the specified number x, calculated using a combination of the atan and sqrt functions.
+    /// Computes the principal arccosine.
     /// </summary>
     /// <param name="x">The input value whose arccosine is to be computed. Should be in the range [-1, 1].</param>
-    /// <returns>The arccosine of x in radians.</returns>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown if x is outside the domain [-1, 1].</exception>
+    /// <returns>The arccosine in radians, in the interval [0, π].</returns>
+    /// <exception cref="ArithmeticException"><paramref name="x"/> is outside [−1, 1].</exception>
     public static Fixed64 Acos(Fixed64 x)
     {
         if (Abs(x) > Fixed64.One)
@@ -695,9 +703,10 @@ public static partial class FixedMath
     }
 
     /// <summary>
-    /// Returns the arctangent of the specified number, using a more accurate approximation for larger values.
-    /// This function has at least 7 decimals of accuracy.
+    /// Computes the principal arctangent.
     /// </summary>
+    /// <param name="z">The tangent of the angle.</param>
+    /// <returns>The approximate arctangent in radians, in the interval [−π/2, π/2].</returns>
     public static Fixed64 Atan(Fixed64 z)
     {
         if (z == Fixed64.Zero) return Fixed64.Zero;
@@ -746,7 +755,7 @@ public static partial class FixedMath
     }
 
     /// <summary>
-    /// Computes the angle whose tangent is the quotient of two specified numbers.
+    /// Computes the angle of a 2D point from the positive X axis.
     /// </summary>
     /// <remarks>
     /// Uses a fixed-point arithmetic approximation for the arc tangent function, which is more efficient than using floating-point arithmetic, 
@@ -754,8 +763,7 @@ public static partial class FixedMath
     /// </remarks>
     /// <param name="y">The y-coordinate of the point to which the angle is measured.</param>
     /// <param name="x">The x-coordinate of the point to which the angle is measured.</param>
-    /// <returns>An angle, θ, measured in radians, such that -π ≤ θ ≤ π, and tan(θ) = y / x, 
-    /// taking into account the quadrants of the inputs to determine the sign of the result.</returns>
+    /// <returns>The angle in radians in the interval [−π, π], with positive angles toward positive Y. The origin returns zero.</returns>
     public static Fixed64 Atan2(Fixed64 y, Fixed64 x)
     {
         if (x == Fixed64.Zero)

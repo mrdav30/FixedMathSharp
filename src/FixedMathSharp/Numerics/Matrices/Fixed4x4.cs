@@ -16,19 +16,9 @@ namespace FixedMathSharp;
 /// Represents a 4x4 matrix used for transformations in 3D space, including translation, rotation, scaling, and perspective projection.
 /// </summary>
 /// <remarks>
-/// A 4x4 matrix is the standard structure for 3D transformations because it can handle both linear transformations (rotation, scaling) 
-/// and affine transformations (translation, shearing, and perspective projections). 
-/// It is commonly used in graphics pipelines, game engines, and 3D rendering systems.
-///
-/// FixedMathSharp applies transform matrices with a row-vector convention: <c>point * matrix</c>.
+/// FixedMathSharp applies affine and projective transforms to row vectors as <c>point * matrix</c>.
 /// Translation is stored in <c>M41</c>, <c>M42</c>, and <c>M43</c>. Direction properties use the
 /// canonical 3D basis: <c>+X</c> right, <c>+Y</c> up, and <c>+Z</c> forward.
-/// 
-/// Use Cases:
-/// - Transforming objects in 3D space (position, orientation, and size).
-/// - Combining multiple transformations (e.g., model-view-projection matrices).
-/// - Applying translations, which require an extra dimension for homogeneous coordinates.
-/// - Useful in animation, physics engines, and 3D rendering for full transformation control.
 /// </remarks>
 [Serializable]
 [MemoryPackable]
@@ -172,8 +162,24 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>, IFormattable
     #region Constructors
 
     /// <summary>
-    /// Initializes a new FixedMatrix4x4 with individual elements.
+    /// Initializes a matrix from sixteen elements in row order.
     /// </summary>
+    /// <param name="m11">The element in row 1, column 1.</param>
+    /// <param name="m12">The element in row 1, column 2.</param>
+    /// <param name="m13">The element in row 1, column 3.</param>
+    /// <param name="m14">The element in row 1, column 4.</param>
+    /// <param name="m21">The element in row 2, column 1.</param>
+    /// <param name="m22">The element in row 2, column 2.</param>
+    /// <param name="m23">The element in row 2, column 3.</param>
+    /// <param name="m24">The element in row 2, column 4.</param>
+    /// <param name="m31">The element in row 3, column 1.</param>
+    /// <param name="m32">The element in row 3, column 2.</param>
+    /// <param name="m33">The element in row 3, column 3.</param>
+    /// <param name="m34">The element in row 3, column 4.</param>
+    /// <param name="m41">The element in row 4, column 1.</param>
+    /// <param name="m42">The element in row 4, column 2.</param>
+    /// <param name="m43">The element in row 4, column 3.</param>
+    /// <param name="m44">The element in row 4, column 4.</param>
     public Fixed4x4(
         Fixed64 m11, Fixed64 m12, Fixed64 m13, Fixed64 m14,
         Fixed64 m21, Fixed64 m22, Fixed64 m23, Fixed64 m24,
@@ -190,6 +196,11 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>, IFormattable
     /// <summary>
     /// Creates a matrix from four row vectors.
     /// </summary>
+    /// <param name="row1">Row 1, in column order.</param>
+    /// <param name="row2">Row 2, in column order.</param>
+    /// <param name="row3">Row 3, in column order.</param>
+    /// <param name="row4">Row 4, in column order.</param>
+    /// <returns>A matrix containing the supplied vectors as rows 1 through 4.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed4x4 FromRows(Vector4d row1, Vector4d row2, Vector4d row3, Vector4d row4)
     {
@@ -203,6 +214,11 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>, IFormattable
     /// <summary>
     /// Creates a matrix from four column vectors.
     /// </summary>
+    /// <param name="column1">Column 1, in row order.</param>
+    /// <param name="column2">Column 2, in row order.</param>
+    /// <param name="column3">Column 3, in row order.</param>
+    /// <param name="column4">Column 4, in row order.</param>
+    /// <returns>A matrix containing the supplied vectors as columns 1 through 4.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed4x4 FromColumns(Vector4d column1, Vector4d column2, Vector4d column3, Vector4d column4)
     {
@@ -219,10 +235,7 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>, IFormattable
     /// <summary>
     /// Gets a value indicating whether the matrix represents an affine transformation.
     /// </summary>
-    /// <remarks>
-    /// An affine transformation is one where the bottom row is (0, 0, 0, 1), 
-    /// allowing for efficient operations such as translation, scaling, rotation, and shearing without perspective distortion.
-    /// </remarks>
+    /// <value><see langword="true"/> when the last column is exactly (0, 0, 0, 1).</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public readonly bool IsAffine => M44 == Fixed64.One
@@ -230,7 +243,8 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>, IFormattable
         && M24 == Fixed64.Zero
         && M34 == Fixed64.Zero;
 
-    /// <inheritdoc cref="ExtractTranslation(Fixed4x4)" />
+    /// <summary>Gets the stored translation entries.</summary>
+    /// <value>The components <see cref="M41"/>, <see cref="M42"/>, and <see cref="M43"/>, in that order.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public readonly Vector3d Translation => ExtractTranslation(this);
@@ -238,6 +252,7 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>, IFormattable
     /// <summary>
     /// Gets the right direction vector for this instance.
     /// </summary>
+    /// <value>The normalized +X basis row, or zero for a zero row.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public readonly Vector3d Right => ExtractRight(this);
@@ -245,6 +260,7 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>, IFormattable
     /// <summary>
     /// Gets the left direction vector for this instance.
     /// </summary>
+    /// <value>The negation of <see cref="Right"/>.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public readonly Vector3d Left => -ExtractRight(this);
@@ -252,6 +268,7 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>, IFormattable
     /// <summary>
     /// Gets the upward direction vector for this instance.
     /// </summary>
+    /// <value>The normalized +Y basis row, or zero for a zero row.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public readonly Vector3d Up => ExtractUp(this);
@@ -259,6 +276,7 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>, IFormattable
     /// <summary>
     /// Gets the downward direction vector for this instance.
     /// </summary>
+    /// <value>The negation of <see cref="Up"/>.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public readonly Vector3d Down => -ExtractUp(this);
@@ -270,6 +288,7 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>, IFormattable
     /// FixedMathSharp defines semantic forward as <c>+Z</c>. Convert external matrix or transform
     /// conventions at adapter boundaries before relying on this basis extraction.
     /// </remarks>
+    /// <value>The normalized +Z basis row, or zero for a zero row.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public readonly Vector3d Forward => ExtractForward(this);
@@ -277,16 +296,19 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>, IFormattable
     /// <summary>
     /// Gets the backward direction vector for this instance.
     /// </summary>
+    /// <value>The negation of <see cref="Forward"/>.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public readonly Vector3d Backward => -ExtractForward(this);
 
-    /// <inheritdoc cref="ExtractLossyScale(Fixed4x4)" />
+    /// <summary>Gets the canonical signed lossy scale.</summary>
+    /// <value>The basis row lengths, saturated as needed, with X negated for a reflected basis.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public readonly Vector3d LossyScale => ExtractLossyScale(this);
 
-    /// <inheritdoc cref="ExtractRotation(Fixed4x4)" />
+    /// <summary>Gets the orientation estimated from the basis rows.</summary>
+    /// <value>The quaternion returned by <see cref="ExtractRotation(Fixed4x4)"/>.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public readonly FixedQuaternion Rotation => ExtractRotation(this);
@@ -294,9 +316,9 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>, IFormattable
     /// <summary>
     /// Gets or sets the matrix element at the specified linear index.
     /// </summary>
-    /// <remarks>Matrix elements are indexed in row-major order from 0 to 15.</remarks>
+    /// <remarks>The index is the zero-based row plus four times the zero-based column.</remarks>
     /// <param name="index">The zero-based linear index of the matrix element to get or set. Must be in the range 0 to 15.</param>
-    /// <returns>The matrix element at the specified index.</returns>
+    /// <value>The element at the specified column-major index.</value>
     /// <exception cref="IndexOutOfRangeException">Thrown when the specified index is less than 0 or greater than 15.</exception>
     [JsonIgnore]
     [MemoryPackIgnore]
@@ -389,6 +411,7 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>, IFormattable
     /// <summary>
     /// Calculates the determinant of a 4x4 matrix.
     /// </summary>
+    /// <returns>The determinant computed with fixed-point products and sums. Intermediate values can saturate.</returns>
     public Fixed64 GetDeterminant()
     {
         if (IsAffine)

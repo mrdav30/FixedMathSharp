@@ -22,6 +22,7 @@ public partial struct FixedQuaternion
     /// Checks whether this nonzero quaternion's squared magnitude is within
     /// epsilon of one.
     /// </summary>
+    /// <returns><see langword="true"/> if the rounded, nonzero squared length differs from one by at most <see cref="Fixed64.Epsilon"/>, otherwise <see langword="false"/>.</returns>
     public bool IsNormalized()
     {
         Fixed64 squaredMagnitude = GetNormalizationSquaredMagnitude(this);
@@ -64,6 +65,8 @@ public partial struct FixedQuaternion
     /// <summary>
     /// Normalizes the quaternion to a unit quaternion.
     /// </summary>
+    /// <param name="q">The quaternion to normalize.</param>
+    /// <returns>An approximately unit quaternion. A zero input returns <see cref="Identity"/> and a quaternion already within the normalization tolerance is returned as supplied.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static FixedQuaternion GetNormalized(FixedQuaternion q)
     {
@@ -112,9 +115,10 @@ public partial struct FixedQuaternion
     /// <remarks>
     /// This is equivalent to <c>dividend * Inverse(divisor)</c>.
     /// </remarks>
-    /// <exception cref="InvalidOperationException">
-    /// Thrown when <paramref name="divisor"/> is not invertible.
-    /// </exception>
+    /// <param name="dividend">The quaternion to divide.</param>
+    /// <param name="divisor">The quaternion to invert.</param>
+    /// <returns>The dividend multiplied on the right by the computed inverse.</returns>
+    /// <exception cref="InvalidOperationException">The rounded squared magnitude of <paramref name="divisor"/> is zero.</exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static FixedQuaternion Divide(FixedQuaternion dividend, FixedQuaternion divisor)
     {
@@ -292,13 +296,12 @@ public partial struct FixedQuaternion
             cosHalfAngle);
     }
 
-    /// <summary>
-    /// Assume the input angles are in degrees and converts them to radians before calling <see cref="FromEulerAngles"/> 
-    /// </summary>
-    /// <param name="pitch"></param>
-    /// <param name="yaw"></param>
-    /// <param name="roll"></param>
-    /// <returns></returns>
+    /// <summary>Creates a quaternion from Euler angles specified in degrees.</summary>
+    /// <param name="pitch">The rotation about X in degrees.</param>
+    /// <param name="yaw">The rotation about Y in degrees.</param>
+    /// <param name="roll">The rotation about Z in degrees.</param>
+    /// <returns>The normalized rotation for the supplied angles.</returns>
+    /// <remarks>The composition is <c>qy * qx * qz</c> (YXZ). When applied to a vector, roll acts first, then pitch, then yaw.</remarks>
     public static FixedQuaternion FromEulerAnglesInDegrees(Fixed64 pitch, Fixed64 yaw, Fixed64 roll)
     {
         // Convert input angles from degrees to radians
@@ -310,13 +313,12 @@ public partial struct FixedQuaternion
         return FromEulerAngles(pitch, yaw, roll);
     }
 
-    /// <summary>
-    /// Converts Euler angles (pitch, yaw, roll) to a quaternion and normalizes the result afterwards. 
-    /// Assumes the input angles are in radians.
-    /// </summary>
-    /// <remarks>
-    /// The order of operations is YXZ or yaw-pitch-roll
-    /// </remarks>
+    /// <summary>Creates a quaternion from Euler angles specified in radians.</summary>
+    /// <param name="pitch">The rotation about X in radians.</param>
+    /// <param name="yaw">The rotation about Y in radians.</param>
+    /// <param name="roll">The rotation about Z in radians.</param>
+    /// <returns>The normalized rotation for the supplied angles.</returns>
+    /// <remarks>The composition is <c>qy * qx * qz</c> (YXZ). When applied to a vector, roll acts first, then pitch, then yaw.</remarks>
     public static FixedQuaternion FromEulerAngles(Fixed64 pitch, Fixed64 yaw, Fixed64 roll)
     {
         Fixed64 halfPitch = pitch / Fixed64.Two;
@@ -378,14 +380,9 @@ public partial struct FixedQuaternion
     /// </summary>
     /// <param name="currentRotation">The current orientation as a quaternion.</param>
     /// <param name="previousRotation">The previous orientation as a quaternion.</param>
-    /// <param name="deltaTime">The time step over which the rotation occurs.</param>
-    /// <returns>A Vector3d representing the angular velocity (in radians per second).</returns>
-    /// <remarks>
-    /// This function calculates the change in rotation over `deltaTime` and converts it into angular velocity.
-    /// - First, it computes the relative rotation: `rotationDelta = currentRotation * previousRotation.Inverse()`.
-    /// - Then, it applies `QuaternionLog(rotationDelta)` to extract the axis-angle representation.
-    /// - Finally, it divides by `deltaTime` to compute the angular velocity.
-    /// </remarks>
+    /// <param name="deltaTime">The elapsed time in seconds. Zero produces a zero vector.</param>
+    /// <returns>The angular velocity vector in radians per second.</returns>
+    /// <remarks>Computes the quaternion logarithm of <c>currentRotation * previousRotation.Inverse()</c> and divides by the elapsed time. The quaternion sign can affect the selected angular displacement.</remarks>
     public static Vector3d ToAngularVelocity(
         FixedQuaternion currentRotation,
         FixedQuaternion previousRotation,
@@ -397,9 +394,12 @@ public partial struct FixedQuaternion
         return angularDisplacement / deltaTime; // Convert to angular velocity
     }
 
-    /// <summary>
-    /// Performs a simple linear interpolation between the components of the input quaternions
-    /// </summary>
+    /// <summary>Interpolates two rotations with a component-wise linear blend.</summary>
+    /// <param name="a">The starting rotation quaternion.</param>
+    /// <param name="b">The ending rotation quaternion.</param>
+    /// <param name="t">The interpolation fraction, clamped to [0, 1].</param>
+    /// <returns>The normalized blend.</returns>
+    /// <remarks>The second quaternion is negated when the dot product is negative to choose the closer representation.</remarks>
     public static FixedQuaternion Lerp(FixedQuaternion a, FixedQuaternion b, Fixed64 t)
     {
         t = FixedMath.Clamp01(t);
@@ -419,9 +419,12 @@ public partial struct FixedQuaternion
         return result;
     }
 
-    /// <summary>
-    ///  Calculates the spherical linear interpolation, which results in a smoother and more accurate rotation interpolation
-    /// </summary>
+    /// <summary>Interpolates two unit quaternions along the shorter rotation arc.</summary>
+    /// <param name="a">The starting rotation quaternion.</param>
+    /// <param name="b">The ending rotation quaternion.</param>
+    /// <param name="t">The interpolation fraction, clamped to [0, 1].</param>
+    /// <returns>The interpolated quaternion.</returns>
+    /// <remarks>The second quaternion is negated when the dot product is negative. Nearly coincident inputs use a linear blend. The result is not renormalized.</remarks>
     public static FixedQuaternion Slerp(FixedQuaternion a, FixedQuaternion b, Fixed64 t)
     {
         t = FixedMath.Clamp01(t);

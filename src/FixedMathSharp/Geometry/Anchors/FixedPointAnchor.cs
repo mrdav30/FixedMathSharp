@@ -27,6 +27,9 @@ public readonly struct FixedPointAnchor : IEquatable<FixedPointAnchor>
     /// Initializes a point anchor from a world origin, normalized local-to-world
     /// rotation, and local point.
     /// </summary>
+    /// <param name="origin">The frame origin in world coordinates.</param>
+    /// <param name="rotation">The normalized rotation from local coordinates to world coordinates.</param>
+    /// <param name="localPoint">The first local component of the point.</param>
     /// <exception cref="ArgumentException">
     /// <paramref name="rotation"/> is not normalized.
     /// </exception>
@@ -41,6 +44,10 @@ public readonly struct FixedPointAnchor : IEquatable<FixedPointAnchor>
     /// Initializes a point anchor from a world origin, normalized local-to-world
     /// rotation, and two additive local-space feature components.
     /// </summary>
+    /// <param name="origin">The frame origin in world coordinates.</param>
+    /// <param name="rotation">The normalized rotation from local coordinates to world coordinates.</param>
+    /// <param name="localPoint">The first local component of the point.</param>
+    /// <param name="localDisplacement">An additional local displacement retained separately from the point.</param>
     /// <exception cref="ArgumentException">
     /// <paramref name="rotation"/> is not normalized.
     /// </exception>
@@ -141,28 +148,33 @@ public readonly struct FixedPointAnchor : IEquatable<FixedPointAnchor>
     /// <summary>
     /// The world-space origin of the rigid frame.
     /// </summary>
+    /// <value>The stored origin in world coordinates.</value>
     public Vector3d Origin { get; }
 
     /// <summary>
     /// The normalized local-to-world rotation of the rigid frame.
     /// </summary>
+    /// <value>The normalized local-to-world quaternion.</value>
     public FixedQuaternion Rotation { get; }
 
     /// <summary>
     /// The point in the rigid frame's local coordinates.
     /// </summary>
+    /// <value>The first point component in local coordinates.</value>
     public Vector3d LocalPoint { get; }
 
     /// <summary>
     /// An additional local-space feature displacement that exact operations
     /// add to <see cref="LocalPoint"/> without a scalar intermediate.
     /// </summary>
+    /// <value>The second point component in local coordinates, applied additively.</value>
     public Vector3d LocalDisplacement { get; }
 
     /// <summary>
     /// An independent local-space translation applied to the complete anchored
     /// point without merging it into either feature component.
     /// </summary>
+    /// <value>The independent translation in local coordinates, applied after the feature terms.</value>
     public Vector3d LocalTranslation { get; }
 
     internal FixedPointAnchorTerm3d ExactLocalTerm { get; }
@@ -171,6 +183,9 @@ public readonly struct FixedPointAnchor : IEquatable<FixedPointAnchor>
     /// Returns an anchor for the same exact local feature with the specified
     /// independent local-space translation.
     /// </summary>
+    /// <param name="localTranslation">The independent local translation replacing the current translation.</param>
+    /// <returns>A copy that retains the coordinate frame and feature terms and replaces the local translation.</returns>
+    /// <exception cref="ArgumentException">The current anchor does not contain a normalized rotation.</exception>
     public FixedPointAnchor WithLocalTranslation(
         Vector3d localTranslation) =>
         new(
@@ -185,6 +200,11 @@ public readonly struct FixedPointAnchor : IEquatable<FixedPointAnchor>
     /// <summary>
     /// Attempts to materialize the absolute world point.
     /// </summary>
+    /// <param name="point">The rounded world point on success, or the default value on failure.</param>
+    /// <returns>
+    /// <see langword="true"/> when the relevant rotations are normalized and the final rounded coordinates are
+    /// representable and <see langword="false"/> otherwise.
+    /// </returns>
     public bool TryGetPoint(out Vector3d point)
     {
         if (!Rotation.IsNormalized())
@@ -218,6 +238,12 @@ public readonly struct FixedPointAnchor : IEquatable<FixedPointAnchor>
     /// Attempts to materialize this point's world-space offset from
     /// <paramref name="other"/>.
     /// </summary>
+    /// <param name="other">The anchor to subtract, with its own frame.</param>
+    /// <param name="offset">The world-space difference on success, or the default value on failure.</param>
+    /// <returns>
+    /// <see langword="true"/> when the relevant rotations are normalized and the final rounded coordinates are
+    /// representable and <see langword="false"/> otherwise.
+    /// </returns>
     public bool TryGetOffsetFrom(
         in FixedPointAnchor other,
         out Vector3d offset) =>
@@ -227,6 +253,13 @@ public readonly struct FixedPointAnchor : IEquatable<FixedPointAnchor>
     /// Attempts to materialize this point's world-space offset from
     /// <paramref name="other"/> after applying <paramref name="scale"/>.
     /// </summary>
+    /// <param name="other">The anchor to subtract, with its own frame.</param>
+    /// <param name="scale">The multiplier applied to the world-space difference before rounding.</param>
+    /// <param name="offset">The world-space difference on success, or the default value on failure.</param>
+    /// <returns>
+    /// <see langword="true"/> when the relevant rotations are normalized and the final rounded coordinates are
+    /// representable and <see langword="false"/> otherwise.
+    /// </returns>
     /// <remarks>
     /// The scale is applied to the complete conceptual difference before its
     /// final round-half-to-even conversion.
@@ -269,6 +302,13 @@ public readonly struct FixedPointAnchor : IEquatable<FixedPointAnchor>
     /// <paramref name="direction"/> with one final round-half-to-even
     /// conversion.
     /// </summary>
+    /// <param name="other">The anchor to subtract, with its own frame.</param>
+    /// <param name="direction">The world-space vector to take the dot product with. Use a unit vector for a signed distance.</param>
+    /// <param name="projection">The signed projection on success, or the default value on failure.</param>
+    /// <returns>
+    /// <see langword="true"/> when both rotations are normalized and the rounded projection is representable and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
     public bool TryGetProjectedOffsetFrom(
         in FixedPointAnchor other,
         Vector3d direction,
@@ -304,6 +344,12 @@ public readonly struct FixedPointAnchor : IEquatable<FixedPointAnchor>
     /// <see cref="Fixed64.MaxValue"/> when only the final result is
     /// unrepresentable.
     /// </summary>
+    /// <param name="other">The anchor to subtract, with its own frame.</param>
+    /// <param name="direction">The world-space vector to take the dot product with. Use a unit vector for a signed distance.</param>
+    /// <returns>
+    /// Zero for a nonpositive projection, the projection rounded down if representable, or
+    /// <see cref="Fixed64.MaxValue"/> when the positive projection exceeds the representable range.
+    /// </returns>
     /// <exception cref="InvalidOperationException">
     /// This anchor does not contain a normalized rotation.
     /// </exception>
@@ -351,6 +397,12 @@ public readonly struct FixedPointAnchor : IEquatable<FixedPointAnchor>
     /// distances are equal, or a positive value when
     /// <paramref name="second"/> is closer.
     /// </returns>
+    /// <param name="first">The first candidate point.</param>
+    /// <param name="second">The second candidate point.</param>
+    /// <exception cref="InvalidOperationException">This anchor does not contain a normalized rotation.</exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="first"/> or <paramref name="second"/> does not contain a normalized rotation.
+    /// </exception>
     public int CompareSquaredDistance(
         in FixedPointAnchor first,
         in FixedPointAnchor second)
@@ -383,6 +435,13 @@ public readonly struct FixedPointAnchor : IEquatable<FixedPointAnchor>
     /// Attempts to express this point in another rigid frame's local
     /// coordinates without first materializing its absolute world position.
     /// </summary>
+    /// <param name="frameOrigin">The new frame's origin in world coordinates.</param>
+    /// <param name="frameRotation">The new frame's normalized local-to-world rotation.</param>
+    /// <param name="localPoint">The rounded point in the target frame on success, or the default value on failure.</param>
+    /// <returns>
+    /// <see langword="true"/> when the relevant rotations are normalized and the final rounded coordinates are
+    /// representable and <see langword="false"/> otherwise.
+    /// </returns>
     public bool TryGetLocalPointIn(
         Vector3d frameOrigin,
         FixedQuaternion frameRotation,
@@ -415,9 +474,17 @@ public readonly struct FixedPointAnchor : IEquatable<FixedPointAnchor>
     /// Attempts to express this exact conceptual point in another rigid frame
     /// without discarding any sub-lattice feature information.
     /// </summary>
+    /// <param name="frameOrigin">The new frame's origin in world coordinates.</param>
+    /// <param name="frameRotation">The new frame's normalized local-to-world rotation.</param>
+    /// <param name="anchor">The equivalent anchor in the new frame on success, or the default value on failure.</param>
+    /// <returns>
+    /// <see langword="true"/> when both rotations are normalized and the same conceptual point can be retained
+    /// exactly in the target frame and <see langword="false"/> otherwise.
+    /// </returns>
     /// <remarks>
-    /// The operation fails when the target frame would require a general
-    /// rational local coordinate that a compact point anchor cannot retain.
+    /// An identical frame returns this anchor with its retained residuals.
+    /// For a different frame, a single Q32.32 local vector must represent the
+    /// same conceptual point exactly.
     /// </remarks>
     public bool TryReframe(
         Vector3d frameOrigin,
@@ -462,6 +529,8 @@ public readonly struct FixedPointAnchor : IEquatable<FixedPointAnchor>
     /// Compares the complete local feature identity of this anchor with
     /// <paramref name="other"/> in deterministic component order.
     /// </summary>
+    /// <param name="other">The anchor whose local feature is compared.</param>
+    /// <returns>A negative value, zero, or a positive value according to lexicographic order of the local feature terms.</returns>
     /// <remarks>
     /// Frame origin, rotation, and <see cref="LocalTranslation"/> are
     /// intentionally excluded because they move a feature without changing
@@ -519,6 +588,8 @@ public readonly struct FixedPointAnchor : IEquatable<FixedPointAnchor>
     /// <summary>
     /// Returns a stable 64-bit hash of the complete local feature identity.
     /// </summary>
+    /// <returns>An unsigned deterministic 64-bit hash of the local feature terms.</returns>
+    /// <remarks>Uses the same components as <see cref="CompareLocalFeature(in FixedPointAnchor)"/>.</remarks>
     public ulong GetLocalFeatureHash64()
     {
         ulong hash = 14695981039346656037UL;
@@ -534,10 +605,12 @@ public readonly struct FixedPointAnchor : IEquatable<FixedPointAnchor>
         return hash;
     }
 
-    /// <summary>
-    /// Returns whether both anchors have identical frames, rounded local
-    /// components, and any retained exact feature identity.
-    /// </summary>
+    /// <summary>Compares the stored geometry for equality.</summary>
+    /// <param name="other">The value to compare with this instance.</param>
+    /// <returns>
+    /// <see langword="true"/> when the stored origins, rotations, local coordinates, and additive terms match and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
     public bool Equals(FixedPointAnchor other) =>
         Origin.Equals(other.Origin)
         && Rotation.Equals(other.Rotation)
@@ -546,13 +619,17 @@ public readonly struct FixedPointAnchor : IEquatable<FixedPointAnchor>
         && LocalTranslation.Equals(other.LocalTranslation)
         && ExactLocalTerm.Equals(other.ExactLocalTerm);
 
-    /// <summary>
-    /// Returns a hash code for the complete frame and exact feature identity.
-    /// </summary>
+    /// <summary>Compares the stored geometry for equality.</summary>
+    /// <param name="obj">The value to compare with this instance.</param>
+    /// <returns>
+    /// <see langword="true"/> when <paramref name="obj"/> is a <see cref="FixedPointAnchor"/> and the stored
+    /// origins, rotations, local coordinates, and additive terms match and <see langword="false"/> otherwise.
+    /// </returns>
     public override bool Equals(object? obj) =>
         obj is FixedPointAnchor other && Equals(other);
 
-    /// <inheritdoc />
+    /// <summary>Computes a hash code for the stored geometry.</summary>
+    /// <returns>A hash code consistent with structural equality.</returns>
     public override int GetHashCode()
     {
         unchecked
@@ -569,17 +646,22 @@ public readonly struct FixedPointAnchor : IEquatable<FixedPointAnchor>
         }
     }
 
-    /// <summary>
-    /// Returns whether two point anchors have identical frame components.
-    /// </summary>
+    /// <summary>Tests whether the stored geometry is equal.</summary>
+    /// <param name="left">The first value to compare.</param>
+    /// <param name="right">The second value to compare.</param>
+    /// <returns>
+    /// <see langword="true"/> when the stored origins, rotations, local coordinates, and additive terms match and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
     public static bool operator ==(
         FixedPointAnchor left,
         FixedPointAnchor right) =>
         left.Equals(right);
 
-    /// <summary>
-    /// Returns whether two point anchors have different frame components.
-    /// </summary>
+    /// <summary>Tests whether the stored geometry is different.</summary>
+    /// <param name="left">The first value to compare.</param>
+    /// <param name="right">The second value to compare.</param>
+    /// <returns><see langword="true"/> when the stored values differ and <see langword="false"/> otherwise.</returns>
     public static bool operator !=(
         FixedPointAnchor left,
         FixedPointAnchor right) =>

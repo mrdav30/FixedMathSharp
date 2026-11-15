@@ -110,6 +110,9 @@ public static partial class FixedMath
     /// <summary>
     /// Produces a value with the magnitude of the first argument and the sign of the second argument.
     /// </summary>
+    /// <param name="x">The value supplying the magnitude.</param>
+    /// <param name="y">The value supplying the sign. Zero selects the nonnegative magnitude.</param>
+    /// <returns>The signed magnitude. The magnitude of <see cref="Fixed64.MinValue"/> saturates to <see cref="Fixed64.MaxValue"/> before the sign is applied.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 CopySign(Fixed64 x, Fixed64 y) =>
         y >= Fixed64.Zero ? x.Abs() : -x.Abs();
@@ -117,8 +120,8 @@ public static partial class FixedMath
     /// <summary>
     /// Clamps value between 0 and 1 and returns value.
     /// </summary>
-    /// <param name="value"></param>
-    /// <returns></returns>
+    /// <param name="value">The value to clamp.</param>
+    /// <returns>The value limited to the inclusive interval [0, 1].</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 Clamp01(Fixed64 value) =>
         value < Fixed64.Zero ? Fixed64.Zero : value > Fixed64.One ? Fixed64.One : value;
@@ -126,6 +129,10 @@ public static partial class FixedMath
     /// <summary>
     /// Clamps a fixed-point value between the given minimum and maximum values.
     /// </summary>
+    /// <param name="f1">The value to clamp.</param>
+    /// <param name="min">The inclusive minimum. Use a value less than or equal to <paramref name="max"/>.</param>
+    /// <param name="max">The inclusive maximum.</param>
+    /// <returns>The minimum if the input is below it, the maximum if the input is above it, or the input otherwise.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 Clamp(Fixed64 f1, Fixed64 min, Fixed64 max) =>
         f1 < min ? min : f1 > max ? max : f1;
@@ -135,8 +142,8 @@ public static partial class FixedMath
     /// </summary>
     /// <typeparam name="T">The type of the value, must implement <see cref="IComparable{T}"/>.</typeparam>
     /// <param name="value">The value to clamp.</param>
-    /// <param name="min">The minimum allowed value.</param>
-    /// <param name="max">The maximum allowed value.</param>
+    /// <param name="min">The inclusive minimum. Use a value that compares less than or equal to <paramref name="max"/>.</param>
+    /// <param name="max">The inclusive maximum.</param>
     /// <returns>The clamped value.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static T Clamp<T>(T value, T min, T max) where T : IComparable<T>
@@ -158,6 +165,8 @@ public static partial class FixedMath
     /// <summary>
     /// Returns the absolute value of a Fixed64 number.
     /// </summary>
+    /// <param name="value">The signed input.</param>
+    /// <returns>The nonnegative magnitude, saturated to <see cref="Fixed64.MaxValue"/> for <see cref="Fixed64.MinValue"/>.</returns>
     public static Fixed64 Abs(Fixed64 value)
     {
         // For the minimum value, return the max to avoid overflow
@@ -170,8 +179,10 @@ public static partial class FixedMath
     }
 
     /// <summary>
-    /// Returns the smallest integral value that is greater than or equal to the specified number.
+    /// Rounds a fixed-point value toward positive infinity.
     /// </summary>
+    /// <param name="value">The value to round.</param>
+    /// <returns>The ceiling, or <see cref="Fixed64.MaxValue"/> if the ceiling exceeds the representable range.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 Ceil(Fixed64 value)
     {
@@ -180,9 +191,10 @@ public static partial class FixedMath
     }
 
     /// <summary>
-    /// Returns the largest integer less than or equal to the specified number (floor function).
-    /// Efficiently zeroes out the fractional part.
+    /// Rounds a fixed-point value toward negative infinity.
     /// </summary>
+    /// <param name="value">The value to round.</param>
+    /// <returns>The largest integer less than or equal to <paramref name="value"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 Floor(Fixed64 value) =>
         Fixed64.FromRaw((long)((ulong)value.m_rawValue & MASK_UL));
@@ -190,18 +202,28 @@ public static partial class FixedMath
     /// <summary>
     /// Returns the larger of two fixed-point values.
     /// </summary>
+    /// <param name="a">The first value.</param>
+    /// <param name="b">The second value.</param>
+    /// <returns>The greater value, or either value when they are equal.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 Max(Fixed64 a, Fixed64 b) => a > b ? a : b;
 
     /// <summary>
     /// Returns the smaller of two fixed-point values.
     /// </summary>
+    /// <param name="a">The first value.</param>
+    /// <param name="b">The second value.</param>
+    /// <returns>The lesser value, or either value when they are equal.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 Min(Fixed64 a, Fixed64 b) => a < b ? a : b;
 
     /// <summary>
     /// Returns the arithmetic average of three fixed-point values without intermediate overflow.
     /// </summary>
+    /// <param name="first">The first value.</param>
+    /// <param name="second">The second value.</param>
+    /// <param name="third">The third value.</param>
+    /// <returns>The arithmetic mean rounded to the nearest representable value.</returns>
     /// <remarks>
     /// The exact raw Q32.32 sum is divided by three and rounded to the nearest raw value.
     /// </remarks>
@@ -229,6 +251,9 @@ public static partial class FixedMath
     /// <summary>
     /// Returns the arithmetic midpoint of two fixed-point values without intermediate overflow.
     /// </summary>
+    /// <param name="left">The first value.</param>
+    /// <param name="right">The second value.</param>
+    /// <returns>The representable value nearest the midpoint.</returns>
     /// <remarks>
     /// A midpoint exactly between two raw Q32.32 values is rounded to the nearest even raw value.
     /// </remarks>
@@ -242,8 +267,11 @@ public static partial class FixedMath
     }
 
     /// <summary>
-    /// Rounds a fixed-point number to the nearest integral value, based on the specified rounding mode.
+    /// Rounds a fixed-point number to the nearest integer.
     /// </summary>
+    /// <param name="value">The value to round.</param>
+    /// <param name="mode">The tie rule. <see cref="MidpointRounding.AwayFromZero"/> rounds ties away from zero. All other modes round ties to even.</param>
+    /// <returns>The rounded value, or <see cref="Fixed64.MaxValue"/> if the rounded integer exceeds the representable range.</returns>
     public static Fixed64 Round(Fixed64 value, MidpointRounding mode = MidpointRounding.ToEven)
     {
         long fractionalPart = value.m_rawValue & MAX_SHIFTED_AMOUNT_UI;
@@ -267,6 +295,14 @@ public static partial class FixedMath
     /// <summary>
     /// Rounds a fixed-point number to a specific number of decimal places.
     /// </summary>
+    /// <param name="value">The value to round. Use a magnitude small enough that scaling by ten to the requested power fits in <see cref="Fixed64"/>.</param>
+    /// <param name="decimalPlaces">The number of decimal places, from zero through nine.</param>
+    /// <param name="mode">The tie rule passed to <see cref="Round(Fixed64, MidpointRounding)"/>. The default is midpoint-to-even.</param>
+    /// <returns>The result of scaling, rounding to an integer, and converting back to the original scale.</returns>
+    /// <remarks>The method adds half the integer scale factor in raw units before the final fixed-point division.
+    /// This adjustment can shift a decimal-grid value by a raw unit. Intermediate saturation or
+    /// raw wraparound can occur near the limits of the Q32.32 range.</remarks>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="decimalPlaces"/> is outside the supported range.</exception>
     public static Fixed64 RoundToPrecision(Fixed64 value, int decimalPlaces, MidpointRounding mode = MidpointRounding.ToEven)
     {
         if (decimalPlaces < 0 || decimalPlaces >= Pow10Lookup.Length)
@@ -399,6 +435,9 @@ public static partial class FixedMath
     /// <summary>
     /// Adds two fixed-point numbers by adding their raw Q32.32 payloads without saturation.
     /// </summary>
+    /// <param name="x">The first addend.</param>
+    /// <param name="y">The second addend.</param>
+    /// <returns>The raw sum interpreted as a Q32.32 value.</returns>
     /// <remarks>
     /// This is an unchecked hot-path helper. Use it only when the raw sum is known to fit in
     /// <see cref="long"/> or raw wraparound is an intentional part of the algorithm. Use
@@ -410,6 +449,9 @@ public static partial class FixedMath
     /// <summary>
     /// Subtracts two fixed-point numbers by subtracting their raw Q32.32 payloads without saturation.
     /// </summary>
+    /// <param name="x">The minuend.</param>
+    /// <param name="y">The subtrahend.</param>
+    /// <returns>The raw difference interpreted as a Q32.32 value.</returns>
     /// <remarks>
     /// This is an unchecked hot-path helper. Use it only when the raw difference is known to fit in
     /// <see cref="long"/> or raw wraparound is an intentional part of the algorithm. Use
@@ -421,6 +463,9 @@ public static partial class FixedMath
     /// <summary>
     /// Multiplies two fixed-point numbers using unchecked Q32.32 partial products.
     /// </summary>
+    /// <param name="x">The first factor.</param>
+    /// <param name="y">The second factor.</param>
+    /// <returns>The product with the low fractional bits discarded. A product outside the representable range wraps.</returns>
     /// <remarks>
     /// This is an unchecked hot-path helper. It skips the full-width overflow/saturation path used by
     /// <see cref="Fixed64.op_Multiply(Fixed64, Fixed64)"/> and truncates discarded fractional bits instead
@@ -463,6 +508,10 @@ public static partial class FixedMath
     /// <summary>
     /// Divides two fixed-point numbers with an optimized path for known-positive divisors.
     /// </summary>
+    /// <param name="x">The dividend.</param>
+    /// <param name="y">The divisor.</param>
+    /// <returns>The quotient rounded to the nearest representable value with ties to even and saturated at the representable endpoints.</returns>
+    /// <exception cref="DivideByZeroException"><paramref name="y"/> is zero.</exception>
     /// <remarks>
     /// This helper preserves the same deterministic rounding, divide-by-zero, and saturation semantics
     /// as <see cref="Fixed64.op_Division(Fixed64, Fixed64)"/>. The fast path is only used when
@@ -487,6 +536,11 @@ public static partial class FixedMath
     /// <summary>
     /// Computes the raw remainder of two fixed-point numbers without special-case guards.
     /// </summary>
+    /// <param name="x">The dividend.</param>
+    /// <param name="y">The divisor.</param>
+    /// <returns>The raw signed remainder interpreted as a Q32.32 value.</returns>
+    /// <exception cref="DivideByZeroException"><paramref name="y"/> is zero.</exception>
+    /// <exception cref="OverflowException"><paramref name="x"/> is <see cref="Fixed64.MinValue"/> and <paramref name="y"/> is negative one raw unit.</exception>
     /// <remarks>
     /// This is an unchecked hot-path helper. It delegates directly to the raw <see cref="long"/> remainder
     /// operation, so raw zero divisors and integer edge cases follow runtime integer remainder behavior.
@@ -496,9 +550,12 @@ public static partial class FixedMath
     public static Fixed64 FastMod(Fixed64 x, Fixed64 y) => Fixed64.FromRaw(x.m_rawValue % y.m_rawValue);
 
     /// <summary>
-    /// Moves a value from 'from' to 'to' by a maximum step of 'maxAmount'. 
-    /// Ensures the value does not exceed 'to'.
+    /// Steps a fixed-point value toward a target.
     /// </summary>
+    /// <param name="from">The current value.</param>
+    /// <param name="to">The target value.</param>
+    /// <param name="maxAmount">The maximum step in the same units as the input. Use a nonnegative amount to approach the target.</param>
+    /// <returns>The stepped value, limited at the target. A negative step moves away from a distinct target subject to saturation.</returns>
     public static Fixed64 MoveTowards(Fixed64 from, Fixed64 to, Fixed64 maxAmount)
     {
         if (from < to)

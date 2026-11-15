@@ -25,6 +25,14 @@ public static partial class FixedConvex2dRelations
     /// Returns whether boundary-ordered vertices form a strictly convex
     /// polygon in either winding direction.
     /// </summary>
+    /// <param name="convexVertexOffsets">
+    /// At least three polygon offsets in boundary order, in either winding. The span is read during the call.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the supplied boundary is strictly convex in either winding and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException"><paramref name="convexVertexOffsets"/> has fewer than three vertices.</exception>
     public static bool IsStrictlyConvex(
         ReadOnlySpan<Vector2d> convexVertexOffsets)
     {
@@ -36,6 +44,16 @@ public static partial class FixedConvex2dRelations
     /// Returns whether a world-space point lies inside or on a closed convex
     /// polygon represented by an origin and origin-relative vertices.
     /// </summary>
+    /// <param name="point">The point in the query coordinate space.</param>
+    /// <param name="convexOrigin">The polygon frame's origin in world coordinates.</param>
+    /// <param name="convexVertexOffsets">
+    /// At least three polygon offsets in boundary order, in either winding. The span is read during the call.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the point is inside or on the boundary of the closed shape and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException"><paramref name="convexVertexOffsets"/> has fewer than three vertices.</exception>
     public static bool ContainsPoint(
         Vector2d point,
         Vector2d convexOrigin,
@@ -53,6 +71,17 @@ public static partial class FixedConvex2dRelations
     /// Returns whether a world-space point lies inside or on a rotated closed
     /// convex polygon represented by a frame and local vertex offsets.
     /// </summary>
+    /// <param name="point">The point in the query coordinate space.</param>
+    /// <param name="convexOrigin">The polygon frame's origin in world coordinates.</param>
+    /// <param name="convexRotation">The polygon's counterclockwise local-to-world angle in radians.</param>
+    /// <param name="convexVertexOffsets">
+    /// At least three polygon offsets in boundary order, in either winding. The span is read during the call.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the point is inside or on the boundary of the closed shape and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException"><paramref name="convexVertexOffsets"/> has fewer than three vertices.</exception>
     public static bool ContainsPoint(
         Vector2d point,
         Vector2d convexOrigin,
@@ -71,6 +100,13 @@ public static partial class FixedConvex2dRelations
     /// Finds the polygon-relative closest point to a world-space point without
     /// materializing polygon vertices.
     /// </summary>
+    /// <param name="point">The point in the query coordinate space.</param>
+    /// <param name="convexOrigin">The polygon frame's origin in world coordinates.</param>
+    /// <param name="convexVertexOffsets">
+    /// At least three polygon offsets in boundary order, in either winding. The span is read during the call.
+    /// </param>
+    /// <returns>The closest point in the closed polygon, expressed relative to its origin.</returns>
+    /// <exception cref="ArgumentException"><paramref name="convexVertexOffsets"/> has fewer than three vertices.</exception>
     public static Vector2d GetClosestPointOffset(
         Vector2d point,
         Vector2d convexOrigin,
@@ -88,6 +124,14 @@ public static partial class FixedConvex2dRelations
     /// Finds the closest point on a rotated polygon while retaining that point
     /// in the polygon's supplied local frame.
     /// </summary>
+    /// <param name="point">The point in the query coordinate space.</param>
+    /// <param name="convexOrigin">The polygon frame's origin in world coordinates.</param>
+    /// <param name="convexRotation">The polygon's counterclockwise local-to-world angle in radians.</param>
+    /// <param name="convexVertexOffsets">
+    /// At least three polygon offsets in boundary order, in either winding. The span is read during the call.
+    /// </param>
+    /// <returns>The selected point retained in the shape's local frame.</returns>
+    /// <exception cref="ArgumentException"><paramref name="convexVertexOffsets"/> has fewer than three vertices.</exception>
     public static FixedPointAnchor2d GetClosestPointAnchor(
         Vector2d point,
         Vector2d convexOrigin,
@@ -110,6 +154,12 @@ public static partial class FixedConvex2dRelations
     /// Returns the first authored polygon-relative vertex with the greatest
     /// exact projection along a direction.
     /// </summary>
+    /// <param name="convexVertexOffsets">
+    /// At least three polygon offsets in boundary order, in either winding. The span is read during the call.
+    /// </param>
+    /// <param name="direction">The projection direction in local coordinates. Its magnitude is used as supplied.</param>
+    /// <returns>The first local vertex achieving the maximum projection.</returns>
+    /// <exception cref="ArgumentException"><paramref name="convexVertexOffsets"/> has fewer than three vertices.</exception>
     public static Vector2d GetSupportOffset(
         ReadOnlySpan<Vector2d> convexVertexOffsets,
         Vector2d direction)
@@ -124,6 +174,14 @@ public static partial class FixedConvex2dRelations
     /// Returns the first local vertex with the greatest exact world-space
     /// projection along a direction.
     /// </summary>
+    /// <param name="convexOrigin">The polygon frame's origin in world coordinates.</param>
+    /// <param name="convexRotation">The polygon's counterclockwise local-to-world angle in radians.</param>
+    /// <param name="convexVertexOffsets">
+    /// At least three polygon offsets in boundary order, in either winding. The span is read during the call.
+    /// </param>
+    /// <param name="direction">The projection direction in world coordinates. Its magnitude is used as supplied.</param>
+    /// <returns>The first local vertex achieving maximum world-space projection, retained in the polygon frame.</returns>
+    /// <exception cref="ArgumentException"><paramref name="convexVertexOffsets"/> has fewer than three vertices.</exception>
     public static FixedPointAnchor2d GetSupportAnchor(
         Vector2d convexOrigin,
         Fixed64 convexRotation,
@@ -144,6 +202,12 @@ public static partial class FixedConvex2dRelations
     /// Attempts to derive the area and centroid of a boundary-ordered convex
     /// polygon without narrowing cross products or weighted-coordinate sums.
     /// </summary>
+    /// <param name="convexVertexOffsets">
+    /// At least three polygon offsets in boundary order, in either winding. The span is read during the call.
+    /// </param>
+    /// <param name="area">The nonnegative area in squared coordinate units on success.</param>
+    /// <param name="centroid">The centroid in the same local coordinates as the offsets on success.</param>
+    /// <exception cref="ArgumentException"><paramref name="convexVertexOffsets"/> has fewer than three vertices.</exception>
     /// <remarks>
     /// Area is nonnegative and clamps to <see cref="Fixed64.MaxValue"/> when
     /// the conceptual value exceeds the scalar domain. The centroid uses one
@@ -169,6 +233,45 @@ public static partial class FixedConvex2dRelations
     /// Attempts to build up to two local-frame contact-anchor pairs between
     /// two rotated closed convex polygons.
     /// </summary>
+    /// <param name="firstOrigin">The first shape frame's origin in world coordinates.</param>
+    /// <param name="firstRotation">The first shape's counterclockwise local-to-world angle in radians.</param>
+    /// <param name="firstVertexOffsets">
+    /// At least three offsets of the first polygon in boundary order, in either winding. The span is read during
+    /// the call.
+    /// </param>
+    /// <param name="secondOrigin">The second shape frame's origin in world coordinates.</param>
+    /// <param name="secondRotation">The second shape's counterclockwise local-to-world angle in radians.</param>
+    /// <param name="secondVertexOffsets">
+    /// At least three offsets of the second polygon in boundary order, in either winding. The span is read during
+    /// the call.
+    /// </param>
+    /// <param name="firstContacts">
+    /// Caller-owned storage with capacity for two anchors. The first <paramref name="contactCount"/> elements are
+    /// overwritten on success and match the other buffer by index. The unused tail and the buffer on a miss are
+    /// preserved.
+    /// </param>
+    /// <param name="secondContacts">
+    /// Caller-owned storage with capacity for two anchors. The first <paramref name="contactCount"/> elements are
+    /// overwritten on success and match the other buffer by index. The unused tail and the buffer on a miss are
+    /// preserved.
+    /// </param>
+    /// <param name="contactCount">The number of valid matched pairs, from one to two on success and zero on failure.</param>
+    /// <param name="normal">The world-space normal from the first polygon toward the second when a pair is returned.</param>
+    /// <param name="depth">The rounded penetration depth in coordinate units when a contact is returned.</param>
+    /// <param name="depthIsClamped"><see langword="true"/> if the selected depth exceeds <see cref="Fixed64.MaxValue"/>.</param>
+    /// <returns>
+    /// <see langword="true"/> when the closed shapes touch or overlap and the requested contact is available and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="firstVertexOffsets"/> has fewer than three vertices, <paramref name="secondVertexOffsets"/>
+    /// has fewer than three vertices, <paramref name="firstContacts"/> has fewer than two elements, or
+    /// <paramref name="secondContacts"/> has fewer than two elements.
+    /// </exception>
+    /// <remarks>
+    /// Both destination spans belong to the caller and are used only during the call. Supply nonoverlapping spans
+    /// so that writing a witness to one destination preserves its matching witness in the other.
+    /// </remarks>
     public static bool TryGetConvexContacts(
         Vector2d firstOrigin,
         Fixed64 firstRotation,
@@ -235,6 +338,25 @@ public static partial class FixedConvex2dRelations
     /// Attempts to build a contact-anchor pair between a conceptual circle and
     /// a rotated closed convex polygon.
     /// </summary>
+    /// <param name="circleCenter">The circle center in the query coordinate space.</param>
+    /// <param name="circleRotation">The circle's counterclockwise local-to-world angle in radians.</param>
+    /// <param name="circleRadius">The circle's nonnegative radius in coordinate units.</param>
+    /// <param name="convexOrigin">The polygon frame's origin in world coordinates.</param>
+    /// <param name="convexRotation">The polygon's counterclockwise local-to-world angle in radians.</param>
+    /// <param name="convexVertexOffsets">
+    /// At least three polygon offsets in boundary order, in either winding. The span is read during the call.
+    /// </param>
+    /// <param name="circleContact">The matched witness retained in the circle frame when a contact is returned.</param>
+    /// <param name="convexContact">The matched witness retained in the polygon frame when a contact is returned.</param>
+    /// <param name="normal">The world-space normal from the curved shape toward the polygon when a contact is returned.</param>
+    /// <param name="depth">The rounded penetration depth in coordinate units when a contact is returned.</param>
+    /// <param name="depthIsClamped"><see langword="true"/> if the selected depth exceeds <see cref="Fixed64.MaxValue"/>.</param>
+    /// <returns>
+    /// <see langword="true"/> when the closed shapes touch or overlap and the requested contact is available and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException"><paramref name="convexVertexOffsets"/> has fewer than three vertices.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="circleRadius"/> is negative.</exception>
     /// <remarks>
     /// A circle's rotation does not change its geometry, but it defines the
     /// rigid local frame of the returned circle anchor.
@@ -301,6 +423,28 @@ public static partial class FixedConvex2dRelations
     /// Finds the first distance where a finite directed segment reaches a
     /// closed convex polygon.
     /// </summary>
+    /// <param name="start">The starting point in the query coordinate space.</param>
+    /// <param name="direction">The normalized query direction in world coordinates.</param>
+    /// <param name="maximumDistance">The nonnegative maximum travel distance in coordinate units, including the endpoint.</param>
+    /// <param name="convexOrigin">The polygon frame's origin in world coordinates.</param>
+    /// <param name="convexVertexOffsets">
+    /// At least three polygon offsets in boundary order, in either winding. The span is read during the call.
+    /// </param>
+    /// <param name="distance">The first contact distance measured from the start on success.</param>
+    /// <param name="normal">
+    /// The sweep contact normal in world coordinates on success. For a segment starting inside the polygon, it is
+    /// opposite the direction of travel.
+    /// </param>
+    /// <param name="convexContactOffset">The matched point relative to the polygon origin on success.</param>
+    /// <returns>
+    /// <see langword="true"/> when a contact is found within the tested travel interval and <see langword="false"/>
+    /// otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="direction"/> is not normalized or <paramref name="convexVertexOffsets"/> has fewer than
+    /// three vertices.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="maximumDistance"/> is negative.</exception>
     public static bool TryGetSegmentFirstIntersectionDistance(
         Vector2d start,
         Vector2d direction,
@@ -350,6 +494,29 @@ public static partial class FixedConvex2dRelations
     /// Finds the first distance where a finite directed segment reaches a
     /// rotated closed convex polygon.
     /// </summary>
+    /// <param name="start">The starting point in the query coordinate space.</param>
+    /// <param name="direction">The normalized query direction in world coordinates.</param>
+    /// <param name="maximumDistance">The nonnegative maximum travel distance in coordinate units, including the endpoint.</param>
+    /// <param name="convexOrigin">The polygon frame's origin in world coordinates.</param>
+    /// <param name="convexRotation">The polygon's counterclockwise local-to-world angle in radians.</param>
+    /// <param name="convexVertexOffsets">
+    /// At least three polygon offsets in boundary order, in either winding. The span is read during the call.
+    /// </param>
+    /// <param name="distance">The first contact distance measured from the start on success.</param>
+    /// <param name="normal">
+    /// The sweep contact normal in world coordinates on success. For a segment starting inside the polygon, it is
+    /// opposite the direction of travel.
+    /// </param>
+    /// <param name="convexContact">The matched witness retained in the polygon frame on success.</param>
+    /// <returns>
+    /// <see langword="true"/> when a contact is found within the tested travel interval and <see langword="false"/>
+    /// otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="direction"/> is not normalized or <paramref name="convexVertexOffsets"/> has fewer than
+    /// three vertices.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="maximumDistance"/> is negative.</exception>
     public static bool TryGetSegmentFirstIntersectionDistance(
         Vector2d start,
         Vector2d direction,
@@ -411,6 +578,31 @@ public static partial class FixedConvex2dRelations
     /// Finds the first distance where a translated conceptual circle reaches a
     /// closed convex polygon.
     /// </summary>
+    /// <param name="circleCenter">The circle center in the query coordinate space.</param>
+    /// <param name="circleRadius">The circle's nonnegative radius in coordinate units.</param>
+    /// <param name="direction">The normalized query direction in world coordinates.</param>
+    /// <param name="maximumDistance">The nonnegative maximum travel distance in coordinate units, including the endpoint.</param>
+    /// <param name="convexOrigin">The polygon frame's origin in world coordinates.</param>
+    /// <param name="convexVertexOffsets">
+    /// At least three polygon offsets in boundary order, in either winding. The span is read during the call.
+    /// </param>
+    /// <param name="distance">The first contact distance measured from the start on success.</param>
+    /// <param name="normal">
+    /// The sweep contact normal in world coordinates on success. For a segment starting inside the polygon, it is
+    /// opposite the direction of travel.
+    /// </param>
+    /// <param name="convexContactOffset">The matched point relative to the polygon origin on success.</param>
+    /// <returns>
+    /// <see langword="true"/> when a contact is found within the tested travel interval and <see langword="false"/>
+    /// otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="direction"/> is not normalized or <paramref name="convexVertexOffsets"/> has fewer than
+    /// three vertices.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="circleRadius"/> is negative or <paramref name="maximumDistance"/> is negative.
+    /// </exception>
     public static bool TryGetSweptCircleFirstDistance(
         Vector2d circleCenter,
         Fixed64 circleRadius,
@@ -462,6 +654,32 @@ public static partial class FixedConvex2dRelations
     /// Finds the first distance where a translated conceptual circle reaches
     /// a rotated closed convex polygon.
     /// </summary>
+    /// <param name="circleCenter">The circle center in the query coordinate space.</param>
+    /// <param name="circleRadius">The circle's nonnegative radius in coordinate units.</param>
+    /// <param name="direction">The normalized query direction in world coordinates.</param>
+    /// <param name="maximumDistance">The nonnegative maximum travel distance in coordinate units, including the endpoint.</param>
+    /// <param name="convexOrigin">The polygon frame's origin in world coordinates.</param>
+    /// <param name="convexRotation">The polygon's counterclockwise local-to-world angle in radians.</param>
+    /// <param name="convexVertexOffsets">
+    /// At least three polygon offsets in boundary order, in either winding. The span is read during the call.
+    /// </param>
+    /// <param name="distance">The first contact distance measured from the start on success.</param>
+    /// <param name="normal">
+    /// The sweep contact normal in world coordinates on success. For a segment starting inside the polygon, it is
+    /// opposite the direction of travel.
+    /// </param>
+    /// <param name="convexContact">The matched witness retained in the polygon frame on success.</param>
+    /// <returns>
+    /// <see langword="true"/> when a contact is found within the tested travel interval and <see langword="false"/>
+    /// otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="direction"/> is not normalized or <paramref name="convexVertexOffsets"/> has fewer than
+    /// three vertices.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="circleRadius"/> is negative or <paramref name="maximumDistance"/> is negative.
+    /// </exception>
     public static bool TryGetSweptCircleFirstDistance(
         Vector2d circleCenter,
         Fixed64 circleRadius,
@@ -525,6 +743,35 @@ public static partial class FixedConvex2dRelations
     /// Finds the first distance where a translated centered rotated capsule
     /// reaches a rotated closed convex polygon.
     /// </summary>
+    /// <param name="capsuleCenter">The capsule center in the query coordinate space.</param>
+    /// <param name="capsuleRotation">The capsule's counterclockwise local-to-world angle in radians.</param>
+    /// <param name="capsuleAxisLength">The full nonnegative length of the capsule's central segment.</param>
+    /// <param name="capsuleRadius">The capsule's nonnegative radius in coordinate units.</param>
+    /// <param name="direction">The normalized query direction in world coordinates.</param>
+    /// <param name="maximumDistance">The nonnegative maximum travel distance in coordinate units, including the endpoint.</param>
+    /// <param name="convexOrigin">The polygon frame's origin in world coordinates.</param>
+    /// <param name="convexRotation">The polygon's counterclockwise local-to-world angle in radians.</param>
+    /// <param name="convexVertexOffsets">
+    /// At least three polygon offsets in boundary order, in either winding. The span is read during the call.
+    /// </param>
+    /// <param name="distance">The first contact distance measured from the start on success.</param>
+    /// <param name="normal">
+    /// The sweep contact normal in world coordinates on success. For a segment starting inside the polygon, it is
+    /// opposite the direction of travel.
+    /// </param>
+    /// <param name="convexContact">The matched witness retained in the polygon frame on success.</param>
+    /// <returns>
+    /// <see langword="true"/> when a contact is found within the tested travel interval and <see langword="false"/>
+    /// otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="direction"/> is not normalized or <paramref name="convexVertexOffsets"/> has fewer than
+    /// three vertices.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="capsuleAxisLength"/> is negative, <paramref name="capsuleRadius"/> is negative, or
+    /// <paramref name="maximumDistance"/> is negative.
+    /// </exception>
     public static bool TryGetSweptCenteredCapsuleFirstDistance(
         Vector2d capsuleCenter,
         Fixed64 capsuleRotation,
@@ -603,6 +850,34 @@ public static partial class FixedConvex2dRelations
     /// Finds the first distance where a translated conceptual centered
     /// capsule reaches a closed convex polygon.
     /// </summary>
+    /// <param name="capsuleCenter">The capsule center in the query coordinate space.</param>
+    /// <param name="capsuleAxisDirection">The normalized capsule axis in world coordinates.</param>
+    /// <param name="capsuleAxisLength">The full nonnegative length of the capsule's central segment.</param>
+    /// <param name="capsuleRadius">The capsule's nonnegative radius in coordinate units.</param>
+    /// <param name="direction">The normalized query direction in world coordinates.</param>
+    /// <param name="maximumDistance">The nonnegative maximum travel distance in coordinate units, including the endpoint.</param>
+    /// <param name="convexOrigin">The polygon frame's origin in world coordinates.</param>
+    /// <param name="convexVertexOffsets">
+    /// At least three polygon offsets in boundary order, in either winding. The span is read during the call.
+    /// </param>
+    /// <param name="distance">The first contact distance measured from the start on success.</param>
+    /// <param name="normal">
+    /// The sweep contact normal in world coordinates on success. For a segment starting inside the polygon, it is
+    /// opposite the direction of travel.
+    /// </param>
+    /// <param name="convexContactOffset">The matched point relative to the polygon origin on success.</param>
+    /// <returns>
+    /// <see langword="true"/> when a contact is found within the tested travel interval and <see langword="false"/>
+    /// otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="capsuleAxisDirection"/> is not normalized, <paramref name="direction"/> is not normalized,
+    /// or <paramref name="convexVertexOffsets"/> has fewer than three vertices.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="capsuleAxisLength"/> is negative, <paramref name="capsuleRadius"/> is negative, or
+    /// <paramref name="maximumDistance"/> is negative.
+    /// </exception>
     public static bool TryGetSweptCenteredCapsuleFirstDistance(
         Vector2d capsuleCenter,
         Vector2d capsuleAxisDirection,
@@ -667,6 +942,35 @@ public static partial class FixedConvex2dRelations
     /// Finds the first distance where a translated conceptual centered capsule
     /// reaches a rotated closed convex polygon.
     /// </summary>
+    /// <param name="capsuleCenter">The capsule center in the query coordinate space.</param>
+    /// <param name="capsuleAxisDirection">The normalized capsule axis in world coordinates.</param>
+    /// <param name="capsuleAxisLength">The full nonnegative length of the capsule's central segment.</param>
+    /// <param name="capsuleRadius">The capsule's nonnegative radius in coordinate units.</param>
+    /// <param name="direction">The normalized query direction in world coordinates.</param>
+    /// <param name="maximumDistance">The nonnegative maximum travel distance in coordinate units, including the endpoint.</param>
+    /// <param name="convexOrigin">The polygon frame's origin in world coordinates.</param>
+    /// <param name="convexRotation">The polygon's counterclockwise local-to-world angle in radians.</param>
+    /// <param name="convexVertexOffsets">
+    /// At least three polygon offsets in boundary order, in either winding. The span is read during the call.
+    /// </param>
+    /// <param name="distance">The first contact distance measured from the start on success.</param>
+    /// <param name="normal">
+    /// The sweep contact normal in world coordinates on success. For a segment starting inside the polygon, it is
+    /// opposite the direction of travel.
+    /// </param>
+    /// <param name="convexContact">The matched witness retained in the polygon frame on success.</param>
+    /// <returns>
+    /// <see langword="true"/> when a contact is found within the tested travel interval and <see langword="false"/>
+    /// otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="capsuleAxisDirection"/> is not normalized, <paramref name="direction"/> is not normalized,
+    /// or <paramref name="convexVertexOffsets"/> has fewer than three vertices.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="capsuleAxisLength"/> is negative, <paramref name="capsuleRadius"/> is negative, or
+    /// <paramref name="maximumDistance"/> is negative.
+    /// </exception>
     public static bool TryGetSweptCenteredCapsuleFirstDistance(
         Vector2d capsuleCenter,
         Vector2d capsuleAxisDirection,
@@ -740,6 +1044,33 @@ public static partial class FixedConvex2dRelations
     /// Finds the first distance where a translated closed convex polygon
     /// reaches another closed convex polygon.
     /// </summary>
+    /// <param name="moverOrigin">The moving polygon frame's origin in world coordinates.</param>
+    /// <param name="moverVertexOffsets">
+    /// At least three moving polygon offsets in boundary order, in either winding. The span is read during the
+    /// call.
+    /// </param>
+    /// <param name="direction">The normalized query direction in world coordinates.</param>
+    /// <param name="maximumDistance">The nonnegative maximum travel distance in coordinate units, including the endpoint.</param>
+    /// <param name="targetOrigin">The stationary target frame's origin in world coordinates.</param>
+    /// <param name="targetVertexOffsets">
+    /// At least three stationary target offsets in boundary order, in either winding. The span is read during the
+    /// call.
+    /// </param>
+    /// <param name="distance">The first contact distance measured from the start on success.</param>
+    /// <param name="normal">
+    /// The sweep contact normal in world coordinates on success. For a segment starting inside the polygon, it is
+    /// opposite the direction of travel.
+    /// </param>
+    /// <param name="targetContactOffset">The matched point relative to the stationary polygon's origin on success.</param>
+    /// <returns>
+    /// <see langword="true"/> when a contact is found within the tested travel interval and <see langword="false"/>
+    /// otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="moverVertexOffsets"/> has fewer than three vertices, <paramref name="direction"/> is not
+    /// normalized, or <paramref name="targetVertexOffsets"/> has fewer than three vertices.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="maximumDistance"/> is negative.</exception>
     public static bool TryGetSweptConvexFirstDistance(
         Vector2d moverOrigin,
         ReadOnlySpan<Vector2d> moverVertexOffsets,
@@ -767,6 +1098,35 @@ public static partial class FixedConvex2dRelations
     /// Finds the first distance where a translated rotated convex polygon
     /// reaches another rotated closed convex polygon.
     /// </summary>
+    /// <param name="moverOrigin">The moving polygon frame's origin in world coordinates.</param>
+    /// <param name="moverRotation">The moving polygon's counterclockwise local-to-world angle in radians.</param>
+    /// <param name="moverVertexOffsets">
+    /// At least three moving polygon offsets in boundary order, in either winding. The span is read during the
+    /// call.
+    /// </param>
+    /// <param name="direction">The normalized query direction in world coordinates.</param>
+    /// <param name="maximumDistance">The nonnegative maximum travel distance in coordinate units, including the endpoint.</param>
+    /// <param name="targetOrigin">The stationary target frame's origin in world coordinates.</param>
+    /// <param name="targetRotation">The stationary target's counterclockwise local-to-world angle in radians.</param>
+    /// <param name="targetVertexOffsets">
+    /// At least three stationary target offsets in boundary order, in either winding. The span is read during the
+    /// call.
+    /// </param>
+    /// <param name="distance">The first contact distance measured from the start on success.</param>
+    /// <param name="normal">
+    /// The sweep contact normal in world coordinates on success. For a segment starting inside the polygon, it is
+    /// opposite the direction of travel.
+    /// </param>
+    /// <param name="targetContact">The matched witness retained in the stationary target frame on success.</param>
+    /// <returns>
+    /// <see langword="true"/> when a contact is found within the tested travel interval and <see langword="false"/>
+    /// otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="moverVertexOffsets"/> has fewer than three vertices, <paramref name="direction"/> is not
+    /// normalized, or <paramref name="targetVertexOffsets"/> has fewer than three vertices.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="maximumDistance"/> is negative.</exception>
     public static bool TryGetSweptConvexFirstDistance(
         Vector2d moverOrigin,
         Fixed64 moverRotation,

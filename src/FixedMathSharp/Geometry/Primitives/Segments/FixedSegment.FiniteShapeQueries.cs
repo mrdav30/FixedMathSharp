@@ -19,6 +19,37 @@ public partial struct FixedSegment
     /// Attempts to return the oriented penetration of a centered 3D capsule
     /// and a centered planar capsule extruded through a world-Y slab.
     /// </summary>
+    /// <param name="projectionAxis">The normalized world-space direction onto which both shapes are projected.</param>
+    /// <param name="capsuleCenter">The capsule center in the query coordinate space.</param>
+    /// <param name="capsuleAxisDirection">The normalized capsule axis in world coordinates.</param>
+    /// <param name="capsuleAxisLength">The full nonnegative length of the capsule's central segment.</param>
+    /// <param name="capsuleRadius">The capsule's nonnegative radius in coordinate units.</param>
+    /// <param name="slabCenter">
+    /// The slab center in world coordinates. X and Z locate its footprint and Y locates its midplane.
+    /// </param>
+    /// <param name="slabCapsuleAxisDirection">
+    /// The normalized central-axis direction of the planar capsule in world X/Z coordinates.
+    /// </param>
+    /// <param name="slabCapsuleAxisLength">The full nonnegative length of the footprint's core segment.</param>
+    /// <param name="slabCapsuleRadius">The nonnegative radial extent of the planar capsule.</param>
+    /// <param name="slabHalfThickness">The half-thickness along world Y.</param>
+    /// <param name="orientedAxis">The projection direction oriented for the selected exit on success.</param>
+    /// <param name="depth">The rounded penetration depth in coordinate units on success.</param>
+    /// <param name="depthIsClamped"><see langword="true"/> if the selected depth exceeds <see cref="Fixed64.MaxValue"/>.</param>
+    /// <returns>
+    /// <see langword="true"/> when the closed projected intervals overlap, including touching and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <remarks>This test uses one projection axis. Use a shape contact or intersection query for a complete relation.</remarks>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="projectionAxis"/> is not normalized, <paramref name="capsuleAxisDirection"/> is not
+    /// normalized, or <paramref name="slabCapsuleAxisDirection"/> is not normalized.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="capsuleAxisLength"/> is negative, <paramref name="capsuleRadius"/> is negative,
+    /// <paramref name="slabCapsuleAxisLength"/> is negative, <paramref name="slabCapsuleRadius"/> is negative, or
+    /// <paramref name="slabHalfThickness"/> is negative.
+    /// </exception>
     public static bool TryGetCenteredCapsuleCapsuleSlabAxisPenetration(
         Vector3d projectionAxis,
         Vector3d capsuleCenter,
@@ -65,6 +96,37 @@ public partial struct FixedSegment
     /// Attempts to return the oriented penetration of a centered finite
     /// cylinder and a centered planar capsule extruded through a world-Y slab.
     /// </summary>
+    /// <param name="projectionAxis">The normalized world-space direction onto which both shapes are projected.</param>
+    /// <param name="cylinderCenter">The cylinder center in the query coordinate space.</param>
+    /// <param name="cylinderAxisDirection">The normalized cylinder axis in world coordinates.</param>
+    /// <param name="cylinderAxisLength">The full positive distance between the cap centers.</param>
+    /// <param name="cylinderRadius">The cylinder's nonnegative radius in coordinate units.</param>
+    /// <param name="slabCenter">
+    /// The slab center in world coordinates. X and Z locate its footprint and Y locates its midplane.
+    /// </param>
+    /// <param name="slabCapsuleAxisDirection">
+    /// The normalized central-axis direction of the planar capsule in world X/Z coordinates.
+    /// </param>
+    /// <param name="slabCapsuleAxisLength">The full nonnegative length of the footprint's core segment.</param>
+    /// <param name="slabCapsuleRadius">The nonnegative radial extent of the planar capsule.</param>
+    /// <param name="slabHalfThickness">The half-thickness along world Y.</param>
+    /// <param name="orientedAxis">The projection direction oriented for the selected exit on success.</param>
+    /// <param name="depth">The rounded penetration depth in coordinate units on success.</param>
+    /// <param name="depthIsClamped"><see langword="true"/> if the selected depth exceeds <see cref="Fixed64.MaxValue"/>.</param>
+    /// <returns>
+    /// <see langword="true"/> when the closed projected intervals overlap, including touching and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <remarks>This test uses one projection axis. Use a shape contact or intersection query for a complete relation.</remarks>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="projectionAxis"/> is not normalized, <paramref name="cylinderAxisDirection"/> is not
+    /// normalized, or <paramref name="slabCapsuleAxisDirection"/> is not normalized.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="cylinderAxisLength"/> is not positive, <paramref name="cylinderRadius"/> is negative,
+    /// <paramref name="slabCapsuleAxisLength"/> is negative, <paramref name="slabCapsuleRadius"/> is negative, or
+    /// <paramref name="slabHalfThickness"/> is negative.
+    /// </exception>
     public static bool TryGetCenteredFiniteCylinderCapsuleSlabAxisPenetration(
         Vector3d projectionAxis,
         Vector3d cylinderCenter,
@@ -111,6 +173,37 @@ public partial struct FixedSegment
     /// Attempts to return the oriented penetration of a centered finite cone
     /// and a centered planar capsule extruded through a world-Y slab.
     /// </summary>
+    /// <param name="projectionAxis">The normalized world-space direction onto which both shapes are projected.</param>
+    /// <param name="coneCenter">The cone center in the query coordinate space.</param>
+    /// <param name="baseToApexDirection">The normalized world direction from the base center to the apex.</param>
+    /// <param name="coneHeight">The cone's full positive axis length.</param>
+    /// <param name="coneRadius">The cone's nonnegative radius in coordinate units.</param>
+    /// <param name="slabCenter">
+    /// The slab center in world coordinates. X and Z locate its footprint and Y locates its midplane.
+    /// </param>
+    /// <param name="slabCapsuleAxisDirection">
+    /// The normalized central-axis direction of the planar capsule in world X/Z coordinates.
+    /// </param>
+    /// <param name="slabCapsuleAxisLength">The full nonnegative length of the footprint's core segment.</param>
+    /// <param name="slabCapsuleRadius">The nonnegative radial extent of the planar capsule.</param>
+    /// <param name="slabHalfThickness">The half-thickness along world Y.</param>
+    /// <param name="orientedAxis">The projection direction oriented for the selected exit on success.</param>
+    /// <param name="depth">The rounded penetration depth in coordinate units on success.</param>
+    /// <param name="depthIsClamped"><see langword="true"/> if the selected depth exceeds <see cref="Fixed64.MaxValue"/>.</param>
+    /// <returns>
+    /// <see langword="true"/> when the closed projected intervals overlap, including touching and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <remarks>This test uses one projection axis. Use a shape contact or intersection query for a complete relation.</remarks>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="projectionAxis"/> is not normalized, <paramref name="baseToApexDirection"/> is not
+    /// normalized, or <paramref name="slabCapsuleAxisDirection"/> is not normalized.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="coneHeight"/> is not positive, <paramref name="coneRadius"/> is negative,
+    /// <paramref name="slabCapsuleAxisLength"/> is negative, <paramref name="slabCapsuleRadius"/> is negative, or
+    /// <paramref name="slabHalfThickness"/> is negative.
+    /// </exception>
     public static bool TryGetCenteredFiniteConeCapsuleSlabAxisPenetration(
         Vector3d projectionAxis,
         Vector3d coneCenter,
@@ -203,6 +296,10 @@ public partial struct FixedSegment
     /// <param name="baseRadius">The nonnegative base radius.</param>
     /// <param name="entryParameter">The first intersecting segment parameter in [0, 1].</param>
     /// <param name="exitParameter">The last intersecting segment parameter in [0, 1].</param>
+    /// <returns>
+    /// <see langword="true"/> when the path intersects the closed shape within the tested interval and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
     /// <exception cref="ArgumentException">
     /// <paramref name="apexToBaseDirection"/> is zero or not normalized.
     /// </exception>
@@ -230,6 +327,29 @@ public partial struct FixedSegment
     /// Finds the closed parameter interval where this segment intersects a
     /// finite apex-authored cone and reports exact endpoint containment.
     /// </summary>
+    /// <param name="apex">The cone apex in world coordinates.</param>
+    /// <param name="apexToBaseDirection">The normalized world direction from the apex to the base center.</param>
+    /// <param name="height">The full positive distance from the cone apex to its base center.</param>
+    /// <param name="baseRadius">The nonnegative radius of the base disk.</param>
+    /// <param name="entryParameter">
+    /// The first parameter in the closed intersection interval, from zero at the start to one at the end on
+    /// success.
+    /// </param>
+    /// <param name="exitParameter">
+    /// The last parameter in the closed intersection interval, from zero at the start to one at the end on success.
+    /// </param>
+    /// <param name="startContained">
+    /// <see langword="true"/> when the exact start lies inside or on the expanded shape boundary.
+    /// </param>
+    /// <param name="endContainedStrict"><see langword="true"/> when the exact end lies strictly inside the expanded shape.</param>
+    /// <returns>
+    /// <see langword="true"/> when the path intersects the closed shape within the tested interval and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException"><paramref name="apexToBaseDirection"/> is not normalized.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="height"/> is not positive or <paramref name="baseRadius"/> is negative.
+    /// </exception>
     /// <remarks>
     /// <paramref name="startContained"/> includes the side, apex, and flat base.
     /// <paramref name="endContainedStrict"/> excludes every boundary. The
@@ -276,6 +396,10 @@ public partial struct FixedSegment
     /// <param name="baseRadius">The nonnegative base radius.</param>
     /// <param name="entryParameter">The first intersecting segment parameter in [0, 1].</param>
     /// <param name="exitParameter">The last intersecting segment parameter in [0, 1].</param>
+    /// <returns>
+    /// <see langword="true"/> when the path intersects the closed shape within the tested interval and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
     /// <exception cref="ArgumentException">
     /// <paramref name="baseToApexDirection"/> is zero or not normalized.
     /// </exception>
@@ -303,6 +427,29 @@ public partial struct FixedSegment
     /// Finds the closed parameter interval where this segment intersects a
     /// centered finite cone and reports exact endpoint containment.
     /// </summary>
+    /// <param name="center">The center in the query coordinate space.</param>
+    /// <param name="baseToApexDirection">The normalized world direction from the base center to the apex.</param>
+    /// <param name="height">The full positive distance from the cone apex to its base center.</param>
+    /// <param name="baseRadius">The nonnegative radius of the base disk.</param>
+    /// <param name="entryParameter">
+    /// The first parameter in the closed intersection interval, from zero at the start to one at the end on
+    /// success.
+    /// </param>
+    /// <param name="exitParameter">
+    /// The last parameter in the closed intersection interval, from zero at the start to one at the end on success.
+    /// </param>
+    /// <param name="startContained">
+    /// <see langword="true"/> when the exact start lies inside or on the expanded shape boundary.
+    /// </param>
+    /// <param name="endContainedStrict"><see langword="true"/> when the exact end lies strictly inside the expanded shape.</param>
+    /// <returns>
+    /// <see langword="true"/> when the path intersects the closed shape within the tested interval and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException"><paramref name="baseToApexDirection"/> is not normalized.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="height"/> is not positive or <paramref name="baseRadius"/> is negative.
+    /// </exception>
     public readonly bool TryGetCenteredFiniteConeIntersectionInterval(
         Vector3d center,
         Vector3d baseToApexDirection,
@@ -335,6 +482,28 @@ public partial struct FixedSegment
     /// Finds the physical-distance interval where this segment intersects a
     /// finite cone authored from its apex toward its flat base.
     /// </summary>
+    /// <param name="apex">The cone apex in world coordinates.</param>
+    /// <param name="apexToBaseDirection">The normalized world direction from the apex to the base center.</param>
+    /// <param name="height">The full positive distance from the cone apex to its base center.</param>
+    /// <param name="baseRadius">The nonnegative radius of the base disk.</param>
+    /// <param name="totalDistance">
+    /// The caller-supplied distance mapped to the full segment. Zero is allowed only for coincident endpoints.
+    /// </param>
+    /// <param name="entryDistance">The first distance along the authored segment interval on success.</param>
+    /// <param name="exitDistance">The last distance along the authored segment interval on success.</param>
+    /// <returns>
+    /// <see langword="true"/> when the path intersects the closed shape within the tested interval and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <remarks>The exact chord parameter is mapped to the authored distance interval before the endpoints are rounded.</remarks>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="apexToBaseDirection"/> is not normalized or <paramref name="totalDistance"/> is zero for a
+    /// nonzero-length segment.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="height"/> is not positive, <paramref name="baseRadius"/> is negative, or
+    /// <paramref name="totalDistance"/> is negative.
+    /// </exception>
     /// <remarks>
     /// Distances are solved directly from the wide polynomial; they are not
     /// reconstructed from rounded Q32.32 parameters.
@@ -362,6 +531,32 @@ public partial struct FixedSegment
     /// Finds the physical-distance interval where this segment intersects an
     /// apex-authored finite cone and reports exact endpoint containment.
     /// </summary>
+    /// <param name="apex">The cone apex in world coordinates.</param>
+    /// <param name="apexToBaseDirection">The normalized world direction from the apex to the base center.</param>
+    /// <param name="height">The full positive distance from the cone apex to its base center.</param>
+    /// <param name="baseRadius">The nonnegative radius of the base disk.</param>
+    /// <param name="totalDistance">
+    /// The caller-supplied distance mapped to the full segment. Zero is allowed only for coincident endpoints.
+    /// </param>
+    /// <param name="entryDistance">The first distance along the authored segment interval on success.</param>
+    /// <param name="exitDistance">The last distance along the authored segment interval on success.</param>
+    /// <param name="startContained">
+    /// <see langword="true"/> when the exact start lies inside or on the expanded shape boundary.
+    /// </param>
+    /// <param name="endContainedStrict"><see langword="true"/> when the exact end lies strictly inside the expanded shape.</param>
+    /// <returns>
+    /// <see langword="true"/> when the path intersects the closed shape within the tested interval and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <remarks>The exact chord parameter is mapped to the authored distance interval before the endpoints are rounded.</remarks>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="apexToBaseDirection"/> is not normalized or <paramref name="totalDistance"/> is zero for a
+    /// nonzero-length segment.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="height"/> is not positive, <paramref name="baseRadius"/> is negative, or
+    /// <paramref name="totalDistance"/> is negative.
+    /// </exception>
     public readonly bool TryGetFiniteConeIntersectionDistanceInterval(
         Vector3d apex,
         Vector3d apexToBaseDirection,
@@ -397,6 +592,28 @@ public partial struct FixedSegment
     /// Finds the physical-distance interval where this segment intersects a
     /// centered finite cone.
     /// </summary>
+    /// <param name="center">The center in the query coordinate space.</param>
+    /// <param name="baseToApexDirection">The normalized world direction from the base center to the apex.</param>
+    /// <param name="height">The full positive distance from the cone apex to its base center.</param>
+    /// <param name="baseRadius">The nonnegative radius of the base disk.</param>
+    /// <param name="totalDistance">
+    /// The caller-supplied distance mapped to the full segment. Zero is allowed only for coincident endpoints.
+    /// </param>
+    /// <param name="entryDistance">The first distance along the authored segment interval on success.</param>
+    /// <param name="exitDistance">The last distance along the authored segment interval on success.</param>
+    /// <returns>
+    /// <see langword="true"/> when the path intersects the closed shape within the tested interval and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <remarks>The exact chord parameter is mapped to the authored distance interval before the endpoints are rounded.</remarks>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="baseToApexDirection"/> is not normalized or <paramref name="totalDistance"/> is zero for a
+    /// nonzero-length segment.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="height"/> is not positive, <paramref name="baseRadius"/> is negative, or
+    /// <paramref name="totalDistance"/> is negative.
+    /// </exception>
     public readonly bool TryGetCenteredFiniteConeIntersectionDistanceInterval(
         Vector3d center,
         Vector3d baseToApexDirection,
@@ -420,6 +637,32 @@ public partial struct FixedSegment
     /// Finds the physical-distance interval where this segment intersects a
     /// centered finite cone and reports exact endpoint containment.
     /// </summary>
+    /// <param name="center">The center in the query coordinate space.</param>
+    /// <param name="baseToApexDirection">The normalized world direction from the base center to the apex.</param>
+    /// <param name="height">The full positive distance from the cone apex to its base center.</param>
+    /// <param name="baseRadius">The nonnegative radius of the base disk.</param>
+    /// <param name="totalDistance">
+    /// The caller-supplied distance mapped to the full segment. Zero is allowed only for coincident endpoints.
+    /// </param>
+    /// <param name="entryDistance">The first distance along the authored segment interval on success.</param>
+    /// <param name="exitDistance">The last distance along the authored segment interval on success.</param>
+    /// <param name="startContained">
+    /// <see langword="true"/> when the exact start lies inside or on the expanded shape boundary.
+    /// </param>
+    /// <param name="endContainedStrict"><see langword="true"/> when the exact end lies strictly inside the expanded shape.</param>
+    /// <returns>
+    /// <see langword="true"/> when the path intersects the closed shape within the tested interval and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <remarks>The exact chord parameter is mapped to the authored distance interval before the endpoints are rounded.</remarks>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="baseToApexDirection"/> is not normalized or <paramref name="totalDistance"/> is zero for a
+    /// nonzero-length segment.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="height"/> is not positive, <paramref name="baseRadius"/> is negative, or
+    /// <paramref name="totalDistance"/> is negative.
+    /// </exception>
     public readonly bool TryGetCenteredFiniteConeIntersectionDistanceInterval(
         Vector3d center,
         Vector3d baseToApexDirection,
@@ -455,6 +698,20 @@ public partial struct FixedSegment
     /// Finds deterministic lattice witnesses for the first and last points where
     /// this segment intersects an apex-authored finite cone.
     /// </summary>
+    /// <param name="apex">The cone apex in world coordinates.</param>
+    /// <param name="apexToBaseDirection">The normalized world direction from the apex to the base center.</param>
+    /// <param name="height">The full positive distance from the cone apex to its base center.</param>
+    /// <param name="baseRadius">The nonnegative radius of the base disk.</param>
+    /// <param name="entryPoint">The rounded entry witness in the segment's coordinate space on success.</param>
+    /// <param name="exitPoint">The rounded exit witness in the segment's coordinate space on success.</param>
+    /// <returns>
+    /// <see langword="true"/> when both intersection endpoint witnesses can be materialized and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException"><paramref name="apexToBaseDirection"/> is not normalized.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="height"/> is not positive or <paramref name="baseRadius"/> is negative.
+    /// </exception>
     /// <remarks>
     /// The solver uses the largest positive Q32.32 interval scale before exact
     /// authored-chord interpolation, so long segments do not amplify ordinary
@@ -501,6 +758,19 @@ public partial struct FixedSegment
     /// Finds the intersecting lattice point with the smallest axial distance
     /// from an apex-authored cone's apex.
     /// </summary>
+    /// <param name="apex">The cone apex in world coordinates.</param>
+    /// <param name="apexToBaseDirection">The normalized world direction from the apex to the base center.</param>
+    /// <param name="height">The full positive distance from the cone apex to its base center.</param>
+    /// <param name="baseRadius">The nonnegative radius of the base disk.</param>
+    /// <param name="point">The selected point on the intersection in query coordinates on success.</param>
+    /// <returns>
+    /// <see langword="true"/> when a minimum-axial intersection witness can be returned and <see langword="false"/>
+    /// otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException"><paramref name="apexToBaseDirection"/> is not normalized.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="height"/> is not positive or <paramref name="baseRadius"/> is negative.
+    /// </exception>
     /// <remarks>
     /// The exact segment-axis projection selects the appropriate end of the
     /// admitted interval before one high-resolution authored-chord interpolation.
@@ -548,6 +818,20 @@ public partial struct FixedSegment
     /// Finds deterministic lattice witnesses for the first and last points where
     /// this segment intersects a centered finite cone.
     /// </summary>
+    /// <param name="center">The center in the query coordinate space.</param>
+    /// <param name="baseToApexDirection">The normalized world direction from the base center to the apex.</param>
+    /// <param name="height">The full positive distance from the cone apex to its base center.</param>
+    /// <param name="baseRadius">The nonnegative radius of the base disk.</param>
+    /// <param name="entryPoint">The rounded entry witness in the segment's coordinate space on success.</param>
+    /// <param name="exitPoint">The rounded exit witness in the segment's coordinate space on success.</param>
+    /// <returns>
+    /// <see langword="true"/> when both intersection endpoint witnesses can be materialized and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException"><paramref name="baseToApexDirection"/> is not normalized.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="height"/> is not positive or <paramref name="baseRadius"/> is negative.
+    /// </exception>
     public readonly bool TryGetCenteredFiniteConeIntersectionPointInterval(
         Vector3d center,
         Vector3d baseToApexDirection,
@@ -589,6 +873,23 @@ public partial struct FixedSegment
     /// Returns whether a point lies strictly inside or inclusively within a
     /// finite cone authored from its apex toward its flat base.
     /// </summary>
+    /// <param name="point">The point in the query coordinate space.</param>
+    /// <param name="apex">The cone apex in world coordinates.</param>
+    /// <param name="apexToBaseDirection">The normalized world direction from the apex to the base center.</param>
+    /// <param name="height">The full positive distance from the cone apex to its base center.</param>
+    /// <param name="baseRadius">The nonnegative radius of the base disk.</param>
+    /// <param name="strict">
+    /// <see langword="true"/> to require strict interior containment. <see langword="false"/> includes the
+    /// boundary.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the point satisfies the requested containment test and <see langword="false"/>
+    /// otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException"><paramref name="apexToBaseDirection"/> is not normalized.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="height"/> is not positive or <paramref name="baseRadius"/> is negative.
+    /// </exception>
     public static bool ContainsPointInFiniteCone(
         Vector3d point,
         Vector3d apex,
@@ -616,6 +917,23 @@ public partial struct FixedSegment
     /// Returns whether a point lies strictly inside or inclusively within a
     /// centered finite cone whose direction points from base to apex.
     /// </summary>
+    /// <param name="point">The point in the query coordinate space.</param>
+    /// <param name="center">The center in the query coordinate space.</param>
+    /// <param name="baseToApexDirection">The normalized world direction from the base center to the apex.</param>
+    /// <param name="height">The full positive distance from the cone apex to its base center.</param>
+    /// <param name="baseRadius">The nonnegative radius of the base disk.</param>
+    /// <param name="strict">
+    /// <see langword="true"/> to require strict interior containment. <see langword="false"/> includes the
+    /// boundary.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the point satisfies the requested containment test and <see langword="false"/>
+    /// otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException"><paramref name="baseToApexDirection"/> is not normalized.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="height"/> is not positive or <paramref name="baseRadius"/> is negative.
+    /// </exception>
     public static bool ContainsPointInCenteredFiniteCone(
         Vector3d point,
         Vector3d center,

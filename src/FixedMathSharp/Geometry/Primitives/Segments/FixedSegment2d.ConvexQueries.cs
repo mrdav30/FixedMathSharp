@@ -18,6 +18,23 @@ public partial struct FixedSegment2d
     /// Returns whether a centered capsule expressed by a scalar rigid-frame
     /// rotation strictly penetrates a rotated convex polygon.
     /// </summary>
+    /// <param name="center">The center in the query coordinate space.</param>
+    /// <param name="rotation">The counterclockwise local-to-world rotation in radians.</param>
+    /// <param name="axisLength">The full nonnegative length of the central segment. Zero makes the core a point.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="convexOrigin">The polygon frame's origin in world coordinates.</param>
+    /// <param name="convexRotation">The polygon's counterclockwise local-to-world angle in radians.</param>
+    /// <param name="convexVertexOffsets">
+    /// At least three polygon offsets in boundary order, in either winding. The span is read during the call.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the exact minimum separating translation has positive length and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException"><paramref name="convexVertexOffsets"/> has fewer than three vertices.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="axisLength"/> is negative or <paramref name="radius"/> is negative.
+    /// </exception>
     /// <remarks>
     /// The capsule's local positive Y axis uses the authored sine and cosine
     /// coefficients without renormalizing the derived world axis. Exact touch
@@ -39,6 +56,26 @@ public partial struct FixedSegment2d
     /// Returns whether a conceptual centered capsule has strictly positive
     /// penetration into a rotated convex polygon, excluding exact tangency.
     /// </summary>
+    /// <param name="center">The center in the query coordinate space.</param>
+    /// <param name="axisDirection">The normalized axis direction in world coordinates.</param>
+    /// <param name="axisLength">The full nonnegative length of the central segment. Zero makes the core a point.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="convexOrigin">The polygon frame's origin in world coordinates.</param>
+    /// <param name="convexRotation">The polygon's counterclockwise local-to-world angle in radians.</param>
+    /// <param name="convexVertexOffsets">
+    /// At least three polygon offsets in boundary order, in either winding. The span is read during the call.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the exact minimum separating translation has positive length and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="axisDirection"/> is not normalized or <paramref name="convexVertexOffsets"/> has fewer than
+    /// three vertices.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="axisLength"/> is negative or <paramref name="radius"/> is negative.
+    /// </exception>
     /// <remarks>
     /// Offsets must describe a convex polygon in boundary order. The world-space
     /// capsule axis and rotated polygon vertices retain their exact authored
@@ -80,6 +117,23 @@ public partial struct FixedSegment2d
     /// capsule from a closed convex polygon represented by an origin and
     /// origin-relative vertex offsets.
     /// </summary>
+    /// <param name="center">The center in the query coordinate space.</param>
+    /// <param name="axisDirection">The normalized axis direction in world coordinates.</param>
+    /// <param name="axisLength">The full nonnegative length of the central segment. Zero makes the core a point.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="convexOrigin">The polygon frame's origin in world coordinates.</param>
+    /// <param name="convexVertexOffsets">
+    /// At least three polygon offsets in boundary order, in either winding. The span is read during the call.
+    /// </param>
+    /// <param name="normal">The world-space normal from the curved shape toward the polygon when a contact is returned.</param>
+    /// <param name="depth">The minimum exit distance rounded to fixed point on success, or zero on failure.</param>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="axisDirection"/> is not normalized or <paramref name="convexVertexOffsets"/> has fewer than
+    /// three vertices.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="axisLength"/> is negative or <paramref name="radius"/> is negative.
+    /// </exception>
     /// <remarks>
     /// Offsets must be supplied in boundary order. Exact depth ties retain the
     /// first authored edge axis, and exact direction ties retain the first
@@ -126,6 +180,25 @@ public partial struct FixedSegment2d
     /// Finds the minimum translation that separates a conceptual centered
     /// capsule from a rotated closed convex polygon.
     /// </summary>
+    /// <param name="center">The center in the query coordinate space.</param>
+    /// <param name="axisDirection">The normalized axis direction in world coordinates.</param>
+    /// <param name="axisLength">The full nonnegative length of the central segment. Zero makes the core a point.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="convexOrigin">The polygon frame's origin in world coordinates.</param>
+    /// <param name="convexRotation">The polygon's counterclockwise local-to-world angle in radians.</param>
+    /// <param name="convexVertexOffsets">
+    /// At least three polygon offsets in boundary order, in either winding. The span is read during the call.
+    /// </param>
+    /// <param name="normal">The world-space normal from the curved shape toward the polygon when a contact is returned.</param>
+    /// <param name="depth">The minimum exit distance rounded to fixed point on success, or zero on failure.</param>
+    /// <returns><see langword="true"/> when the closed shapes touch or overlap and <see langword="false"/> otherwise.</returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="axisDirection"/> is not normalized or <paramref name="convexVertexOffsets"/> has fewer than
+    /// three vertices.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="axisLength"/> is negative or <paramref name="radius"/> is negative.
+    /// </exception>
     public static bool TryGetCenteredCapsuleConvexMinimumTranslation(
         Vector2d center,
         Vector2d axisDirection,
@@ -163,11 +236,48 @@ public partial struct FixedSegment2d
     /// Attempts to build contact anchors between a conceptual centered capsule
     /// and a rotated closed convex polygon.
     /// </summary>
+    /// <param name="capsuleCenter">The capsule center in the query coordinate space.</param>
+    /// <param name="capsuleRotation">The capsule's counterclockwise local-to-world angle in radians.</param>
+    /// <param name="localCapsuleAxisDirection">The normalized capsule axis in shape-local coordinates.</param>
+    /// <param name="capsuleAxisLength">The full nonnegative length of the capsule's central segment.</param>
+    /// <param name="capsuleRadius">The capsule's nonnegative radius in coordinate units.</param>
+    /// <param name="convexOrigin">The polygon frame's origin in world coordinates.</param>
+    /// <param name="convexRotation">The polygon's counterclockwise local-to-world angle in radians.</param>
+    /// <param name="convexVertexOffsets">
+    /// At least three polygon offsets in boundary order, in either winding. The span is read during the call.
+    /// </param>
+    /// <param name="capsuleContacts">
+    /// Caller-owned storage with capacity for two anchors. The first <paramref name="contactCount"/> elements are
+    /// overwritten on success and match the other buffer by index. The unused tail and the buffer on a miss are
+    /// preserved.
+    /// </param>
+    /// <param name="convexContacts">
+    /// Caller-owned storage with capacity for two anchors. The first <paramref name="contactCount"/> elements are
+    /// overwritten on success and match the other buffer by index. The unused tail and the buffer on a miss are
+    /// preserved.
+    /// </param>
+    /// <param name="contactCount">The number of valid matched pairs, from one to two on success and zero on failure.</param>
+    /// <param name="normal">The world-space normal from the curved shape toward the polygon when a contact is returned.</param>
+    /// <param name="depth">The rounded penetration depth in coordinate units when a contact is returned.</param>
+    /// <param name="depthIsClamped"><see langword="true"/> if the selected depth exceeds <see cref="Fixed64.MaxValue"/>.</param>
+    /// <returns>
+    /// <see langword="true"/> when the closed shapes touch or overlap and the requested contact is available and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="localCapsuleAxisDirection"/> is not normalized, <paramref name="convexVertexOffsets"/> has
+    /// fewer than three vertices, <paramref name="capsuleContacts"/> has fewer than two elements, or
+    /// <paramref name="convexContacts"/> has fewer than two elements.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="capsuleAxisLength"/> is negative or <paramref name="capsuleRadius"/> is negative.
+    /// </exception>
     /// <remarks>
     /// <paramref name="localCapsuleAxisDirection"/> is expressed in the
     /// capsule frame. Returned capsule anchors retain their axial and radial
     /// feature terms separately. Closed-contact classification precedes normal
     /// and depth rounding, so exact tangency returns true with zero depth.
+    /// Supply nonoverlapping output spans to preserve both witnesses of each pair.
     /// A single side contact projects the opposing polygon feature onto the
     /// capsule's finite side before rounding its axial parameter.
     /// </remarks>
@@ -230,6 +340,27 @@ public partial struct FixedSegment2d
     /// Finds the first distance where a translated conceptual centered
     /// capsule intersects an endpoint-authored capsule axis.
     /// </summary>
+    /// <param name="center">The center in the query coordinate space.</param>
+    /// <param name="axisDirection">The normalized axis direction in world coordinates.</param>
+    /// <param name="axisLength">The full nonnegative length of the central segment. Zero makes the core a point.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="direction">The normalized query direction in world coordinates.</param>
+    /// <param name="maximumDistance">The nonnegative maximum travel distance in coordinate units, including the endpoint.</param>
+    /// <param name="targetAxis">The stationary capsule's central segment in world coordinates.</param>
+    /// <param name="targetRadius">The stationary target's nonnegative radius in coordinate units.</param>
+    /// <param name="distance">The first contact distance measured from the start on success.</param>
+    /// <param name="normal">The sweep contact normal in world coordinates on success.</param>
+    /// <returns>
+    /// <see langword="true"/> when a contact is found within the tested travel interval and <see langword="false"/>
+    /// otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="axisDirection"/> is not normalized or <paramref name="direction"/> is not normalized.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="axisLength"/> is negative, <paramref name="radius"/> is negative,
+    /// <paramref name="maximumDistance"/> is negative, or <paramref name="targetRadius"/> is negative.
+    /// </exception>
     public static bool TryGetSweptCenteredCapsuleSegmentFirstDistance(
         Vector2d center,
         Vector2d axisDirection,
@@ -266,6 +397,31 @@ public partial struct FixedSegment2d
     /// Finds the first distance where a translated conceptual centered
     /// capsule intersects another conceptual centered capsule.
     /// </summary>
+    /// <param name="center">The center in the query coordinate space.</param>
+    /// <param name="axisDirection">The normalized axis direction in world coordinates.</param>
+    /// <param name="axisLength">The full nonnegative length of the central segment. Zero makes the core a point.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="direction">The normalized query direction in world coordinates.</param>
+    /// <param name="maximumDistance">The nonnegative maximum travel distance in coordinate units, including the endpoint.</param>
+    /// <param name="targetCenter">The stationary target center in the query coordinate space.</param>
+    /// <param name="targetAxisDirection">The normalized stationary target axis in world coordinates.</param>
+    /// <param name="targetAxisLength">The full nonnegative length of the stationary target's central segment.</param>
+    /// <param name="targetRadius">The stationary target's nonnegative radius in coordinate units.</param>
+    /// <param name="distance">The first contact distance measured from the start on success.</param>
+    /// <param name="normal">The sweep contact normal in world coordinates on success.</param>
+    /// <returns>
+    /// <see langword="true"/> when a contact is found within the tested travel interval and <see langword="false"/>
+    /// otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="axisDirection"/> is not normalized, <paramref name="direction"/> is not normalized, or
+    /// <paramref name="targetAxisDirection"/> is not normalized.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="axisLength"/> is negative, <paramref name="radius"/> is negative,
+    /// <paramref name="maximumDistance"/> is negative, <paramref name="targetAxisLength"/> is negative, or
+    /// <paramref name="targetRadius"/> is negative.
+    /// </exception>
     public static bool TryGetSweptCenteredCapsulesFirstDistance(
         Vector2d center,
         Vector2d axisDirection,

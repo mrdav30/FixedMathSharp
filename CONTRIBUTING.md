@@ -104,12 +104,24 @@ Keep current guides evergreen and put version-specific upgrade steps in
 [Migration](docs/MIGRATION.md). Generated files under `docs/api/obj` are
 ignored.
 
-After a Release build, generate the site with:
+Build the solution in `Release` before generating the API reference. DocFX reads
+`FixedMathSharp.dll` and `FixedMathSharp.Chronicler.dll` from their
+`bin/Release/net10.0` directories and uses the matching XML files beside them.
+For shipped APIs outside that selection, check the XML beside each assembly in
+`Release` and `ReleaseLean`, targeting both `netstandard2.1` and `net10.0`. This
+includes the FluentAssertions companion.
 
 ```bash
 dotnet tool restore
 dotnet tool run docfx docs/api/docfx.json --warningsAsErrors
 ```
+
+Put public and protected API contracts in the owning source comments. Review the
+generated reference for parameter names, return and property-value text,
+exceptions, and links. Use `<inheritdoc/>` for a shared contract when DocFX
+resolves it with the correct parameter names and applicable exceptions. Check
+target-specific APIs in their emitted XML and account for synthesized members
+when auditing the generated member list.
 
 Run cleanup explicitly before review, using the SDK from `global.json` and
 Node.js/npm for Prettier:

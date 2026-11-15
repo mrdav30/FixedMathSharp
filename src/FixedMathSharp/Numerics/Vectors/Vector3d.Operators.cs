@@ -187,7 +187,10 @@ public partial struct Vector3d
         );
     }
 
-    /// <inheritdoc cref="operator *(Fixed4x4, Vector3d)"/>
+    /// <summary>Transforms a point by a matrix.</summary>
+    /// <param name="vector">The point in input coordinates.</param>
+    /// <param name="matrix">The matrix to apply.</param>
+    /// <returns>The transformed point. Both operand orders apply the same transform.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d operator *(Vector3d vector, Fixed4x4 matrix) => matrix * vector;
 
@@ -295,12 +298,18 @@ public partial struct Vector3d
     /// <summary>
     /// Determines whether two Vector3d instances are equal.
     /// </summary>
+    /// <param name="left">The left vector.</param>
+    /// <param name="right">The right vector.</param>
+    /// <returns><see langword="true"/> if all corresponding components are exactly equal, otherwise <see langword="false"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator ==(Vector3d left, Vector3d right) => left.Equals(right);
 
     /// <summary>
     /// Determines whether two Vector3d instances are not equal.
     /// </summary>
+    /// <param name="left">The left vector.</param>
+    /// <param name="right">The right vector.</param>
+    /// <returns><see langword="true"/> if at least one corresponding component differs, otherwise <see langword="false"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator !=(Vector3d left, Vector3d right) => !left.Equals(right);
 

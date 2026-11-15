@@ -40,6 +40,8 @@ public partial struct FixedBoundBox
         /// <summary>
         /// Initializes a new instance of the BoundingBoxState class with the specified minimum and maximum coordinates.
         /// </summary>
+        /// <param name="min">One corner. The lesser coordinate on each axis becomes the minimum.</param>
+        /// <param name="max">The opposite corner. The greater coordinate on each axis becomes the maximum.</param>
         [JsonConstructor]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public BoundingBoxState(Vector3d min, Vector3d max)

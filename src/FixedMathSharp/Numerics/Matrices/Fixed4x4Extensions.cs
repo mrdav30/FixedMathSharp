@@ -40,20 +40,33 @@ public static class Fixed4x4Extensions
         out FixedQuaternion rotation,
         out Vector3d scale) => Fixed4x4.Decompose(matrix, out translation, out rotation, out scale);
 
-    /// <inheritdoc cref="Fixed4x4.SetTranslation(Fixed4x4, Vector3d)" />
+    /// <summary>Replaces the matrix's translation entries in place.</summary>
+    /// <param name="matrix">The matrix whose fourth row is updated.</param>
+    /// <param name="position">The new translation along X, Y, and Z.</param>
+    /// <returns>The updated matrix value.</returns>
     public static Fixed4x4 SetTranslation(this ref Fixed4x4 matrix, Vector3d position) =>
         matrix = Fixed4x4.SetTranslation(matrix, position);
 
-    /// <inheritdoc cref="Fixed4x4.SetRotation(Fixed4x4, FixedQuaternion)" />
+    /// <summary>Replaces the matrix's upper-left rotation basis in place.</summary>
+    /// <param name="matrix">The matrix to update, retaining its unsigned basis scale and translation.</param>
+    /// <param name="rotation">The new orientation. A zero quaternion represents identity.</param>
+    /// <returns>The updated matrix value.</returns>
     public static Fixed4x4 SetRotation(this ref Fixed4x4 matrix, FixedQuaternion rotation) =>
         matrix = Fixed4x4.SetRotation(matrix, rotation);
 
-    /// <inheritdoc cref="Fixed4x4.NormalizeRotationMatrix(Fixed4x4)" />
+    /// <summary>Replaces the matrix in place with a normalized basis and zero translation.</summary>
+    /// <param name="matrix">The matrix whose basis rows are independently normalized.</param>
+    /// <returns>The updated affine matrix value.</returns>
+    /// <remarks>Zero rows remain zero. The angles between nonzero rows are preserved to fixed-point precision.</remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed4x4 NormalizeRotationMatrix(this ref Fixed4x4 matrix) =>
         matrix = Fixed4x4.NormalizeRotationMatrix(matrix);
 
-    /// <inheritdoc cref="Fixed4x4.Lerp(Fixed4x4, Fixed4x4, Fixed64)" />
+    /// <summary>Linearly interpolates between two matrices component-wise.</summary>
+    /// <param name="matrix">The starting matrix.</param>
+    /// <param name="target">The ending matrix.</param>
+    /// <param name="amount">The interpolation fraction, clamped to the range zero to one.</param>
+    /// <returns>The matrix interpolated entry by entry.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed4x4 Lerp(this Fixed4x4 matrix, Fixed4x4 target, Fixed64 amount) =>
         Fixed4x4.Lerp(matrix, target, amount);
@@ -96,12 +109,17 @@ public static class Fixed4x4Extensions
         FuzzyEqualAbsoluteRow4(f1, f2, allowedDifference);
 
     /// <summary>
-    /// Compares two Fixed4x4 for approximate equality, allowing a fractional percentage (defaults to ~1%) difference between components.
+    /// Compares matrix entries using an error limit relative to the first matrix.
     /// </summary>
-    /// <param name="f1">The current Fixed4x4.</param>
-    /// <param name="f2">The Fixed4x4 to compare against.</param>
-    /// <param name="percentage">The allowed fractional difference (percentage) for each component.</param>
-    /// <returns>True if the components are within the allowed percentage difference, false otherwise.</returns>
+    /// <param name="f1">The reference matrix used to scale each entry's tolerance.</param>
+    /// <param name="f2">The matrix to compare against the reference.</param>
+    /// <param name="percentage">The nonnegative error fraction. Null uses <see cref="Fixed64.Epsilon"/>.</param>
+    /// <returns><see langword="true"/> if every absolute fixed-point difference is at most its limit.</returns>
+    /// <remarks>
+    /// Each limit is the absolute reference entry multiplied by the fraction. If the absolute
+    /// entry is smaller than <see cref="Fixed64.Epsilon"/>, the fraction is used as an absolute limit.
+    /// Swapping the operands can change the result.
+    /// </remarks>
     public static bool FuzzyEqual(this Fixed4x4 f1, Fixed4x4 f2, Fixed64? percentage = null)
     {
         Fixed64 p = percentage ?? Fixed64.Epsilon;

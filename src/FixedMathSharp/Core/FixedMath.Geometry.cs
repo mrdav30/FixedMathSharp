@@ -45,6 +45,10 @@ public static partial class FixedMath
     /// <remarks>
     /// Computes <c>a * a + b * b + c * c + a * b + a * c + b * c</c>.
     /// </remarks>
+    /// <param name="a">The first vertex coordinate along a shared axis.</param>
+    /// <param name="b">The second vertex coordinate along a shared axis.</param>
+    /// <param name="c">The third vertex coordinate along a shared axis.</param>
+    /// <returns>The second-order product sum in squared coordinate units, computed with saturating fixed-point operations.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 SumSquaredBarycentricProducts(Fixed64 a, Fixed64 b, Fixed64 c) =>
         (a * a) + (b * b) + (c * c) + (a * b) + (a * c) + (b * c);
@@ -52,6 +56,13 @@ public static partial class FixedMath
     /// <summary>
     /// Returns the cross scalar product sum for two sets of three barycentric vertices.
     /// </summary>
+    /// <param name="firstA">The first vertex coordinate along the first axis.</param>
+    /// <param name="firstB">The second vertex coordinate along the first axis.</param>
+    /// <param name="firstC">The third vertex coordinate along the first axis.</param>
+    /// <param name="secondA">The first vertex coordinate along the second axis.</param>
+    /// <param name="secondB">The second vertex coordinate along the second axis.</param>
+    /// <param name="secondC">The third vertex coordinate along the second axis.</param>
+    /// <returns>The product of the coordinate sums plus the sum of the three matching coordinate products. Each operation uses saturating fixed-point arithmetic.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 SumBarycentricProducts(
         Fixed64 firstA,

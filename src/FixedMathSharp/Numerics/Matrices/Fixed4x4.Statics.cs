@@ -21,6 +21,10 @@ public partial struct Fixed4x4
     /// <summary>
     /// Linearly interpolates between two matrices component-wise.
     /// </summary>
+    /// <param name="a">The starting matrix.</param>
+    /// <param name="b">The ending matrix.</param>
+    /// <param name="t">The interpolation fraction, clamped to the range zero to one.</param>
+    /// <returns>The matrix interpolated entry by entry.</returns>
     public static Fixed4x4 Lerp(Fixed4x4 a, Fixed4x4 b, Fixed64 t) =>
          new(
             FixedMath.Lerp(a.M11, b.M11, t),
@@ -43,6 +47,8 @@ public partial struct Fixed4x4
     /// <summary>
     /// Transposes the matrix by swapping rows and columns.
     /// </summary>
+    /// <param name="matrix">The matrix to transpose.</param>
+    /// <returns>The matrix with its rows and columns exchanged.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed4x4 Transpose(Fixed4x4 matrix) =>
          new(
@@ -57,6 +63,9 @@ public partial struct Fixed4x4
     /// <exception cref="DivideByZeroException">
     /// Thrown when any divisor component is zero.
     /// </exception>
+    /// <param name="dividend">The matrix of numerators.</param>
+    /// <param name="divisor">The matrix of nonzero denominators.</param>
+    /// <returns>The component quotients with fixed-point rounding and saturation.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed4x4 ComponentDivide(Fixed4x4 dividend, Fixed4x4 divisor) =>
         new(
@@ -87,6 +96,9 @@ public partial struct Fixed4x4
     /// <exception cref="InvalidOperationException">
     /// Thrown when <paramref name="divisor"/> is not invertible.
     /// </exception>
+    /// <param name="dividend">The left factor.</param>
+    /// <param name="divisor">The matrix to invert and use as the right factor.</param>
+    /// <returns>The dividend multiplied by the computed inverse of the divisor.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed4x4 InverseDivide(Fixed4x4 dividend, Fixed4x4 divisor)
     {
@@ -97,15 +109,15 @@ public partial struct Fixed4x4
     }
 
     /// <summary>
-    /// Inverts the matrix if it is invertible (i.e., if the determinant is not zero).
+    /// Computes a fixed-point inverse when the computed determinant is nonzero.
     /// </summary>
     /// <remarks>
-    /// To Invert a FixedMatrix4x4, we need to calculate the inverse for each element. 
-    /// This involves computing the cofactor for each element, 
-    /// which is the determinant of the submatrix when the row and column of that element are removed, 
-    /// multiplied by a sign based on the element's position. 
-    /// After computing all cofactors, the result is transposed to get the inverse matrix.
+    /// Products and sums can round or saturate during inversion. A successful
+    /// return does not certify that multiplying by the result recovers identity.
     /// </remarks>
+    /// <param name="matrix">The input matrix, affine or projective.</param>
+    /// <param name="result">The computed inverse on success, or <see cref="Identity"/> on failure.</param>
+    /// <returns><see langword="true"/> if the computed determinant is nonzero.</returns>
     public static bool Invert(Fixed4x4 matrix, out Fixed4x4 result)
     {
         if (!matrix.IsAffine)
@@ -208,19 +220,23 @@ public partial struct Fixed4x4
     /// <summary>
     /// Transforms a 4D vector by a 4x4 matrix, preserving the computed W component.
     /// </summary>
+    /// <param name="matrix">The matrix to apply.</param>
+    /// <param name="vector">The homogeneous row vector to transform.</param>
+    /// <returns>The homogeneous row-vector product, including W. No perspective divide is applied.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector4d Transform(Fixed4x4 matrix, Vector4d vector) => Vector4d.Transform(matrix, vector);
 
     /// <summary>
-    /// Transforms a point from local space to world space using this transformation matrix.
+    /// Transforms a point through an affine or projective matrix.
     /// </summary>
     /// <remarks>
-    /// FixedMathSharp applies matrices using a row-vector convention: <c>point * matrix</c>.
-    /// This is equivalent to <see cref="Vector3d.operator *(Vector3d, Fixed4x4)"/>.
+    /// Applies the matrix to a row vector with input W of one. For a projective
+    /// matrix, divides XYZ by the computed W, treating a zero W as one.
+    /// Intermediate fixed-point arithmetic can saturate.
     /// </remarks>
-    /// <param name="matrix">The transformation matrix.</param>
-    /// <param name="point">The local-space point.</param>
-    /// <returns>The transformed point in world space.</returns>
+    /// <param name="matrix">The row-vector matrix from input space to output space.</param>
+    /// <param name="point">The point in the input space.</param>
+    /// <returns>The transformed point in the matrix's output space.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d TransformPoint(Fixed4x4 matrix, Vector3d point)
     {
@@ -243,6 +259,10 @@ public partial struct Fixed4x4
     /// rounded half to even once. Non-affine matrices and unrepresentable final
     /// coordinates fail with a zero result.
     /// </remarks>
+    /// <param name="matrix">The affine row-vector transform from input space to output space.</param>
+    /// <param name="point">The point in the input space, with implied W of one.</param>
+    /// <param name="result">The transformed point on success, or <see cref="Vector3d.Zero"/> on failure.</param>
+    /// <returns><see langword="true"/> if the matrix is affine and all rounded output coordinates are representable.</returns>
     public static bool TryTransformAffinePoint(
         Fixed4x4 matrix,
         Vector3d point,
@@ -302,6 +322,8 @@ public partial struct Fixed4x4
     /// <param name="matrix">The transformation matrix.</param>
     /// <param name="point">The world-space point.</param>
     /// <returns>The local-space point relative to the transformation matrix.</returns>
+    /// <remarks>Applies the computed inverse with the same homogeneous W handling as <see cref="TransformPoint"/>.</remarks>
+    /// <exception cref="InvalidOperationException">The matrix has a zero computed determinant.</exception>
     public static Vector3d InverseTransformPoint(Fixed4x4 matrix, Vector3d point)
     {
         // Invert the transformation matrix

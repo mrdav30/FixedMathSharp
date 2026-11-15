@@ -63,6 +63,9 @@ public partial struct FixedTriangle2d : IEquatable<FixedTriangle2d>
     /// <summary>
     /// Initializes a triangle from ordered vertices.
     /// </summary>
+    /// <param name="a">The first vertex in the triangle's coordinate space.</param>
+    /// <param name="b">The second vertex in the triangle's coordinate space.</param>
+    /// <param name="c">The third vertex in the triangle's coordinate space.</param>
     [JsonConstructor]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public FixedTriangle2d(Vector2d a, Vector2d b, Vector2d c)
@@ -79,6 +82,7 @@ public partial struct FixedTriangle2d : IEquatable<FixedTriangle2d>
     /// <summary>
     /// The signed area of the triangle. Positive values indicate counter-clockwise winding.
     /// </summary>
+    /// <value>The oriented area in squared coordinate units. Counterclockwise winding is positive.</value>
     /// <remarks>
     /// The exact endpoint-difference cross product is halved and converted once
     /// with round-half-to-even and signed saturation.
@@ -94,6 +98,7 @@ public partial struct FixedTriangle2d : IEquatable<FixedTriangle2d>
     /// <summary>
     /// The non-negative saturating magnitude of <see cref="SignedArea"/>.
     /// </summary>
+    /// <value>The nonnegative area in squared coordinate units, saturated to the scalar range.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Fixed64 Area
@@ -105,6 +110,7 @@ public partial struct FixedTriangle2d : IEquatable<FixedTriangle2d>
     /// <summary>
     /// The normalized axis-aligned area that contains all vertices.
     /// </summary>
+    /// <value>The axis-aligned bounds of the stored vertices or endpoints.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public FixedBoundArea Bounds
@@ -116,6 +122,7 @@ public partial struct FixedTriangle2d : IEquatable<FixedTriangle2d>
     /// <summary>
     /// The arithmetic center of the three vertices, averaged independently per component.
     /// </summary>
+    /// <value>The arithmetic mean of the three vertices in the triangle's coordinate space.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Vector2d Centroid
@@ -130,6 +137,10 @@ public partial struct FixedTriangle2d : IEquatable<FixedTriangle2d>
     /// Returns true when the exact area magnitude is less than or equal to
     /// <see cref="Fixed64.Epsilon"/>.
     /// </summary>
+    /// <value>
+    /// <see langword="true"/> when the area is at or below <see cref="Fixed64.Epsilon"/> and
+    /// <see langword="false"/> otherwise.
+    /// </value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public bool IsDegenerate
@@ -148,6 +159,9 @@ public partial struct FixedTriangle2d : IEquatable<FixedTriangle2d>
     /// <summary>
     /// Gets a vertex by stable index: 0 = A, 1 = B, 2 = C.
     /// </summary>
+    /// <param name="index">The zero-based index from 0 through 2.</param>
+    /// <returns>The selected vertex in the triangle's coordinate space.</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="index"/> is outside the supported range.</exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector2d GetVertex(int index) =>
         index switch
@@ -161,6 +175,9 @@ public partial struct FixedTriangle2d : IEquatable<FixedTriangle2d>
     /// <summary>
     /// Gets an edge by stable index: 0 = AB, 1 = BC, 2 = CA.
     /// </summary>
+    /// <param name="index">The zero-based index from 0 through 2.</param>
+    /// <returns>The selected directed edge in vertex order.</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="index"/> is outside the supported range.</exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public FixedSegment2d GetEdge(int index) =>
         index switch
@@ -174,6 +191,9 @@ public partial struct FixedTriangle2d : IEquatable<FixedTriangle2d>
     /// <summary>
     /// Gets the point represented by barycentric weights for vertices B and C.
     /// </summary>
+    /// <param name="weightB">The signed barycentric weight for vertex B on success, or zero on failure.</param>
+    /// <param name="weightC">The signed barycentric weight for vertex C on success, or zero on failure.</param>
+    /// <returns>The point with the supplied weights in the triangle's coordinate space. Extrapolation is allowed.</returns>
     /// <remarks>
     /// Each component uses the shared full-domain barycentric interpolation
     /// contract with one final round-half-to-even/saturating conversion.
@@ -193,6 +213,10 @@ public partial struct FixedTriangle2d : IEquatable<FixedTriangle2d>
     /// True when the exact doubled-area magnitude is greater than
     /// <see cref="Fixed64.Epsilon"/>; otherwise false with three zero outputs.
     /// </returns>
+    /// <param name="point">The point in the query coordinate space.</param>
+    /// <param name="weightA">The signed barycentric weight for vertex A on success, or zero on failure.</param>
+    /// <param name="weightB">The signed barycentric weight for vertex B on success, or zero on failure.</param>
+    /// <param name="weightC">The signed barycentric weight for vertex C on success, or zero on failure.</param>
     /// <remarks>
     /// The three weights use direct exact area numerators and are rounded and
     /// saturated independently. Reversing winding does not change the result.
@@ -221,6 +245,11 @@ public partial struct FixedTriangle2d : IEquatable<FixedTriangle2d>
     /// <summary>
     /// Determines whether the point is inside the triangle, including epsilon-wide edges and vertices.
     /// </summary>
+    /// <param name="point">The point in the query coordinate space.</param>
+    /// <returns>
+    /// <see langword="true"/> when the point is inside or on the triangle within its edge tolerance and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
     /// <remarks>
     /// Exact wide orientations make the winding-independent decision before
     /// scalar saturation. Collapsed line and point triangles retain edge-distance behavior.
@@ -252,6 +281,8 @@ public partial struct FixedTriangle2d : IEquatable<FixedTriangle2d>
     /// <summary>
     /// Finds the closest point on or inside this triangle to the supplied point.
     /// </summary>
+    /// <param name="point">The point in the query coordinate space.</param>
+    /// <returns>The closest point in the closed triangle in the same coordinate space.</returns>
     /// <remarks>
     /// Edge candidates are compared in AB, BC, CA order with exact squared
     /// distances. Exact ties retain the first candidate.
@@ -263,6 +294,8 @@ public partial struct FixedTriangle2d : IEquatable<FixedTriangle2d>
     /// <summary>
     /// Computes the squared distance from the supplied point to this triangle.
     /// </summary>
+    /// <param name="point">The point in the query coordinate space.</param>
+    /// <returns>The squared distance in squared coordinate units, saturated if it exceeds the scalar range.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Fixed64 DistanceSquared(Vector2d point) =>
         Vector2d.DistanceSquared(point, ClosestPoint(point));
@@ -274,6 +307,9 @@ public partial struct FixedTriangle2d : IEquatable<FixedTriangle2d>
     /// <summary>
     /// Deconstructs the triangle into ordered vertices.
     /// </summary>
+    /// <param name="a">The first vertex in the triangle's coordinate space.</param>
+    /// <param name="b">The second vertex in the triangle's coordinate space.</param>
+    /// <param name="c">The third vertex in the triangle's coordinate space.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Deconstruct(out Vector2d a, out Vector2d b, out Vector2d c)
     {
@@ -286,15 +322,17 @@ public partial struct FixedTriangle2d : IEquatable<FixedTriangle2d>
 
     #region Operators
 
-    /// <summary>
-    /// Determines whether two triangles have the same ordered vertices.
-    /// </summary>
+    /// <summary>Tests whether the stored geometry is equal.</summary>
+    /// <param name="left">The first value to compare.</param>
+    /// <param name="right">The second value to compare.</param>
+    /// <returns><see langword="true"/> when all three vertices match in order and <see langword="false"/> otherwise.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator ==(FixedTriangle2d left, FixedTriangle2d right) => left.Equals(right);
 
-    /// <summary>
-    /// Determines whether two triangles have different ordered vertices.
-    /// </summary>
+    /// <summary>Tests whether the stored geometry is different.</summary>
+    /// <param name="left">The first value to compare.</param>
+    /// <param name="right">The second value to compare.</param>
+    /// <returns><see langword="true"/> when the stored values differ and <see langword="false"/> otherwise.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator !=(FixedTriangle2d left, FixedTriangle2d right) => !left.Equals(right);
 
@@ -302,14 +340,22 @@ public partial struct FixedTriangle2d : IEquatable<FixedTriangle2d>
 
     #region Equality
 
-    /// <inheritdoc />
+    /// <summary>Compares the stored geometry for equality.</summary>
+    /// <param name="other">The value to compare with this instance.</param>
+    /// <returns><see langword="true"/> when all three vertices match in order and <see langword="false"/> otherwise.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Equals(FixedTriangle2d other) => A == other.A && B == other.B && C == other.C;
 
-    /// <inheritdoc />
+    /// <summary>Compares the stored geometry for equality.</summary>
+    /// <param name="obj">The value to compare with this instance.</param>
+    /// <returns>
+    /// <see langword="true"/> when <paramref name="obj"/> is a <see cref="FixedTriangle2d"/> and all three vertices
+    /// match in order and <see langword="false"/> otherwise.
+    /// </returns>
     public override bool Equals(object? obj) => obj is FixedTriangle2d other && Equals(other);
 
-    /// <inheritdoc />
+    /// <summary>Computes a hash code for the stored geometry.</summary>
+    /// <returns>A hash code consistent with structural equality.</returns>
     public override int GetHashCode()
     {
         unchecked

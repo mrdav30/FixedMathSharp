@@ -26,12 +26,12 @@ public partial struct FixedRange : IEquatable<FixedRange>, IFormattable
     #region Static Readonly Fields
 
     /// <summary>
-    /// The smallest possible range.
+    /// The degenerate range at <see cref="Fixed64.MinValue"/>.
     /// </summary>
     public static readonly FixedRange MinRange = new(Fixed64.MinValue, Fixed64.MinValue);
 
     /// <summary>
-    /// The largest possible range.
+    /// The degenerate range at <see cref="Fixed64.MaxValue"/>.
     /// </summary>
     public static readonly FixedRange MaxRange = new(Fixed64.MaxValue, Fixed64.MaxValue);
 
@@ -60,9 +60,9 @@ public partial struct FixedRange : IEquatable<FixedRange>, IFormattable
     /// <summary>
     /// Initializes a new instance of the FixedRange structure with the specified minimum and maximum values.
     /// </summary>
-    /// <param name="min">The minimum value of the range.</param>
-    /// <param name="max">The maximum value of the range.</param>
-    /// <param name="enforceOrder">If true, ensures that Min is less than or equal to Max.</param>
+    /// <param name="min">The proposed lower endpoint.</param>
+    /// <param name="max">The proposed upper endpoint.</param>
+    /// <param name="enforceOrder">When true, the endpoints are sorted. Otherwise, they are stored in the supplied order.</param>
     public FixedRange(Fixed64 min, Fixed64 max, bool enforceOrder = true)
     {
         if (enforceOrder)
@@ -88,6 +88,7 @@ public partial struct FixedRange : IEquatable<FixedRange>, IFormattable
     /// <exception cref="OverflowException">
     /// The signed endpoint difference is outside the representable scalar domain.
     /// </exception>
+    /// <value>The signed end-to-start difference. An inverted range has a negative length.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Fixed64 Length
@@ -105,6 +106,7 @@ public partial struct FixedRange : IEquatable<FixedRange>, IFormattable
     /// <summary>
     /// The nearest-even Q32.32 midpoint of the range.
     /// </summary>
+    /// <value>The representable value closest to the arithmetic mean of the endpoints, with ties to even.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Fixed64 MidPoint
@@ -120,8 +122,9 @@ public partial struct FixedRange : IEquatable<FixedRange>, IFormattable
     /// <summary>
     /// Sets the minimum and maximum values for the range.
     /// </summary>
-    /// <param name="min">The new minimum value.</param>
-    /// <param name="max">The new maximum value.</param>
+    /// <param name="min">The value assigned to <see cref="Min"/>.</param>
+    /// <param name="max">The value assigned to <see cref="Max"/>.</param>
+    /// <remarks>The endpoints are assigned in the supplied order.</remarks>
     public void SetMinMax(Fixed64 min, Fixed64 max)
     {
         Min = min;
@@ -131,7 +134,8 @@ public partial struct FixedRange : IEquatable<FixedRange>, IFormattable
     /// <summary>
     /// Adds a value to both the minimum and maximum of the range.
     /// </summary>
-    /// <param name="val">The value to add.</param>
+    /// <param name="val">The offset in the same units as the range endpoints.</param>
+    /// <remarks>The two updated endpoints saturate independently.</remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void AddInPlace(Fixed64 val)
     {
@@ -155,7 +159,7 @@ public partial struct FixedRange : IEquatable<FixedRange>, IFormattable
     /// Checks whether this range overlaps with the specified range, ensuring no adjacent edges are considered overlaps.
     /// </summary>
     /// <param name="other">The range to compare.</param>
-    /// <returns>True if the ranges overlap; otherwise, false.</returns>
+    /// <returns><see langword="true"/> if this minimum is below the other maximum and this maximum is above the other minimum, otherwise <see langword="false"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Overlaps(FixedRange other)
     {
@@ -170,10 +174,10 @@ public partial struct FixedRange : IEquatable<FixedRange>, IFormattable
     /// Determines the direction from one range to another.
     /// If they don't overlap, returns -1 or 1 depending on the relative position.
     /// </summary>
-    /// <param name="range1">The first range.</param>
-    /// <param name="range2">The second range.</param>
-    /// <param name="sign">The direction between ranges (-1 or 1).</param>
-    /// <returns>True if the ranges don't overlap, false if they do.</returns>
+    /// <param name="range1">The first range, with ordered endpoints.</param>
+    /// <param name="range2">The second range, with ordered endpoints.</param>
+    /// <param name="sign">Null when the ranges overlap. Otherwise, −1 when the first maximum is strictly below the second minimum and +1 in all other cases.</param>
+    /// <returns><see langword="true"/> when <see cref="Overlaps(FixedRange)"/> returns false for the pair, otherwise <see langword="false"/>.</returns>
     public static bool GetDirection(FixedRange range1, FixedRange range2, out Fixed64? sign)
     {
         sign = null;
@@ -190,9 +194,10 @@ public partial struct FixedRange : IEquatable<FixedRange>, IFormattable
     /// Calculates the overlap depth between two ranges.
     /// Assumes the ranges are sorted (min and max are correctly assigned).
     /// </summary>
-    /// <param name="rangeA">The first range.</param>
-    /// <param name="rangeB">The second range.</param>
-    /// <returns>The depth of the overlap between the ranges.</returns>
+    /// <param name="rangeA">The first range, with ordered endpoints.</param>
+    /// <param name="rangeB">The second range, with ordered endpoints.</param>
+    /// <returns>The overlap length for partial overlap, zero for disjoint ranges, or the distance from the containing range’s minimum to the contained range’s maximum.</returns>
+    /// <remarks>Endpoint differences saturate at the representable endpoints.</remarks>
     public static Fixed64 ComputeOverlapDepth(FixedRange rangeA, FixedRange rangeB)
     {
         // Check if one range is completely within the other
@@ -214,13 +219,13 @@ public partial struct FixedRange : IEquatable<FixedRange>, IFormattable
     /// <summary>
     /// Checks for overlap between two ranges and calculates the vector of overlap depth.
     /// </summary>
-    /// <param name="origin">The origin vector.</param>
-    /// <param name="range1">The first range.</param>
-    /// <param name="range2">The second range.</param>
-    /// <param name="limit">The overlap limit to check.</param>
-    /// <param name="sign">The direction sign to consider.</param>
-    /// <param name="output">The overlap vector and depth, if any.</param>
-    /// <returns>True if overlap occurs and is below the limit, otherwise false.</returns>
+    /// <param name="origin">The vector to scale by the depth and sign.</param>
+    /// <param name="range1">The first range, with ordered endpoints.</param>
+    /// <param name="range2">The second range, with ordered endpoints.</param>
+    /// <param name="limit">The exclusive upper limit on the depth.</param>
+    /// <param name="sign">The signed scale applied to the depth vector, normally −1 or +1.</param>
+    /// <param name="output">The scaled vector and depth on success, or null on failure.</param>
+    /// <returns><see langword="true"/> if the computed depth is strictly below the limit, even if the depth is zero. Otherwise, <see langword="false"/>.</returns>
     public static bool CheckOverlap(Vector3d origin, FixedRange range1, FixedRange range2, Fixed64 limit, Fixed64 sign, out (Vector3d Vector, Fixed64 Depth)? output)
     {
         output = null;
@@ -264,15 +269,17 @@ public partial struct FixedRange : IEquatable<FixedRange>, IFormattable
         return new FixedRange(left.Min - right.Min, left.Max - right.Max);
     }
 
-    /// <summary>
-    /// Determines whether two FixedRange instances are equal.
-    /// </summary>
+    /// <summary>Tests two values for equality.</summary>
+    /// <param name="left">The left operand.</param>
+    /// <param name="right">The right operand.</param>
+    /// <returns><see langword="true"/> if the corresponding stored endpoints are equal, otherwise <see langword="false"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator ==(FixedRange left, FixedRange right) => left.Equals(right);
 
-    /// <summary>
-    /// Determines whether two FixedRange instances are not equal.
-    /// </summary>
+    /// <summary>Tests two values for inequality.</summary>
+    /// <param name="left">The left operand.</param>
+    /// <param name="right">The right operand.</param>
+    /// <returns><see langword="true"/> if a corresponding endpoint differs, otherwise <see langword="false"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator !=(FixedRange left, FixedRange right) => !left.Equals(right);
 
@@ -283,12 +290,17 @@ public partial struct FixedRange : IEquatable<FixedRange>, IFormattable
     /// <summary>
     /// Returns a string that represents the FixedRange instance, formatted as "Min - Max".
     /// </summary>
+    /// <returns>Both endpoints separated by <c> - </c>, using the default invariant numeric format.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override string ToString() => ToString(null, CultureInfo.InvariantCulture);
 
     /// <summary>
     /// Returns a string that represents the FixedRange instance, formatted as "Min - Max".
     /// </summary>
+    /// <param name="format">The numeric format for both endpoints. Null or empty selects the default format.</param>
+    /// <param name="formatProvider">The provider used for both endpoints. Null selects the invariant culture.</param>
+    /// <returns>The formatted endpoints separated by <c> - </c>.</returns>
+    /// <exception cref="FormatException">The numeric format is invalid.</exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public string ToString(string? format, IFormatProvider? formatProvider)
     {
@@ -300,6 +312,12 @@ public partial struct FixedRange : IEquatable<FixedRange>, IFormattable
     /// <summary>
     /// Formats this range into the provided destination buffer.
     /// </summary>
+    /// <param name="destination">Caller-owned output span. The method writes from its start and may leave a partial prefix on failure.</param>
+    /// <param name="charsWritten">The number of characters written on success, or zero when the destination is too small.</param>
+    /// <param name="format">The numeric format used for both endpoints. An empty span selects the default format.</param>
+    /// <param name="provider">The provider used for both endpoints. Null selects the invariant culture.</param>
+    /// <returns><see langword="true"/> if both endpoints and the separator fit, otherwise <see langword="false"/>.</returns>
+    /// <exception cref="FormatException">The numeric format is invalid.</exception>
     public bool TryFormat(
         Span<char> destination,
         out int charsWritten,
@@ -323,24 +341,26 @@ public partial struct FixedRange : IEquatable<FixedRange>, IFormattable
 
     #region Equality and HashCode Overrides
 
-    /// <inheritdoc/>
+    /// <summary>Compares this value with an object.</summary>
+    /// <param name="obj">The object to compare.</param>
+    /// <returns><see langword="true"/> if <paramref name="obj"/> is a <see cref="FixedRange"/> and the corresponding stored endpoints are equal, otherwise <see langword="false"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override bool Equals(object? obj)
     {
         return obj is FixedRange other && Equals(other);
     }
 
-    /// <inheritdoc/>
+    /// <summary>Compares this value with another instance.</summary>
+    /// <param name="other">The value to compare.</param>
+    /// <returns><see langword="true"/> if the corresponding stored endpoints are equal, otherwise <see langword="false"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Equals(FixedRange other)
     {
         return other.Min == Min && other.Max == Max;
     }
 
-    /// <summary>
-    /// Computes the hash code for the FixedRange instance.
-    /// </summary>
-    /// <returns>The hash code of the range.</returns>
+    /// <summary>Computes the hash code for this value.</summary>
+    /// <returns>The hash codes of the two endpoints combined using exclusive OR.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override int GetHashCode()
     {

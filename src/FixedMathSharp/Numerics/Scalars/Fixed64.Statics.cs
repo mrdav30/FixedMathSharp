@@ -36,22 +36,18 @@ public partial struct Fixed64
 #endif
     }
 
-    /// <summary>
-    /// Returns a number indicating the sign of a Fix64 number.
-    /// Returns 1 if the value is positive, 0 if is 0, and -1 if it is negative.
-    /// </summary>
-    /// <remarks>
-    /// Optimized for branchless comparison.
-    /// </remarks>
+    /// <summary>Determines the sign of a fixed-point value.</summary>
+    /// <param name="value">The value to classify.</param>
+    /// <returns>−1 for a negative value, zero for zero, or 1 for a positive value.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int Sign(Fixed64 value) =>
         value.m_rawValue < 0
                 ? -1
                 : (value.m_rawValue > 0 ? 1 : 0);
 
-    /// <summary>
-    /// Returns true if the number has no decimal part (i.e., if the number is equivalent to an integer) and False otherwise. 
-    /// </summary>
+    /// <summary>Tests whether the value has a fractional part.</summary>
+    /// <param name="value">The value to test.</param>
+    /// <returns><see langword="true"/> if every fractional bit is zero, otherwise <see langword="false"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool IsInteger(Fixed64 value)
     {
@@ -67,6 +63,10 @@ public partial struct Fixed64
     /// A negative value when the left product is smaller, zero when the exact
     /// products are equal, or a positive value when the left product is larger.
     /// </returns>
+    /// <param name="leftFirst">The first factor in the left product.</param>
+    /// <param name="leftSecond">The second factor in the left product.</param>
+    /// <param name="rightFirst">The first factor in the right product.</param>
+    /// <param name="rightSecond">The second factor in the right product.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int CompareProducts(
         Fixed64 leftFirst,
@@ -89,6 +89,14 @@ public partial struct Fixed64
     /// A negative value when the left product is smaller, zero when the exact
     /// products are equal, or a positive value when the left product is larger.
     /// </returns>
+    /// <param name="leftFirst">The first factor in the left product.</param>
+    /// <param name="leftSecond">The second factor in the left product.</param>
+    /// <param name="leftThird">The third factor in the left product.</param>
+    /// <param name="leftFourth">The fourth factor in the left product.</param>
+    /// <param name="rightFirst">The first factor in the right product.</param>
+    /// <param name="rightSecond">The second factor in the right product.</param>
+    /// <param name="rightThird">The third factor in the right product.</param>
+    /// <param name="rightFourth">The fourth factor in the right product.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int CompareProducts(
         Fixed64 leftFirst,

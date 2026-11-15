@@ -29,6 +29,8 @@ public partial struct Fixed4x4
     /// <summary>
     /// Extracts the right direction from the 4x4 matrix.
     /// </summary>
+    /// <param name="matrix">The matrix containing the +X basis row.</param>
+    /// <returns>The normalized first basis row, or zero for a zero row.</returns>
     public static Vector3d ExtractRight(Fixed4x4 matrix) => new Vector3d(matrix.M11, matrix.M12, matrix.M13).NormalizeInPlace();
 
     /// <summary>
@@ -37,19 +39,22 @@ public partial struct Fixed4x4
     /// <remarks>
     /// This is the surface normal if the matrix represents ground orientation.
     /// </remarks>
-    /// <param name="matrix"></param>
     /// <returns>A <see cref="Vector3d"/> representing the up direction.</returns>
+    /// <param name="matrix">The matrix containing the +Y basis row.</param>
     public static Vector3d ExtractUp(Fixed4x4 matrix) => new Vector3d(matrix.M21, matrix.M22, matrix.M23).NormalizeInPlace();
 
     /// <summary>
     /// Extracts the forward direction from the 4x4 matrix.
     /// </summary>
+    /// <param name="matrix">The matrix containing the +Z basis row.</param>
+    /// <returns>The normalized third basis row, or zero for a zero row.</returns>
     public static Vector3d ExtractForward(Fixed4x4 matrix) => new Vector3d(matrix.M31, matrix.M32, matrix.M33).NormalizeInPlace();
 
     /// <summary>
     /// Extracts the unsigned magnitudes of the matrix basis rows.
     /// </summary>
     /// <returns>The nonnegative basis magnitudes along X, Y, and Z.</returns>
+    /// <param name="matrix">The matrix containing the three basis rows.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d ExtractScaleMagnitudes(Fixed4x4 matrix) =>
         new(
@@ -61,6 +66,8 @@ public partial struct Fixed4x4
     /// Extracts canonical signed lossy scale from the matrix basis rows.
     /// </summary>
     /// <remarks>A reflected basis assigns its one recoverable negative sign to X.</remarks>
+    /// <param name="matrix">The matrix containing the basis rows to measure.</param>
+    /// <returns>The three basis row lengths, saturated if necessary, with X negated for a reflected basis.</returns>
     public static Vector3d ExtractLossyScale(Fixed4x4 matrix)
     {
         Vector3d scale = ExtractScaleMagnitudes(matrix);
@@ -84,6 +91,9 @@ public partial struct Fixed4x4
     /// representable <see cref="Fixed64"/> range. A reflected basis assigns its
     /// one recoverable negative sign to X. Every failure writes zero.
     /// </remarks>
+    /// <param name="matrix">The matrix containing the basis rows to measure.</param>
+    /// <param name="scale">The signed row lengths on success, or <see cref="Vector3d.Zero"/> on failure.</param>
+    /// <returns><see langword="true"/> if every basis row length is representable.</returns>
     public static bool TryExtractLossyScale(Fixed4x4 matrix, out Vector3d scale)
     {
         bool representable =
@@ -115,10 +125,11 @@ public partial struct Fixed4x4
     }
 
     /// <summary>
-    /// Extracts the rotation component from the 4x4 matrix by normalizing the rotation matrix.
+    /// Estimates a rotation from the matrix's basis rows.
     /// </summary>
-    /// <param name="matrix">The matrix from which to extract the rotation.</param>
-    /// <returns>A FixedQuaternion representing the rotation component.</returns>
+    /// <param name="matrix">The matrix containing the orientation basis.</param>
+    /// <returns>The quaternion computed after removing unsigned basis scale.</returns>
+    /// <remarks>Use <see cref="Decompose"/> when shear, reflections, or degenerate basis rows must be handled explicitly.</remarks>
     public static FixedQuaternion ExtractRotation(Fixed4x4 matrix)
     {
         Vector3d scale = ExtractScaleMagnitudes(matrix);
@@ -151,11 +162,11 @@ public partial struct Fixed4x4
     /// Reflections assign their single negative scale sign to X.
     /// Every failure writes zero translation, identity rotation, and unit scale.
     /// </remarks>
-    /// <param name="matrix">The 4x4 matrix to decompose.</param>
-    /// <param name="translation">The extracted translation component.</param>
-    /// <param name="rotation">The extracted rotation component as a quaternion.</param>
-    /// <param name="scale">The extracted scale component.</param>
-    /// <returns>True if decomposition was successful, otherwise false.</returns>
+    /// <param name="matrix">The row-vector matrix to decompose.</param>
+    /// <param name="translation">The translation in output coordinates on success, or zero on failure.</param>
+    /// <param name="rotation">The orientation on success, or the identity quaternion on failure.</param>
+    /// <param name="scale">The signed local scale on success, or unit scale on failure.</param>
+    /// <returns><see langword="true"/> if the matrix can be reconstructed as scale, rotation, and translation within tolerance.</returns>
     public static bool Decompose(
         Fixed4x4 matrix,
         out Vector3d translation,
@@ -242,6 +253,7 @@ public partial struct Fixed4x4
     /// </summary>
     /// <param name="matrix">The matrix to modify.</param>
     /// <param name="translation">The new translation vector.</param>
+    /// <returns>A copy with the last row’s X, Y, and Z translation entries replaced.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed4x4 SetTranslation(Fixed4x4 matrix, Vector3d translation)
     {
@@ -259,6 +271,7 @@ public partial struct Fixed4x4
     /// <remarks>
     /// Use this method when scaling is required in combination with an existing rotation, ensuring proper axis alignment.
     /// </remarks>
+    /// <returns>A copy with the upper-left basis rows scaled by their corresponding scale factors.</returns>
     public static Fixed4x4 ApplyScaleToRotation(Fixed4x4 matrix, Vector3d scale)
     {
         // Scale each row of the rotation matrix
@@ -287,6 +300,7 @@ public partial struct Fixed4x4
     /// represents identity. This method preserves the matrix's translation
     /// component. For complete transformation updates, use <see cref="SetTransform"/>.
     /// </remarks>
+    /// <returns>A copy with the new rotation rows scaled by the original unsigned basis magnitudes.</returns>
     public static Fixed4x4 SetRotation(Fixed4x4 matrix, FixedQuaternion rotation)
     {
         Fixed3x3 rotationMatrix = rotation.ToMatrix3x3();
@@ -311,17 +325,13 @@ public partial struct Fixed4x4
     }
 
     /// <summary>
-    /// Normalizes the rotation component of a 4x4 matrix by ensuring the basis vectors are orthogonal and unit length.
+    /// Normalizes each basis row independently.
     /// </summary>
     /// <remarks>
-    /// This method recalculates the X, Y, and Z basis vectors from the upper-left 3x3 portion of the matrix, ensuring they are orthogonal and normalized. 
-    /// The remaining components of the matrix are reset to maintain a valid transformation structure.
-    /// 
-    /// Use Cases:
-    /// - Ensuring the rotation component remains stable and accurate after multiple transformations.
-    /// - Used in 3D transformations to prevent numerical drift from affecting the orientation over time.
-    /// - Essential for cases where precise orientation is required, such as animations or physics simulations.
+    /// Zero rows remain zero. The angles between nonzero rows are preserved to fixed-point precision.
     /// </remarks>
+    /// <param name="matrix">The matrix containing the three basis rows to normalize.</param>
+    /// <returns>An affine matrix containing independently normalized basis rows and zero translation.</returns>
     public static Fixed4x4 NormalizeRotationMatrix(Fixed4x4 matrix)
     {
         Vector3d basisX = new Vector3d(matrix.M11, matrix.M12, matrix.M13).NormalizeInPlace();

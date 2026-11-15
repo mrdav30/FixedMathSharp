@@ -19,12 +19,17 @@ public partial struct Vector2d
     /// <summary>
     /// Returns a string representation of this vector.
     /// </summary>
+    /// <returns>A parenthesized, comma-separated list of components, using the default invariant numeric format.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override readonly string ToString() => ToString(null, CultureInfo.InvariantCulture);
 
     /// <summary>
     /// Returns a string representation of this vector.
     /// </summary>
+    /// <param name="format">The numeric format for each component. A null or empty string uses the default format.</param>
+    /// <param name="formatProvider">The provider used for all components. Null selects the invariant culture.</param>
+    /// <returns>A parenthesized, comma-separated list of formatted components.</returns>
+    /// <exception cref="FormatException">The component format is invalid.</exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public readonly string ToString(string? format, IFormatProvider? formatProvider)
     {
@@ -36,6 +41,12 @@ public partial struct Vector2d
     /// <summary>
     /// Formats this vector into the provided destination buffer.
     /// </summary>
+    /// <param name="destination">The caller-owned output span. This method writes from its start and may leave a partial prefix on failure.</param>
+    /// <param name="charsWritten">The number of characters written on success, or zero when the destination is too small.</param>
+    /// <param name="format">The numeric format for each component. An empty span selects the default format.</param>
+    /// <param name="provider">The provider used for all components. Null selects the invariant culture.</param>
+    /// <returns><see langword="true"/> if all components and punctuation fit, otherwise <see langword="false"/>.</returns>
+    /// <exception cref="FormatException">The component format is invalid.</exception>
     public readonly bool TryFormat(
         Span<char> destination,
         out int charsWritten,
@@ -72,12 +83,17 @@ public partial struct Vector2d
     /// <summary>
     /// Converts this <see cref="Vector2d"/> to a <see cref="Vector4d"/> with explicit Z and W components.
     /// </summary>
+    /// <param name="z">The new Z component.</param>
+    /// <param name="w">The new W component.</param>
+    /// <returns>The existing X and Y components with the supplied Z and W components.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector4d ToVector4d(Fixed64 z, Fixed64 w) => new(X, Y, z, w);
 
     /// <summary>
     /// Deconstructs the Vector2d into its two Fixed64 components.
     /// </summary>
+    /// <param name="x">The fixed-point X component.</param>
+    /// <param name="y">The fixed-point Y component.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Deconstruct(out Fixed64 x, out Fixed64 y)
     {
@@ -88,6 +104,8 @@ public partial struct Vector2d
     /// <summary>
     /// Deconstructs the Vector2d into its two int components.
     /// </summary>
+    /// <param name="x">The X component rounded to the nearest integer with ties to even.</param>
+    /// <param name="y">The Y component rounded to the nearest integer with ties to even.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Deconstruct(out int x, out int y)
     {
@@ -98,6 +116,8 @@ public partial struct Vector2d
     /// <summary>
     /// Deconstructs the Vector2d into its two long components.
     /// </summary>
+    /// <param name="x">The signed 64-bit raw Q32.32 payload of the X component.</param>
+    /// <param name="y">The signed 64-bit raw Q32.32 payload of the Y component.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Deconstruct(out long x, out long y)
     {
@@ -108,6 +128,8 @@ public partial struct Vector2d
     /// <summary>
     /// Deconstructs the Vector2d into its two double components.
     /// </summary>
+    /// <param name="x">The double-precision approximation of the X component.</param>
+    /// <param name="y">The double-precision approximation of the Y component.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Deconstruct(out double x, out double y)
     {

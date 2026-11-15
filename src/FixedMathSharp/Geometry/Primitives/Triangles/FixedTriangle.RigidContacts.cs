@@ -23,6 +23,27 @@ public partial struct FixedTriangle
     /// Attempts to construct a minimum-depth inclusive contact between this
     /// rigid triangle and a finite cylinder whose local axis is +Y.
     /// </summary>
+    /// <param name="triangleOrigin">The triangle frame's origin in world coordinates.</param>
+    /// <param name="triangleRotation">The triangle's normalized local-to-world rotation.</param>
+    /// <param name="cylinderCenter">The cylinder center in the query coordinate space.</param>
+    /// <param name="cylinderRotation">The cylinder's normalized local-to-world rotation.</param>
+    /// <param name="cylinderHeight">The cylinder's full positive axis length.</param>
+    /// <param name="cylinderRadius">The cylinder's nonnegative radius in coordinate units.</param>
+    /// <param name="contact">
+    /// The paired shape-local witnesses, world normal, and depth on success. Use this result only when the method
+    /// returns <see langword="true"/>.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the closed shapes touch or overlap and the requested contact is available and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="triangleRotation"/> is not normalized or <paramref name="cylinderRotation"/> is not
+    /// normalized.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="cylinderHeight"/> is not positive or <paramref name="cylinderRadius"/> is negative.
+    /// </exception>
     /// <remarks>
     /// The normal points from the triangle toward the cylinder. Triangle face,
     /// vertex/side, edge/side and admitted edge/rim stationary features share
@@ -58,6 +79,29 @@ public partial struct FixedTriangle
     /// Attempts to project one centered finite-cylinder support onto this
     /// rigidly transformed triangle.
     /// </summary>
+    /// <param name="triangleOrigin">The triangle frame's origin in world coordinates.</param>
+    /// <param name="triangleRotation">The triangle's normalized local-to-world rotation.</param>
+    /// <param name="cylinderCenter">The cylinder center in the query coordinate space.</param>
+    /// <param name="cylinderRotation">The cylinder's normalized local-to-world rotation.</param>
+    /// <param name="cylinderHeight">The cylinder's full positive axis length.</param>
+    /// <param name="cylinderRadius">The cylinder's nonnegative radius in coordinate units.</param>
+    /// <param name="supportDirection">The direction in world coordinates used to select the shape's support point.</param>
+    /// <param name="normalTriangleToCylinder">
+    /// The normalized world-space projection normal directed from the triangle toward the shape.
+    /// </param>
+    /// <param name="contact">The paired witnesses, normal, and depth when a contact is returned.</param>
+    /// <returns>
+    /// <see langword="true"/> when the selected support projects onto the triangle and yields a contact and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <remarks>A failed projection only rules out this support feature.</remarks>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="triangleRotation"/> is not normalized, <paramref name="cylinderRotation"/> is not
+    /// normalized, or <paramref name="normalTriangleToCylinder"/> is not normalized.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="cylinderHeight"/> is not positive or <paramref name="cylinderRadius"/> is negative.
+    /// </exception>
     public readonly bool TryGetCenteredFiniteCylinderSupportContact(
         Vector3d triangleOrigin,
         FixedQuaternion triangleRotation,
@@ -96,6 +140,26 @@ public partial struct FixedTriangle
     /// Attempts to construct a minimum-depth inclusive contact with a finite
     /// cone whose local apex is at +height/2 and base disk at -height/2.
     /// </summary>
+    /// <param name="triangleOrigin">The triangle frame's origin in world coordinates.</param>
+    /// <param name="triangleRotation">The triangle's normalized local-to-world rotation.</param>
+    /// <param name="coneCenter">The cone center in the query coordinate space.</param>
+    /// <param name="coneRotation">The cone's normalized local-to-world rotation.</param>
+    /// <param name="coneHeight">The cone's full positive axis length.</param>
+    /// <param name="coneRadius">The cone's nonnegative radius in coordinate units.</param>
+    /// <param name="contact">
+    /// The paired shape-local witnesses, world normal, and depth on success. Use this result only when the method
+    /// returns <see langword="true"/>.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the closed shapes touch or overlap and the requested contact is available and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="triangleRotation"/> is not normalized or <paramref name="coneRotation"/> is not normalized.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="coneHeight"/> is not positive or <paramref name="coneRadius"/> is negative.
+    /// </exception>
     /// <remarks>
     /// Exact feature admission rejects every positive gap before nearest-even
     /// output rounding. The normal points from triangle toward cone and both
@@ -121,6 +185,29 @@ public partial struct FixedTriangle
     /// Attempts to project one centered finite-cone support onto this rigidly
     /// transformed triangle.
     /// </summary>
+    /// <param name="triangleOrigin">The triangle frame's origin in world coordinates.</param>
+    /// <param name="triangleRotation">The triangle's normalized local-to-world rotation.</param>
+    /// <param name="coneCenter">The cone center in the query coordinate space.</param>
+    /// <param name="coneRotation">The cone's normalized local-to-world rotation.</param>
+    /// <param name="coneHeight">The cone's full positive axis length.</param>
+    /// <param name="coneRadius">The cone's nonnegative radius in coordinate units.</param>
+    /// <param name="supportDirection">The direction in world coordinates used to select the shape's support point.</param>
+    /// <param name="normalTriangleToCone">
+    /// The normalized world-space projection normal directed from the triangle toward the shape.
+    /// </param>
+    /// <param name="contact">The paired witnesses, normal, and depth when a contact is returned.</param>
+    /// <returns>
+    /// <see langword="true"/> when the selected support projects onto the triangle and yields a contact and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <remarks>A failed projection only rules out this support feature.</remarks>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="triangleRotation"/> is not normalized, <paramref name="coneRotation"/> is not normalized, or
+    /// <paramref name="normalTriangleToCone"/> is not normalized.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="coneHeight"/> is not positive or <paramref name="coneRadius"/> is negative.
+    /// </exception>
     public readonly bool TryGetCenteredFiniteConeSupportContact(
         Vector3d triangleOrigin,
         FixedQuaternion triangleRotation,
@@ -159,6 +246,28 @@ public partial struct FixedTriangle
     /// Attempts to construct an exact contact between this rigidly transformed
     /// triangle and a centered capsule.
     /// </summary>
+    /// <param name="triangleOrigin">The triangle frame's origin in world coordinates.</param>
+    /// <param name="triangleRotation">The triangle's normalized local-to-world rotation.</param>
+    /// <param name="capsuleCenter">The capsule center in the query coordinate space.</param>
+    /// <param name="capsuleRotation">The capsule's normalized local-to-world rotation.</param>
+    /// <param name="capsuleAxisLength">The full nonnegative length of the capsule's central segment.</param>
+    /// <param name="capsuleRadius">The capsule's nonnegative radius in coordinate units.</param>
+    /// <param name="fallbackNormal">The normalized world-space normal used when the closest features coincide.</param>
+    /// <param name="contact">
+    /// The paired shape-local witnesses, world normal, and depth on success. Use this result only when the method
+    /// returns <see langword="true"/>.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the closed shapes touch or overlap and the requested contact is available and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="triangleRotation"/> is not normalized, <paramref name="capsuleRotation"/> is not normalized,
+    /// or <paramref name="fallbackNormal"/> is not normalized.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="capsuleAxisLength"/> is negative or <paramref name="capsuleRadius"/> is negative.
+    /// </exception>
     /// <remarks>
     /// The returned triangle witness remains in the supplied triangle frame.
     /// The capsule witness remains in the supplied capsule frame so callers can
@@ -330,6 +439,24 @@ public partial struct FixedTriangle
     /// Attempts to construct an exact contact between this rigidly transformed
     /// triangle and a sphere.
     /// </summary>
+    /// <param name="triangleOrigin">The triangle frame's origin in world coordinates.</param>
+    /// <param name="triangleRotation">The triangle's normalized local-to-world rotation.</param>
+    /// <param name="sphereCenter">The sphere center in the query coordinate space.</param>
+    /// <param name="sphereRotation">The sphere's normalized local-to-world rotation.</param>
+    /// <param name="sphereRadius">The sphere's nonnegative radius in coordinate units.</param>
+    /// <param name="contact">
+    /// The paired shape-local witnesses, world normal, and depth on success. Use this result only when the method
+    /// returns <see langword="true"/>.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the closed shapes touch or overlap and the requested contact is available and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="triangleRotation"/> is not normalized or <paramref name="sphereRotation"/> is not
+    /// normalized.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="sphereRadius"/> is negative.</exception>
     /// <remarks>
     /// The relation selects whichever exact coordinate chart can represent the
     /// interacting features. The returned triangle witness always remains in

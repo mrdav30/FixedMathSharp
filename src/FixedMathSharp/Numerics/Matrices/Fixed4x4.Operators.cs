@@ -20,6 +20,8 @@ public partial struct Fixed4x4
     /// <summary>
     /// Negates the specified matrix by multiplying all its values by -1.
     /// </summary>
+    /// <param name="value">The matrix to negate.</param>
+    /// <returns>The component-wise negation, with saturation at the scalar limit.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed4x4 operator -(Fixed4x4 value)
     {
@@ -46,6 +48,9 @@ public partial struct Fixed4x4
     /// <summary>
     /// Adds two matrices element-wise.
     /// </summary>
+    /// <param name="lhs">The first matrix.</param>
+    /// <param name="rhs">The second matrix.</param>
+    /// <returns>The component-wise sum, saturated per entry.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed4x4 operator +(Fixed4x4 lhs, Fixed4x4 rhs) =>
         new(
@@ -57,6 +62,9 @@ public partial struct Fixed4x4
     /// <summary>
     /// Subtracts two matrices element-wise.
     /// </summary>
+    /// <param name="lhs">The matrix to subtract from.</param>
+    /// <param name="rhs">The matrix to subtract.</param>
+    /// <returns>The component-wise difference, saturated per entry.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed4x4 operator -(Fixed4x4 lhs, Fixed4x4 rhs) =>
         new(
@@ -72,6 +80,10 @@ public partial struct Fixed4x4
     /// Unlike <see cref="operator *(Fixed4x4, Fixed4x4)"/>, this method does not saturate
     /// intermediate products or partial sums. On failure, <paramref name="result"/> is zero.
     /// </remarks>
+    /// <param name="lhs">The left matrix. For row-vector composition, this transform is applied first.</param>
+    /// <param name="rhs">The right matrix. For row-vector composition, this transform is applied second.</param>
+    /// <param name="result">The matrix product on success, or <see cref="Zero"/> on failure.</param>
+    /// <returns><see langword="true"/> if every rounded output entry is representable.</returns>
     public static bool TryMultiply(Fixed4x4 lhs, Fixed4x4 rhs, out Fixed4x4 result)
     {
         bool representable = TryGetExactProductSum(lhs.M11, rhs.M11, lhs.M12, rhs.M21, lhs.M13, rhs.M31, lhs.M14, rhs.M41, out Fixed64 m11)
@@ -107,6 +119,9 @@ public partial struct Fixed4x4
     /// <summary>
     /// Multiplies two 4x4 matrices using standard matrix multiplication.
     /// </summary>
+    /// <param name="lhs">The left matrix. For row-vector composition, this transform is applied first.</param>
+    /// <param name="rhs">The right matrix. For row-vector composition, this transform is applied second.</param>
+    /// <returns>The matrix product, with fixed-point rounding and saturation during accumulation.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed4x4 operator *(Fixed4x4 lhs, Fixed4x4 rhs)
     {
@@ -233,6 +248,9 @@ public partial struct Fixed4x4
     /// <summary>
     /// Multiplies every matrix component by a scalar.
     /// </summary>
+    /// <param name="matrix">The matrix to scale.</param>
+    /// <param name="scalar">The multiplier for each entry.</param>
+    /// <returns>The component-wise products with fixed-point rounding and saturation.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed4x4 operator *(Fixed4x4 matrix, Fixed64 scalar) =>
         new(
@@ -241,15 +259,17 @@ public partial struct Fixed4x4
             matrix.M31 * scalar, matrix.M32 * scalar, matrix.M33 * scalar, matrix.M34 * scalar,
             matrix.M41 * scalar, matrix.M42 * scalar, matrix.M43 * scalar, matrix.M44 * scalar);
 
-    /// <summary>
-    /// Multiplies every matrix component by a scalar.
-    /// </summary>
+    /// <inheritdoc cref="operator *(Fixed4x4, Fixed64)"/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed4x4 operator *(Fixed64 scalar, Fixed4x4 matrix) => matrix * scalar;
 
     /// <summary>
     /// Divides every matrix component by a scalar.
     /// </summary>
+    /// <param name="matrix">The matrix to divide.</param>
+    /// <param name="scalar">The nonzero divisor shared by all entries.</param>
+    /// <returns>The matrix scaled by the fixed-point reciprocal of the divisor.</returns>
+    /// <exception cref="System.DivideByZeroException">The divisor is zero.</exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed4x4 operator /(Fixed4x4 matrix, Fixed64 scalar)
     {

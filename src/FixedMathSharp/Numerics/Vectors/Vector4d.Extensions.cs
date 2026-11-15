@@ -20,28 +20,49 @@ public static partial class Vector4dExtensions
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector4d Clamp(this Vector4d value, Vector4d min, Vector4d max) => Vector4d.Clamp(value, min, max);
 
-    /// <inheritdoc cref="Vector4d.Clamp(Vector4d, Vector4d, Vector4d)" />
+    /// <summary>Clamps every component to the interval [−1, 1].</summary>
+    /// <param name="value">The vector to clamp.</param>
+    /// <returns>A copy with each component independently clamped.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector4d ClampOne(this Vector4d value) => Vector4d.Clamp(value, Vector4d.Negative, Vector4d.One);
 
-    /// <inheritdoc cref="Vector4d.Lerp(Vector4d, Vector4d, Fixed64)" />
+    /// <summary>Linearly interpolates between two vectors.</summary>
+    /// <param name="start">The starting vector.</param>
+    /// <param name="end">The ending vector in the same coordinate space.</param>
+    /// <param name="amount">The interpolation fraction, clamped to [0, 1].</param>
+    /// <returns>The result of <c>start + (end − start) * amount</c>, using saturating component arithmetic.</returns>
+    /// <remarks>Saturation of a component difference can prevent a factor of one from reaching the ending vector.</remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector4d Lerp(this Vector4d start, Vector4d end, Fixed64 amount) => Vector4d.Lerp(start, end, amount);
 
-    /// <inheritdoc cref="Vector4d.UnclampedLerp(Vector4d, Vector4d, Fixed64)" />
+    /// <summary>Linearly interpolates between two vectors.</summary>
+    /// <param name="start">The starting vector.</param>
+    /// <param name="end">The ending vector in the same coordinate space.</param>
+    /// <param name="amount">The interpolation fraction. Values outside [0, 1] extrapolate.</param>
+    /// <returns>The result of <c>start + (end − start) * amount</c>, using saturating component arithmetic.</returns>
+    /// <remarks>Saturation of a component difference can prevent a factor of one from reaching the ending vector.</remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector4d UnclampedLerp(this Vector4d start, Vector4d end, Fixed64 amount) =>
         Vector4d.UnclampedLerp(start, end, amount);
 
-    /// <inheritdoc cref="Vector4d.Midpoint(Vector4d, Vector4d)" />
+    /// <summary>Computes the component-wise midpoint.</summary>
+    /// <param name="value">The first vector.</param>
+    /// <param name="other">The second vector in the same coordinate space.</param>
+    /// <returns>The midpoint rounded to the nearest representable vector with ties to even per component.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector4d Midpoint(this Vector4d value, Vector4d other) => Vector4d.Midpoint(value, other);
 
-    /// <inheritdoc cref="Vector4d.Max(Vector4d, Vector4d)" />
+    /// <summary>Selects the component-wise maxima.</summary>
+    /// <param name="value">The first vector.</param>
+    /// <param name="other">The second vector in the same coordinate space.</param>
+    /// <returns>A vector containing the larger value from each matching component pair.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector4d Max(this Vector4d value, Vector4d other) => Vector4d.Max(value, other);
 
-    /// <inheritdoc cref="Vector4d.Min(Vector4d, Vector4d)" />
+    /// <summary>Selects the component-wise minima.</summary>
+    /// <param name="value">The first vector.</param>
+    /// <param name="other">The second vector in the same coordinate space.</param>
+    /// <returns>A vector containing the smaller value from each matching component pair.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector4d Min(this Vector4d value, Vector4d other) => Vector4d.Min(value, other);
 
@@ -65,9 +86,11 @@ public static partial class Vector4dExtensions
 
     #region Equality
 
-    /// <summary>
-    /// Compares two vectors for approximate equality, allowing a fixed absolute difference.
-    /// </summary>
+    /// <summary>Compares two vectors within a component-wise absolute tolerance.</summary>
+    /// <param name="me">The reference vector.</param>
+    /// <param name="other">The vector to compare in the same coordinate space.</param>
+    /// <param name="allowedDifference">The nonnegative absolute tolerance per component, in input units.</param>
+    /// <returns><see langword="true"/> if all corresponding components agree within the tolerance, including the boundary, otherwise <see langword="false"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool FuzzyEqualAbsolute(this Vector4d me, Vector4d other, Fixed64 allowedDifference) =>
         (me.X - other.X).Abs() <= allowedDifference &&
@@ -75,9 +98,12 @@ public static partial class Vector4dExtensions
         (me.Z - other.Z).Abs() <= allowedDifference &&
         (me.W - other.W).Abs() <= allowedDifference;
 
-    /// <summary>
-    /// Compares two vectors for approximate equality, allowing a fractional difference.
-    /// </summary>
+    /// <summary>Compares two vectors within a component-wise relative tolerance.</summary>
+    /// <param name="me">The reference vector.</param>
+    /// <param name="other">The vector to compare in the same coordinate space.</param>
+    /// <param name="percentage">The allowed relative error as a nonnegative fraction. Null selects <see cref="Fixed64.Epsilon"/>.</param>
+    /// <returns><see langword="true"/> if all corresponding components agree within the tolerance, including the boundary, otherwise <see langword="false"/>.</returns>
+    /// <remarks>The tolerance is relative to each reference component’s magnitude. A magnitude below <see cref="Fixed64.Epsilon"/> uses the fraction as an absolute tolerance.</remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool FuzzyEqual(this Vector4d me, Vector4d other, Fixed64? percentage = null)
     {

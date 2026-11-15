@@ -12,6 +12,7 @@
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
     <Configurations>Debug;Release;ReleaseLean</Configurations>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <AssemblyName>FixedMathSharp.FluentAssertions</AssemblyName>
     <RootNamespace>FixedMathSharp.Assertions</RootNamespace>

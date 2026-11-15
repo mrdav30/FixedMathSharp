@@ -30,6 +30,7 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     /// <summary>
     /// Initializes a new instance from serialized or caller-provided state.
     /// </summary>
+    /// <param name="state">The bound state to normalize and copy.</param>
     [JsonConstructor]
     public FixedBoundArea(BoundingAreaState state)
     {
@@ -43,6 +44,7 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     /// <summary>
     /// The minimum corner of the area.
     /// </summary>
+    /// <value>The componentwise minimum corner in the bound's coordinate space.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Vector2d Min { get; private set; }
@@ -50,6 +52,7 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     /// <summary>
     /// The maximum corner of the area.
     /// </summary>
+    /// <value>The componentwise maximum corner in the bound's coordinate space.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Vector2d Max { get; private set; }
@@ -57,6 +60,7 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     /// <summary>
     /// The center of the area, rounded to the nearest-even Q32.32 lattice point.
     /// </summary>
+    /// <value>The midpoint of the stored endpoints. Setting it moves both endpoints.</value>
     /// <remarks>
     /// Assigning a different center preserves a conservative half-extent. An
     /// odd raw-unit span can therefore expand by one raw unit so the assigned
@@ -85,6 +89,7 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     /// <summary>
     /// The exact total width and height of the area.
     /// </summary>
+    /// <value>The full positive span along each axis. Setting it resizes the area about its current center.</value>
     /// <remarks>
     /// Assigned values are normalized by absolute component value and divided
     /// outward. An odd raw-unit size therefore expands by one raw unit. Reading
@@ -115,6 +120,7 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     /// The smallest representable half-extent that conservatively contains the
     /// area around <see cref="Center"/>.
     /// </summary>
+    /// <value>The outward-rounded half-extents around the current center.</value>
     /// <exception cref="OverflowException">
     /// A conservative half-extent is outside the representable scalar domain.
     /// </exception>
@@ -131,6 +137,7 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     /// <summary>
     /// Gets or sets the current normalized state of the area.
     /// </summary>
+    /// <value>A copy of the normalized state. Assigning a state replaces the stored value.</value>
     [JsonInclude]
     [MemoryPackInclude]
     public BoundingAreaState State
@@ -150,6 +157,9 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     /// <summary>
     /// Creates a normalized area from minimum and maximum corners.
     /// </summary>
+    /// <param name="min">One corner. The lesser coordinate on each axis becomes the minimum.</param>
+    /// <param name="max">The opposite corner. The greater coordinate on each axis becomes the maximum.</param>
+    /// <returns>The normalized area spanning the supplied corners.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static FixedBoundArea FromMinMax(Vector2d min, Vector2d max)
     {
@@ -161,6 +171,9 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     /// <summary>
     /// Creates an area from a center point and total size.
     /// </summary>
+    /// <param name="center">The center in the bound's coordinate space.</param>
+    /// <param name="size">The full size along each axis. Negative components are treated as magnitudes.</param>
+    /// <returns>The area with both endpoints representable.</returns>
     /// <remarks>
     /// Negative size components are normalized by absolute value. Odd raw-unit
     /// sizes are divided outward and therefore expand by one raw unit.
@@ -179,6 +192,9 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     /// <summary>
     /// Creates an area from a center point and half-size scope.
     /// </summary>
+    /// <param name="center">The center in the bound's coordinate space.</param>
+    /// <param name="scope">The half-size along each axis. Negative components are treated as magnitudes.</param>
+    /// <returns>The area with both endpoints representable.</returns>
     /// <remarks>
     /// Negative scope components are normalized by absolute value.
     /// </remarks>
@@ -198,6 +214,9 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     /// Creates the representable-domain intersection of an area described by a
     /// center point and total size.
     /// </summary>
+    /// <param name="center">The center in the bound's coordinate space.</param>
+    /// <param name="size">The full size along each axis. Negative components are treated as magnitudes.</param>
+    /// <returns>The area with its final endpoints clipped to the representable coordinate range.</returns>
     /// <remarks>
     /// Negative size components are normalized by absolute value and odd raw-
     /// unit sizes divide outward. Endpoints outside the scalar domain are
@@ -216,6 +235,9 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     /// Creates the representable-domain intersection of an area described by a
     /// center point and half-size scope.
     /// </summary>
+    /// <param name="center">The center in the bound's coordinate space.</param>
+    /// <param name="scope">The half-size along each axis. Negative components are treated as magnitudes.</param>
+    /// <returns>The area with its final endpoints clipped to the representable coordinate range.</returns>
     /// <remarks>
     /// Negative scope components are normalized by absolute value. Endpoints
     /// outside the scalar domain are explicitly clipped to
@@ -236,6 +258,10 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     /// Creates the representable-domain intersection of bounds described by a
     /// center and normalized center-relative minimum and maximum offsets.
     /// </summary>
+    /// <param name="center">The center in the bound's coordinate space.</param>
+    /// <param name="minimumOffset">The lesser extent on each axis relative to the center.</param>
+    /// <param name="maximumOffset">The greater extent on each axis relative to the center.</param>
+    /// <returns>The area with its final endpoints clipped to the representable coordinate range.</returns>
     /// <remarks>
     /// Each endpoint is formed by one final saturating add, which is the
     /// explicit clipping operation. Asymmetric offsets are preserved.
@@ -265,6 +291,11 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     /// Creates the representable-domain intersection of bounds around rotated
     /// local offsets without materializing any transformed point.
     /// </summary>
+    /// <param name="origin">The position of the local origin in the result's coordinate space.</param>
+    /// <param name="rotation">The angle in radians from the local frame to the result's coordinate space.</param>
+    /// <param name="localOffsets">The local points to enclose. At least one is required. The span is read during this call.</param>
+    /// <returns>The area with its final endpoints clipped to the representable coordinate range.</returns>
+    /// <exception cref="ArgumentException"><paramref name="localOffsets"/> is empty.</exception>
     public static FixedBoundArea FromRotatedOffsetsClippedToDomain(
         Vector2d origin,
         Fixed64 rotation,
@@ -290,6 +321,8 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     /// <summary>
     /// Sets the normalized bounds of the area by specifying minimum and maximum points.
     /// </summary>
+    /// <param name="min">One corner. The lesser coordinate on each axis becomes the minimum.</param>
+    /// <param name="max">The opposite corner. The greater coordinate on each axis becomes the maximum.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetMinMax(Vector2d min, Vector2d max)
     {
@@ -304,6 +337,8 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     /// <summary>
     /// Determines whether the point is inside this area, including the boundary.
     /// </summary>
+    /// <param name="point">The point in the same coordinate space as this area.</param>
+    /// <returns><see langword="true"/> when the point lies on the boundary or inside and <see langword="false"/> otherwise.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Contains(Vector2d point)
     {
@@ -314,6 +349,12 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     /// <summary>
     /// Classifies another area against this area using boundary-inclusive overlap.
     /// </summary>
+    /// <param name="area">The area in the same coordinate space as this area.</param>
+    /// <returns>
+    /// <see cref="FixedEnclosureType.Contains"/> if the supplied area is wholly inside, including the boundary,
+    /// <see cref="FixedEnclosureType.Intersects"/> for other overlap or contact, or
+    /// <see cref="FixedEnclosureType.Disjoint"/> for separation.
+    /// </returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public FixedEnclosureType Contains(FixedBoundArea area)
     {
@@ -329,6 +370,12 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     /// <summary>
     /// Classifies a circle against this area using boundary-inclusive overlap.
     /// </summary>
+    /// <param name="circle">The circle in the same coordinate space as this area.</param>
+    /// <returns>
+    /// <see cref="FixedEnclosureType.Contains"/> if the supplied circle is wholly inside, including the boundary,
+    /// <see cref="FixedEnclosureType.Intersects"/> for other overlap or contact, or
+    /// <see cref="FixedEnclosureType.Disjoint"/> for separation.
+    /// </returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public FixedEnclosureType Contains(FixedBoundCircle circle)
     {
@@ -344,6 +391,8 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     /// <summary>
     /// Determines whether this area overlaps another area, including boundary-only contact.
     /// </summary>
+    /// <param name="area">The area in the same coordinate space as this area.</param>
+    /// <returns><see langword="true"/> when the shapes overlap or touch and <see langword="false"/> otherwise.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Intersects(FixedBoundArea area)
     {
@@ -354,12 +403,16 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     /// <summary>
     /// Determines whether this area overlaps a circle, including boundary-only contact.
     /// </summary>
+    /// <param name="circle">The circle in the same coordinate space as this area.</param>
+    /// <returns><see langword="true"/> when the shapes overlap or touch and <see langword="false"/> otherwise.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Intersects(FixedBoundCircle circle) => circle.Intersects(this);
 
     /// <summary>
     /// Determines whether this area overlaps another area with positive area on both axes.
     /// </summary>
+    /// <param name="area">The area in the same coordinate space as this area.</param>
+    /// <returns><see langword="true"/> when the shared region has positive area and <see langword="false"/> otherwise.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool IntersectsStrict(FixedBoundArea area)
     {
@@ -371,12 +424,16 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     /// <summary>
     /// Determines whether this area overlaps a circle with positive area.
     /// </summary>
+    /// <param name="circle">The circle in the same coordinate space as this area.</param>
+    /// <returns><see langword="true"/> when the shared region has positive area and <see langword="false"/> otherwise.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool IntersectsStrict(FixedBoundCircle circle) => circle.IntersectsStrict(this);
 
     /// <summary>
     /// Clamps a point to the area boundary or interior.
     /// </summary>
+    /// <param name="point">The point in the same coordinate space as this area.</param>
+    /// <returns>The supplied point if it is contained, or its closest point on the boundary.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector2d ClampPoint(Vector2d point)
     {
@@ -385,9 +442,7 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
             FixedMath.Clamp(point.Y, Min.Y, Max.Y));
     }
 
-    /// <summary>
-    /// Projects a point onto this area by clamping it to the boundary or interior.
-    /// </summary>
+    /// <inheritdoc cref="ClampPoint(Vector2d)"/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector2d ProjectPoint(Vector2d point) => ClampPoint(point);
 
@@ -398,6 +453,8 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     /// <summary>
     /// Deconstructs the area into normalized minimum and maximum corners.
     /// </summary>
+    /// <param name="min">The componentwise minimum corner.</param>
+    /// <param name="max">The componentwise maximum corner.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Deconstruct(out Vector2d min, out Vector2d max)
     {
@@ -409,20 +466,28 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
 
     #region Equality
 
-    /// <inheritdoc />
+    /// <summary>Compares the stored geometry for equality.</summary>
+    /// <param name="other">The value to compare with this instance.</param>
+    /// <returns><see langword="true"/> when the minimum and maximum corners match and <see langword="false"/> otherwise.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Equals(FixedBoundArea other)
     {
         return Min == other.Min && Max == other.Max;
     }
 
-    /// <inheritdoc />
+    /// <summary>Compares the stored geometry for equality.</summary>
+    /// <param name="obj">The value to compare with this instance.</param>
+    /// <returns>
+    /// <see langword="true"/> when <paramref name="obj"/> is a <see cref="FixedBoundArea"/> and the minimum and
+    /// maximum corners match and <see langword="false"/> otherwise.
+    /// </returns>
     public override bool Equals(object? obj)
     {
         return obj is FixedBoundArea other && Equals(other);
     }
 
-    /// <inheritdoc />
+    /// <summary>Computes a hash code for the stored geometry.</summary>
+    /// <returns>A hash code consistent with structural equality.</returns>
     public override int GetHashCode()
     {
         unchecked
@@ -434,15 +499,17 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
         }
     }
 
-    /// <summary>
-    /// Determines whether two areas have the same normalized bounds.
-    /// </summary>
+    /// <summary>Tests whether the stored geometry is equal.</summary>
+    /// <param name="left">The first value to compare.</param>
+    /// <param name="right">The second value to compare.</param>
+    /// <returns><see langword="true"/> when the minimum and maximum corners match and <see langword="false"/> otherwise.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator ==(FixedBoundArea left, FixedBoundArea right) => left.Equals(right);
 
-    /// <summary>
-    /// Determines whether two areas have different normalized bounds.
-    /// </summary>
+    /// <summary>Tests whether the stored geometry is different.</summary>
+    /// <param name="left">The first value to compare.</param>
+    /// <param name="right">The second value to compare.</param>
+    /// <returns><see langword="true"/> when the stored values differ and <see langword="false"/> otherwise.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator !=(FixedBoundArea left, FixedBoundArea right) => !left.Equals(right);
 
@@ -453,6 +520,9 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     /// <summary>
     /// Creates a new area that contains both input areas.
     /// </summary>
+    /// <param name="a">The first area.</param>
+    /// <param name="b">The second area in the same coordinate space as <paramref name="a"/>.</param>
+    /// <returns>The smallest axis-aligned area that contains both inputs.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static FixedBoundArea Union(FixedBoundArea a, FixedBoundArea b)
     {
@@ -522,6 +592,13 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     /// Creates the representable-domain intersection of a centered capsule's
     /// tight axis-aligned bounds from its scalar frame rotation.
     /// </summary>
+    /// <param name="center">The center in the bound's coordinate space.</param>
+    /// <param name="rotation">
+    /// The counterclockwise capsule frame rotation in radians. The unrotated axis points along positive Y.
+    /// </param>
+    /// <param name="fullAxisLength">The full length of the capsule's central segment. Zero describes a circle.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units. Zero reduces the cross-section to its center.</param>
+    /// <returns>The axis-aligned area of the shape, clipped to the representable coordinate range.</returns>
     /// <remarks>
     /// The capsule's local positive Y axis is its center axis. Sine and cosine
     /// remain authoritative through the exact finite-axis bound calculation;
@@ -580,6 +657,7 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     /// <param name="axisDirection">The normalized center-axis direction.</param>
     /// <param name="fullAxisLength">The nonnegative full center-axis length.</param>
     /// <param name="radius">The nonnegative capsule radius.</param>
+    /// <returns>The axis-aligned area of the shape, clipped to the representable coordinate range.</returns>
     /// <remarks>
     /// Each exact endpoint is clipped to the scalar domain and rounded outward.
     /// Zero length and zero radius are valid degenerate capsules.

@@ -141,12 +141,18 @@ public partial struct Vector2d
     /// <summary>
     /// Determines whether two Vector2d instances are equal.
     /// </summary>
+    /// <param name="left">The left vector.</param>
+    /// <param name="right">The right vector.</param>
+    /// <returns><see langword="true"/> if all corresponding components are exactly equal, otherwise <see langword="false"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator ==(Vector2d left, Vector2d right) => left.Equals(right);
 
     /// <summary>
     /// Determines whether two Vector2d instances are not equal.
     /// </summary>
+    /// <param name="left">The left vector.</param>
+    /// <param name="right">The right vector.</param>
+    /// <returns><see langword="true"/> if at least one corresponding component differs, otherwise <see langword="false"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator !=(Vector2d left, Vector2d right) => !left.Equals(right);
 }

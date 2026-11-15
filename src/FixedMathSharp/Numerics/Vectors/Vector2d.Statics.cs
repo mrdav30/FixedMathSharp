@@ -20,6 +20,9 @@ public partial struct Vector2d
     /// <summary>
     /// Adds two vectors component-wise.
     /// </summary>
+    /// <param name="v1">The first vector to add.</param>
+    /// <param name="v2">The second vector to add.</param>
+    /// <returns>The component-wise sum, with each component saturated at the representable endpoints.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d Add(Vector2d v1, Vector2d v2) => v1 + v2;
 
@@ -51,6 +54,9 @@ public partial struct Vector2d
     /// <summary>
     /// Subtracts two vectors component-wise.
     /// </summary>
+    /// <param name="v1">The vector to subtract from.</param>
+    /// <param name="v2">The vector to subtract.</param>
+    /// <returns>The component-wise difference, with each component saturated at the representable endpoints.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d Subtract(Vector2d v1, Vector2d v2) => v1 - v2;
 
@@ -114,6 +120,12 @@ public partial struct Vector2d
     /// (secondLeft + secondRight)</c> component-wise without intermediate
     /// saturation.
     /// </summary>
+    /// <param name="firstLeft">The first addend of the minuend sum.</param>
+    /// <param name="firstRight">The second addend of the minuend sum.</param>
+    /// <param name="secondLeft">The first addend of the subtrahend sum.</param>
+    /// <param name="secondRight">The second addend of the subtrahend sum.</param>
+    /// <param name="result">The difference of the two sums on success, or the zero vector on failure.</param>
+    /// <returns><see langword="true"/> if all final components are representable, otherwise <see langword="false"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool TrySubtractSums(
         Vector2d firstLeft,
@@ -170,30 +182,48 @@ public partial struct Vector2d
     /// <summary>
     /// Multiplies two vectors component-wise.
     /// </summary>
+    /// <param name="v1">The first factor.</param>
+    /// <param name="v2">The second factor.</param>
+    /// <returns>The component-wise product, with each component saturated at the representable endpoints.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d Multiply(Vector2d v1, Vector2d v2) => v1 * v2;
 
     /// <summary>
     /// Multiplies each vector component by the specified scalar.
     /// </summary>
+    /// <param name="value">The vector to scale.</param>
+    /// <param name="factor">The scalar factor.</param>
+    /// <returns>The component-wise product, with each component saturated at the representable endpoints.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d Multiply(Vector2d value, Fixed64 factor) => value * factor;
 
     /// <summary>
     /// Divides each component of the first vector by the corresponding component of the second vector.
     /// </summary>
+    /// <param name="v1">The numerator.</param>
+    /// <param name="v2">The divisor.</param>
+    /// <returns>The component-wise quotient, with each component saturated at the representable endpoints.</returns>
+    /// <exception cref="DivideByZeroException">A divisor component is zero.</exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d Divide(Vector2d v1, Vector2d v2) => new(v1.X / v2.X, v1.Y / v2.Y);
 
     /// <summary>
     /// Divides each vector component by the specified scalar.
     /// </summary>
+    /// <param name="value">The vector to scale.</param>
+    /// <param name="divisor">The scalar divisor.</param>
+    /// <returns>The component-wise quotient, with each component saturated at the representable endpoints.</returns>
+    /// <exception cref="DivideByZeroException">The divisor is zero.</exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d Divide(Vector2d value, Fixed64 divisor) => value / divisor;
 
     /// <summary>
     /// Clamps each component of the given vector within the specified min and max bounds.
     /// </summary>
+    /// <param name="value">The vector to clamp.</param>
+    /// <param name="min">The inclusive lower limits. Each must be at most its matching upper limit.</param>
+    /// <param name="max">The inclusive upper limits.</param>
+    /// <returns>A copy with each component limited to its corresponding interval.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d Clamp(Vector2d value, Vector2d min, Vector2d max) =>
         new(FixedMath.Clamp(value.X, min.X, max.X),
@@ -248,6 +278,12 @@ public partial struct Vector2d
     /// world origin with one final round-half-to-even conversion per
     /// component.
     /// </summary>
+    /// <param name="origin">The origin of the local frame, expressed in world coordinates.</param>
+    /// <param name="localPoint">The point in local coordinates.</param>
+    /// <param name="scale">The per-axis local scale factors.</param>
+    /// <param name="angleInRadians">The local-to-world rotation in radians, positive from +X toward +Y.</param>
+    /// <param name="result">The rounded point in world coordinates on success, or the zero vector on failure.</param>
+    /// <returns><see langword="true"/> if all final components are representable, otherwise <see langword="false"/>.</returns>
     public static bool TryTransformScaledPoint(
         Vector2d origin,
         Vector2d localPoint,
@@ -272,6 +308,13 @@ public partial struct Vector2d
     /// <c>origin + Rotate(scale * localPoint + localDisplacement)</c> without
     /// narrowing the scaled point, local sum, or rotated offset independently.
     /// </remarks>
+    /// <param name="origin">The origin of the local frame, expressed in world coordinates.</param>
+    /// <param name="localPoint">The point in local coordinates.</param>
+    /// <param name="scale">The per-axis local scale factors.</param>
+    /// <param name="localDisplacement">The local offset added after applying the scale and before rotation.</param>
+    /// <param name="angleInRadians">The local-to-world rotation in radians, positive from +X toward +Y.</param>
+    /// <param name="result">The rounded point in world coordinates on success, or the zero vector on failure.</param>
+    /// <returns><see langword="true"/> if all final components are representable, otherwise <see langword="false"/>.</returns>
     public static bool TryTransformScaledPoint(
         Vector2d origin,
         Vector2d localPoint,
@@ -297,6 +340,12 @@ public partial struct Vector2d
     /// independently. A zero scale component or unrepresentable final
     /// coordinate returns false and a zero result.
     /// </remarks>
+    /// <param name="origin">The origin of the local frame, expressed in world coordinates.</param>
+    /// <param name="worldPoint">The point to map from world coordinates.</param>
+    /// <param name="scale">The nonzero per-axis local scale factors to undo.</param>
+    /// <param name="angleInRadians">The local-to-world rotation in radians, positive from +X toward +Y.</param>
+    /// <param name="localPoint">The point in local coordinates on success, or the zero vector on failure.</param>
+    /// <returns><see langword="true"/> if each scale factor is nonzero and both final coordinates are representable, otherwise <see langword="false"/>.</returns>
     public static bool TryInverseTransformScaledPoint(
         Vector2d origin,
         Vector2d worldPoint,
@@ -323,6 +372,14 @@ public partial struct Vector2d
     /// without narrowing either scaled offset or the rotated displacement
     /// independently.
     /// </remarks>
+    /// <param name="outerLocalPoint">The first offset, expressed along the shared frame axes.</param>
+    /// <param name="outerScale">The per-axis scale factors for the first offset.</param>
+    /// <param name="innerFrameOffset">The second offset, expressed along the shared frame axes.</param>
+    /// <param name="innerFrameScale">The per-axis scale factors for the second offset.</param>
+    /// <param name="innerLocalDisplacement">The displacement in the inner frame. It is rotated directly, without either scale.</param>
+    /// <param name="result">The composed offset in the shared frame on success, or the zero vector on failure.</param>
+    /// <param name="innerAngleInRadians">The inner-to-shared angle in radians, positive from +X toward +Y.</param>
+    /// <returns><see langword="true"/> if all final components are representable, otherwise <see langword="false"/>.</returns>
     public static bool TryComposeScaledLocalPoints(
         Vector2d outerLocalPoint,
         Vector2d outerScale,
@@ -349,6 +406,9 @@ public partial struct Vector2d
     /// evaluated exactly even when a component cannot be represented by
     /// <see cref="Fixed64"/>.
     /// </remarks>
+    /// <param name="start">The starting point.</param>
+    /// <param name="end">The ending point in the same coordinate space.</param>
+    /// <returns>The approximate unit direction from start to end, or zero for coincident points.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d GetDirection(Vector2d start, Vector2d end) =>
         WideNormalization.GetDirection(start, end);
@@ -429,6 +489,8 @@ public partial struct Vector2d
     /// </summary>
     /// <returns>A negative value when <paramref name="left"/> is shorter, zero when the
     /// magnitudes are equal, or a positive value when <paramref name="left"/> is longer.</returns>
+    /// <param name="left">The first vector.</param>
+    /// <param name="right">The second vector.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int CompareMagnitudeSquared(Vector2d left, Vector2d right) =>
         Fixed64.CompareMagnitudeSquared(
@@ -461,10 +523,13 @@ public partial struct Vector2d
     /// Attempts to calculate the exact non-negative weighted average with one
     /// final round-half-to-even conversion per component.
     /// </summary>
-    /// <remarks>
-    /// Zero-weight values are ignored. The operation returns
-    /// <see langword="false"/> only when the total weight is zero.
-    /// </remarks>
+    /// <param name="values">The vectors in a common coordinate space, paired by index with the weights.</param>
+    /// <param name="weights">The matching nonnegative relative weights. A zero weight excludes its vector.</param>
+    /// <param name="average">The weighted average on success, or the zero vector on failure.</param>
+    /// <returns><see langword="true"/> if the total weight is positive, otherwise <see langword="false"/>.</returns>
+    /// <remarks>The spans are read during the call. Each component is divided by the exact total weight and rounded once with ties to even.</remarks>
+    /// <exception cref="ArgumentException">The spans have different lengths.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">A weight is negative.</exception>
     public static bool TryGetWeightedAverage(
         ReadOnlySpan<Vector2d> values,
         ReadOnlySpan<Fixed64> weights,
@@ -498,11 +563,17 @@ public partial struct Vector2d
     /// <summary>
     /// Creates a vector from a given angle in radians.
     /// </summary>
+    /// <param name="angle">The angle in radians, positive from +X toward +Y.</param>
+    /// <returns>The pair <c>(cos(angle), sin(angle))</c>, suitable for rotation.</returns>
     public static Vector2d CreateRotation(Fixed64 angle) => new(FixedMath.Cos(angle), FixedMath.Sin(angle));
 
     /// <summary>
     /// Linearly interpolates between two vectors.
     /// </summary>
+    /// <param name="a">The starting vector.</param>
+    /// <param name="b">The ending vector in the same coordinate space.</param>
+    /// <param name="amount">The interpolation fraction, clamped to [0, 1].</param>
+    /// <returns>The component-wise interpolated vector.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d Lerp(Vector2d a, Vector2d b, Fixed64 amount)
     {
@@ -534,19 +605,17 @@ public partial struct Vector2d
             FixedMath.BarycentricCoordinate(coordA.Y, coordB.Y, coordC.Y, weightB, weightC));
     }
 
-    /// <summary>
-    /// Computes the distance between two vectors using the Euclidean distance formula.
-    /// </summary>
-    /// <param name="start">The starting vector.</param>
-    /// <param name="end">The ending vector.</param>
-    /// <returns>The Euclidean distance between the two vectors.</returns>
+    /// <summary>Computes the distance between two points.</summary>
+    /// <param name="start">The first point.</param>
+    /// <param name="end">The second point in the same coordinate space.</param>
+    /// <returns>The Euclidean distance in the same units as the coordinates, with saturation at <see cref="Fixed64.MaxValue"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 Distance(Vector2d start, Vector2d end) => start.Distance(end);
 
-    /// <summary>
-    /// Calculates the squared distance between two vectors, avoiding the need for a square root operation.
-    /// </summary>
-    /// <returns>The squared distance between the two vectors.</returns>
+    /// <summary>Computes the squared distance between two points.</summary>
+    /// <param name="start">The first point.</param>
+    /// <param name="end">The second point in the same coordinate space.</param>
+    /// <returns>The squared Euclidean distance in squared coordinate units, with saturation at <see cref="Fixed64.MaxValue"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 DistanceSquared(Vector2d start, Vector2d end) => start.DistanceSquared(end);
 
@@ -597,6 +666,10 @@ public partial struct Vector2d
     /// </summary>
     /// <returns>A negative value when the left distance is shorter, zero when the
     /// distances are equal, or a positive value when the left distance is longer.</returns>
+    /// <param name="leftStart">The start of the left point pair.</param>
+    /// <param name="leftEnd">The end of the left point pair.</param>
+    /// <param name="rightStart">The start of the right point pair.</param>
+    /// <param name="rightEnd">The end of the right point pair.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int CompareDistanceSquared(
         Vector2d leftStart,
@@ -619,6 +692,9 @@ public partial struct Vector2d
     /// </summary>
     /// <returns><c>1</c> for a counter-clockwise turn, <c>-1</c> for a clockwise
     /// turn, or <c>0</c> when the points are exactly collinear.</returns>
+    /// <param name="origin">The common origin of the two directions.</param>
+    /// <param name="first">The endpoint of the first direction.</param>
+    /// <param name="second">The endpoint of the second direction in the same coordinate space.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int OrientationSign(Vector2d origin, Vector2d first, Vector2d second) =>
         WideGeometry.GetDifferenceCrossProduct2D(
@@ -645,18 +721,17 @@ public partial struct Vector2d
     /// <summary>
     /// Dot Product of two vectors.
     /// </summary>
-    /// <param name="lhs"></param>
-    /// <param name="rhs"></param>
-    /// <returns></returns>
+    /// <param name="lhs">The first vector.</param>
+    /// <param name="rhs">The second vector in the same coordinate space.</param>
+    /// <returns>The sum of the component products using rounded, saturating fixed-point operations.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 Dot(Vector2d lhs, Vector2d rhs) => lhs.Dot(rhs.X, rhs.Y);
 
-    /// <summary>
-    /// Cross Product of two vectors.
-    /// </summary>
-    /// <param name="lhs"></param>
-    /// <param name="rhs"></param>
-    /// <returns></returns>
+    /// <summary>Computes the signed 2D cross product.</summary>
+    /// <param name="lhs">The first vector.</param>
+    /// <param name="rhs">The second vector.</param>
+    /// <returns>The signed determinant. A negative value denotes a clockwise turn and a positive value denotes a counterclockwise turn for representable calculations.</returns>
+    /// <remarks>The determinant uses rounded, saturating fixed-point products and subtraction.</remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 CrossProduct(Vector2d lhs, Vector2d rhs) => lhs.CrossProduct(rhs);
 
@@ -685,6 +760,9 @@ public partial struct Vector2d
     /// otherwise, <see langword="false"/> and <paramref name="result"/> is
     /// <see langword="default"/>.
     /// </returns>
+    /// <param name="vector">The input vector.</param>
+    /// <param name="angleInRadians">The rotation in radians, positive from +X toward +Y.</param>
+    /// <param name="result">The rotated vector on success, or the zero vector on failure.</param>
     public static bool TryRotate(
         Vector2d vector,
         Fixed64 angleInRadians,
@@ -723,6 +801,10 @@ public partial struct Vector2d
     /// representable; otherwise, <see langword="false"/> and
     /// <paramref name="result"/> is <see langword="default"/>.
     /// </returns>
+    /// <param name="origin">The origin of the local frame, expressed in world coordinates.</param>
+    /// <param name="localPoint">The point in local coordinates.</param>
+    /// <param name="angleInRadians">The local-to-world rotation in radians, positive from +X toward +Y.</param>
+    /// <param name="result">The rounded point in world coordinates on success, or the zero vector on failure.</param>
     public static bool TryTransformPoint(
         Vector2d origin,
         Vector2d localPoint,
@@ -748,6 +830,11 @@ public partial struct Vector2d
     /// representable; otherwise, <see langword="false"/> and
     /// <paramref name="result"/> is <see langword="default"/>.
     /// </returns>
+    /// <param name="firstOrigin">The first translation expressed in world coordinates.</param>
+    /// <param name="secondOrigin">The second translation expressed in world coordinates.</param>
+    /// <param name="localPoint">The point in local coordinates.</param>
+    /// <param name="angleInRadians">The local-to-world rotation in radians, positive from +X toward +Y.</param>
+    /// <param name="result">The rounded point in world coordinates on success, or the zero vector on failure.</param>
     public static bool TryTransformPoint(
         Vector2d firstOrigin,
         Vector2d secondOrigin,
@@ -773,6 +860,12 @@ public partial struct Vector2d
     /// otherwise, <see langword="false"/> and <paramref name="result"/> is
     /// <see langword="default"/>.
     /// </returns>
+    /// <param name="firstOrigin">The first frame origin in world coordinates.</param>
+    /// <param name="secondOrigin">The second frame origin in world coordinates.</param>
+    /// <param name="secondLocalPoint">The point expressed relative to the second frame.</param>
+    /// <param name="result">The difference between the two world points on success, or the zero vector on failure.</param>
+    /// <param name="firstOffset">The first point offset in world axes.</param>
+    /// <param name="angleInRadians">The local-to-world rotation in radians, positive from +X toward +Y.</param>
     public static bool TryGetRelativeOffset(
         Vector2d firstOrigin,
         Vector2d firstOffset,
@@ -816,6 +909,13 @@ public partial struct Vector2d
     /// otherwise, <see langword="false"/> and <paramref name="result"/> is
     /// <see langword="default"/>.
     /// </returns>
+    /// <param name="firstOrigin">The first frame origin in world coordinates.</param>
+    /// <param name="secondOrigin">The second frame origin in world coordinates.</param>
+    /// <param name="secondLocalPoint">The point expressed relative to the second frame.</param>
+    /// <param name="result">The difference between the two world points on success, or the zero vector on failure.</param>
+    /// <param name="firstLocalPoint">The point expressed relative to the first frame.</param>
+    /// <param name="firstAngleInRadians">The first local-to-world rotation in radians.</param>
+    /// <param name="secondAngleInRadians">The second local-to-world rotation in radians.</param>
     public static bool TryGetRelativeOffset(
         Vector2d firstOrigin,
         Vector2d firstLocalPoint,

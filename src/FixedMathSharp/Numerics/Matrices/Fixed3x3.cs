@@ -14,19 +14,10 @@ using MemoryPack;
 
 namespace FixedMathSharp;
 
-/// <summary>
-/// Represents a 3x3 matrix used for linear transformations in 2D and 3D space, such as rotation, scaling, and shearing.
-/// </summary>
+/// <summary>Represents a 3×3 fixed-point matrix for linear transformations and products.</summary>
 /// <remarks>
-/// A 3x3 matrix handles only linear transformations and is typically used when translation is not needed.
-/// It operates on directions, orientations, and vectors within a given space without affecting position.
-/// This matrix is more lightweight compared to a 4x4 matrix, making it ideal when translation and perspective are unnecessary.
-/// 
-/// Use Cases:
-/// - Rotating or scaling objects around the origin in 2D and 3D space.
-/// - Transforming vectors and normals (e.g., in lighting calculations).
-/// - Used in physics engines for inertia tensors or to represent local orientations.
-/// - Useful when optimizing transformations, as it omits the overhead of translation and perspective.
+/// For 3D transforms, vectors multiply from the left and the rows are the transformed
+/// X, Y, and Z basis axes. Matrix products compose left to right for row vectors.
 /// </remarks>
 [Serializable]
 [MemoryPackable]
@@ -118,9 +109,16 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>, IFormattable
 
     #region Constructors
 
-    /// <summary>
-    /// Initializes a new FixedMatrix3x3 with the specified elements.
-    /// </summary>
+    /// <summary>Creates a matrix from nine entries in row order.</summary>
+    /// <param name="m11">The first row, first column entry.</param>
+    /// <param name="m12">The first row, second column entry.</param>
+    /// <param name="m13">The first row, third column entry.</param>
+    /// <param name="m21">The second row, first column entry.</param>
+    /// <param name="m22">The second row, second column entry.</param>
+    /// <param name="m23">The second row, third column entry.</param>
+    /// <param name="m31">The third row, first column entry.</param>
+    /// <param name="m32">The third row, second column entry.</param>
+    /// <param name="m33">The third row, third column entry.</param>
     public Fixed3x3(
         Fixed64 m11, Fixed64 m12, Fixed64 m13,
         Fixed64 m21, Fixed64 m22, Fixed64 m23,
@@ -132,9 +130,10 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>, IFormattable
         M31 = m31; M32 = m32; M33 = m33;
     }
 
-    /// <summary>
-    /// Initializes a new FixedMatrix3x3 using three Vector3d values representing the rows.
-    /// </summary>
+    /// <summary>Creates a matrix from three row vectors.</summary>
+    /// <param name="m11_m12_m13">The first row, with X, Y, and Z as columns one through three.</param>
+    /// <param name="m21_m22_m23">The second row, with X, Y, and Z as columns one through three.</param>
+    /// <param name="m31_m32_m33">The third row, with X, Y, and Z as columns one through three.</param>
     public Fixed3x3(
         Vector3d m11_m12_m13,
         Vector3d m21_m22_m23,
@@ -159,12 +158,11 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>, IFormattable
     /// Gets or sets the matrix element at the specified index.
     /// </summary>
     /// <remarks>
-    /// The mapping between indices and matrix elements is non-sequential. 
-    /// Ensure that the index corresponds to a valid matrix element.
+    /// The index is the zero-based row plus four times the zero-based column.
     /// </remarks>
     /// <param name="index">The zero-based index of the matrix element to get or set. Valid values are 0, 1, 2, 4, 5, 6, 8, 9, and 10.</param>
-    /// <returns>The matrix element at the specified index.</returns>
-    /// <exception cref="IndexOutOfRangeException">Thrown when the specified index is not one of the valid matrix element indices.</exception>
+    /// <value>The entry at <paramref name="index"/>.</value>
+    /// <exception cref="IndexOutOfRangeException"><paramref name="index"/> is not one of the supported indices. The matrix is unchanged.</exception>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Fixed64 this[int index]
@@ -226,30 +224,25 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>, IFormattable
 
     #region Methods (Instance)
 
-    /// <inheritdoc cref="GetNormalized(Fixed3x3)" />
+    /// <summary>Replaces this matrix with the basis rows produced by <see cref="GetNormalized(Fixed3x3)"/>.</summary>
+    /// <returns>The updated matrix.</returns>
     public Fixed3x3 NormalizeInPlace() => this = GetNormalized(this);
 
     /// <summary>
     /// Calculates the determinant of a 3x3 matrix.
     /// </summary>
+    /// <returns>The cofactor expansion evaluated with fixed-point rounding and saturation.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Fixed64 GetDeterminant() =>
          M11 * (M22 * M33 - M23 * M32) -
          M12 * (M21 * M33 - M23 * M31) +
          M13 * (M21 * M32 - M22 * M31);
 
-    /// <summary>
-    /// Inverts the diagonal elements of the matrix.
-    /// </summary>
-    /// <remarks>
-    /// protects against the case where you would have an infinite value on the diagonal, which would cause problems in subsequent computations.
-    /// If m00 or m22 are zero, handle that as a special case and manually set the inverse to zero,
-    /// since for a theoretical object with no inertia along those axes, it would be impossible to impart a rotation in those directions
-    ///
-    ///  bear in mind that having a zero on the inertia tensor's diagonal isn't generally valid for real,
-    ///  3-dimensional objects (unless they are "infinitely thin" along one axis),
-    ///  so if you end up with such a tensor, it's a sign that something else might be wrong in your setup.        
-    /// </remarks>
+    /// <summary>Returns a diagonal matrix with the reciprocals of the nonzero diagonal entries.</summary>
+    /// <returns>
+    /// The original matrix if <see cref="M22"/> is zero. Otherwise, a matrix with each nonzero
+    /// diagonal entry replaced by its fixed-point reciprocal and all other entries set to zero.
+    /// </returns>
     public Fixed3x3 InvertDiagonal()
     {
         try
@@ -327,10 +320,10 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>, IFormattable
     /// <summary>
     /// Creates a 3x3 shear matrix.
     /// </summary>
-    /// <param name="shX">Shear factor along the X-axis.</param>
-    /// <param name="shY">Shear factor along the Y-axis.</param>
-    /// <param name="shZ">Shear factor along the Z-axis.</param>
-    /// <returns>A 3x3 shear matrix.</returns>
+    /// <param name="shX">The coupling between X and Y, stored in M12 and M21.</param>
+    /// <param name="shY">The coupling between X and Z, stored in M13 and M31.</param>
+    /// <param name="shZ">The coupling between Y and Z, stored in M23 and M32.</param>
+    /// <returns>A symmetric shear matrix with unit diagonal entries.</returns>
     public static Fixed3x3 CreateShear(Fixed64 shX, Fixed64 shY, Fixed64 shZ) =>
          new(Fixed64.One, shX, shY,
             shX, Fixed64.One, shZ,
@@ -359,8 +352,13 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>, IFormattable
     /// <summary>
     /// Creates a symmetric matrix containing second-order barycentric product sums for three vectors.
     /// </summary>
+    /// <param name="a">The first vertex in the common coordinate space.</param>
+    /// <param name="b">The second vertex in the common coordinate space.</param>
+    /// <param name="c">The third vertex in the common coordinate space.</param>
+    /// <returns>The symmetric matrix of sums, in squared input units.</returns>
     /// <remarks>
-    /// The diagonal contains squared component sums, and the off-diagonal elements contain cross-component sums.
+    /// Diagonal entries use <see cref="FixedMath.SumSquaredBarycentricProducts(Fixed64, Fixed64, Fixed64)"/>.
+    /// Off-diagonal entries use <see cref="FixedMath.SumBarycentricProducts(Fixed64, Fixed64, Fixed64, Fixed64, Fixed64, Fixed64)"/>.
     /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed3x3 CreateBarycentricProductSums(Vector3d a, Vector3d b, Vector3d c)
@@ -378,17 +376,11 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>, IFormattable
             xz, yz, zz);
     }
 
-    /// <summary>
-    /// Normalizes the basis vectors of a 3x3 matrix to ensure they are orthogonal and unit length.
-    /// </summary>
+    /// <summary>Normalizes the first two basis rows and rebuilds the third from their cross product.</summary>
+    /// <param name="matrix">The matrix whose first two rows define the basis.</param>
+    /// <returns>The adjusted copy. A zero first or second row stays zero, and a zero cross product gives a zero third row.</returns>
     /// <remarks>
-    /// This method recalculates and normalizes the X, Y, and Z basis vectors of the matrix to avoid numerical drift 
-    /// that can occur after multiple transformations. It also ensures that the Z-axis is recomputed to maintain 
-    /// orthogonality by taking the cross-product of the normalized X and Y axes.
-    /// 
-    /// Use Cases:
-    /// - Ensuring stability and correctness after repeated transformations involving rotation and scaling.
-    /// - Useful in physics calculations where orthogonal matrices are required (e.g., inertia tensors or rotations).
+    /// The angle between the first two nonzero rows is preserved subject to fixed-point rounding.
     /// </remarks>
     public static Fixed3x3 GetNormalized(Fixed3x3 matrix)
     {
@@ -406,6 +398,7 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>, IFormattable
     /// <summary>
     /// Extracts the unsigned magnitudes of the matrix basis rows.
     /// </summary>
+    /// <param name="matrix">The matrix containing the basis rows.</param>
     /// <returns>The nonnegative basis magnitudes along X, Y, and Z.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d ExtractScaleMagnitudes(Fixed3x3 matrix) =>
@@ -416,6 +409,8 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>, IFormattable
     /// <summary>
     /// Extracts canonical signed lossy scale from the matrix basis rows.
     /// </summary>
+    /// <param name="matrix">The matrix containing the basis rows.</param>
+    /// <returns>The X, Y, and Z row lengths with the recovered reflection sign on X.</returns>
     /// <remarks>A reflected basis assigns its one recoverable negative sign to X.</remarks>
     public static Vector3d ExtractLossyScale(Fixed3x3 matrix)
     {
@@ -438,6 +433,10 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>, IFormattable
     /// <summary>
     /// Linearly interpolates between two matrices.
     /// </summary>
+    /// <param name="a">The starting matrix.</param>
+    /// <param name="b">The ending matrix.</param>
+    /// <param name="t">The interpolation fraction, clamped to the inclusive range from zero to one.</param>
+    /// <returns>The matrix of entrywise interpolated values.</returns>
     public static Fixed3x3 Lerp(Fixed3x3 a, Fixed3x3 b, Fixed64 t) =>
         new(FixedMath.Lerp(a.M11, b.M11, t), FixedMath.Lerp(a.M12, b.M12, t), FixedMath.Lerp(a.M13, b.M13, t),
             FixedMath.Lerp(a.M21, b.M21, t), FixedMath.Lerp(a.M22, b.M22, t), FixedMath.Lerp(a.M23, b.M23, t),
@@ -446,15 +445,19 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>, IFormattable
     /// <summary>
     /// Transposes the matrix (swaps rows and columns).
     /// </summary>
+    /// <param name="matrix">The matrix to transpose.</param>
+    /// <returns>A copy whose rows are the original columns.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed3x3 Transpose(Fixed3x3 matrix) =>
         new(matrix.M11, matrix.M21, matrix.M31,
             matrix.M12, matrix.M22, matrix.M32,
             matrix.M13, matrix.M23, matrix.M33);
 
-    /// <summary>
-    /// Attempts to invert the matrix. If the determinant is zero, returns false and sets result to null.
-    /// </summary>
+    /// <summary>Attempts to invert the matrix using its fixed-point determinant.</summary>
+    /// <param name="matrix">The matrix to invert.</param>
+    /// <param name="result">The fixed-point cofactor inverse on success, or <see langword="null"/> on failure.</param>
+    /// <returns><see langword="true"/> if the computed determinant is nonzero, otherwise <see langword="false"/>.</returns>
+    /// <remarks>Products and sums can round or saturate. Success means an inverse was computed from the rounded determinant.</remarks>
     public static bool Invert(Fixed3x3 matrix, out Fixed3x3? result)
     {
         // Calculate the determinant
@@ -487,12 +490,9 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>, IFormattable
         return true;
     }
 
-    /// <summary>
-    /// Transforms a direction vector from local space to world space using this transformation matrix.
-    /// Ignores translation.
-    /// </summary>
+    /// <summary>Applies a linear transform to a direction as a row vector.</summary>
     /// <remarks>
-    /// FixedMathSharp applies matrices using a row-vector convention: <c>direction * matrix</c>.
+    /// Computes <c>direction * matrix</c> using ordinary fixed-point operations. Scale and shear can change the length.
     /// </remarks>
     /// <param name="matrix">The transformation matrix.</param>
     /// <param name="direction">The local-space direction vector.</param>
@@ -507,6 +507,11 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>, IFormattable
     /// Attempts to transform a direction with one final round-half-to-even
     /// conversion per component and no intermediate saturation.
     /// </summary>
+    /// <param name="matrix">The linear transform from input space to output space.</param>
+    /// <param name="direction">The input-space direction. It can have any length.</param>
+    /// <param name="result">The transformed direction on success, or <see cref="Vector3d.Zero"/> on failure.</param>
+    /// <returns><see langword="true"/> if all three rounded components fit in <see cref="Fixed64"/>, otherwise <see langword="false"/>.</returns>
+    /// <remarks>Computes <c>direction * matrix</c>. Scale and shear can change the length.</remarks>
     public static bool TryTransformDirection(
         Fixed3x3 matrix,
         Vector3d direction,
@@ -553,6 +558,7 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>, IFormattable
     /// <param name="matrix">The transformation matrix.</param>
     /// <param name="direction">The world-space direction.</param>
     /// <returns>The transformed local-space direction.</returns>
+    /// <exception cref="InvalidOperationException"><see cref="Invert(Fixed3x3, out Fixed3x3?)"/> could not invert the matrix.</exception>
     public static Vector3d InverseTransformDirection(Fixed3x3 matrix, Vector3d direction)
     {
         bool canInvert = !Invert(matrix, out Fixed3x3? inverseMatrix) || !inverseMatrix.HasValue;
@@ -595,6 +601,8 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>, IFormattable
     /// <summary>
     /// Negates all elements of the matrix.
     /// </summary>
+    /// <param name="a">The matrix to negate.</param>
+    /// <returns>A matrix of negated entries, each saturated to the <see cref="Fixed64"/> range.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed3x3 operator -(Fixed3x3 a) =>
         new(-a.M11, -a.M12, -a.M13,
@@ -604,7 +612,7 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>, IFormattable
     /// <summary>
     /// Performs matrix multiplication on two 3x3 matrices.
     /// </summary>
-    /// <remarks>Matrix multiplication is not commutative; the order of operands affects the result.</remarks>
+    /// <remarks>For row vectors, this composes applying <paramref name="a"/> followed by <paramref name="b"/>.</remarks>
     /// <param name="a">The first matrix to multiply.</param>
     /// <param name="b">The second matrix to multiply.</param>
     /// <returns>A new Fixed3x3 instance that is the product of the two input matrices.</returns>
@@ -645,10 +653,11 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>, IFormattable
     /// The result may lose precision if the divisor does not evenly divide the matrix elements.
     /// </remarks>
     /// <param name="a">The matrix whose elements are to be divided.</param>
-    /// <param name="divisor">The scalar value by which to divide each element of the matrix.</param>
+    /// <param name="divisor">The nonzero integer by which to divide each matrix entry.</param>
     /// <returns>
     /// A new Fixed3x3 matrix whose elements are the result of dividing the corresponding elements of the input matrix by the specified scalar.
     /// </returns>
+    /// <exception cref="DivideByZeroException"><paramref name="divisor"/> is zero.</exception>
     public static Fixed3x3 operator /(Fixed3x3 a, int divisor) =>
          new(a.M11 / divisor, a.M12 / divisor, a.M13 / divisor,
              a.M21 / divisor, a.M22 / divisor, a.M23 / divisor,
@@ -676,7 +685,9 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>, IFormattable
 
     #region Equality and HashCode Overrides
 
-    /// <inheritdoc/>
+    /// <summary>Tests two matrices for exact component equality.</summary>
+    /// <param name="other">The matrix to compare with this instance.</param>
+    /// <returns><see langword="true"/> if all nine entries match exactly.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Equals(Fixed3x3 other) =>
         M11 == other.M11 && M12 == other.M12 && M13 == other.M13 &&
@@ -684,11 +695,14 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>, IFormattable
         M31 == other.M31 && M32 == other.M32 && M33 == other.M33;
 
 
-    /// <inheritdoc/>
+    /// <summary>Tests whether an object is a matrix with the same entries.</summary>
+    /// <param name="obj">The object to compare with this matrix.</param>
+    /// <returns><see langword="true"/> if the object is a <see cref="Fixed3x3"/> and all entries match exactly.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override bool Equals(object? obj) => obj is Fixed3x3 other && Equals(other);
 
-    /// <inheritdoc/>
+    /// <summary>Computes a hash code from the nine matrix entries.</summary>
+    /// <returns>The hash code for this matrix value.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override int GetHashCode()
     {
@@ -719,13 +733,18 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>, IFormattable
     /// This method is useful for debugging or logging the contents of the matrix. 
     /// The returned string lists the matrix elements in row-major order.
     /// </remarks>
-    /// <returns>A string containing the matrix elements formatted as "[m00, m01, m02; m10, m11, m12; m20, m21, m22]".</returns>
+    /// <returns>The bracketed entries in row order using invariant-culture general numeric formatting.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override string ToString() => ToString(null, CultureInfo.InvariantCulture);
 
     /// <summary>
     /// Returns a string that represents the current matrix in a readable format.
     /// </summary>
+    /// <param name="format">The numeric format for each entry. Null or empty uses general formatting.</param>
+    /// <param name="formatProvider">The numeric format provider. Null selects the invariant culture.</param>
+    /// <returns>The bracketed entries in row order, with commas between entries and semicolons between rows.</returns>
+    /// <remarks>Formatting converts each entry to <see cref="double"/> for display.</remarks>
+    /// <exception cref="FormatException"><paramref name="format"/> is an invalid numeric format.</exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public string ToString(string? format, IFormatProvider? formatProvider)
     {
@@ -737,6 +756,13 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>, IFormattable
     /// <summary>
     /// Formats this matrix into the provided destination buffer.
     /// </summary>
+    /// <param name="destination">The caller-owned buffer, written from its start.</param>
+    /// <param name="charsWritten">The total characters written on success, or zero when the text does not fit.</param>
+    /// <param name="format">The numeric format for each entry. An empty span uses general formatting.</param>
+    /// <param name="provider">The numeric format provider. Null selects the invariant culture.</param>
+    /// <returns><see langword="true"/> if the entire matrix fits, otherwise <see langword="false"/>.</returns>
+    /// <remarks>The text matches <see cref="ToString(string, IFormatProvider)"/>. The buffer can contain a partial prefix on failure.</remarks>
+    /// <exception cref="FormatException"><paramref name="format"/> is an invalid numeric format encountered while writing. A prefix may already have been written.</exception>
     public bool TryFormat(
         Span<char> destination,
         out int charsWritten,

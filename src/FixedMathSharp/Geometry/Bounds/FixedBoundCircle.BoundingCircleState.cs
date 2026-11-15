@@ -35,6 +35,8 @@ public partial struct FixedBoundCircle
         /// <summary>
         /// Initializes a normalized state from center and radius.
         /// </summary>
+        /// <param name="center">The center in the bound's coordinate space.</param>
+        /// <param name="radius">The radius in coordinate units. Negative values are normalized by absolute value.</param>
         [JsonConstructor]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public BoundingCircleState(Vector2d center, Fixed64 radius)

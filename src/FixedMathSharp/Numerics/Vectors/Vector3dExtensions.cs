@@ -21,7 +21,9 @@ public static partial class Vector3dExtensions
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d Clamp(this Vector3d value, Vector3d min, Vector3d max) => Vector3d.Clamp(value, min, max);
 
-    /// <inheritdoc cref="Vector3d.Clamp(Vector3d, Vector3d, Vector3d)" />
+    /// <summary>Clamps every component to the interval [−1, 1].</summary>
+    /// <param name="value">The vector to clamp.</param>
+    /// <returns>A copy with each component independently clamped.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d ClampOne(this Vector3d value) => Vector3d.Clamp(value, Vector3d.Negative, Vector3d.One);
 
@@ -66,16 +68,29 @@ public static partial class Vector3dExtensions
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 CrossProduct(this Vector3d lhs, Vector3d rhs) => Vector3d.CrossProduct(lhs, rhs);
 
-    /// <inheritdoc cref="Vector3d.Lerp(Vector3d, Vector3d, Fixed64)" />
+    /// <summary>Linearly interpolates between two vectors.</summary>
+    /// <param name="start">The starting vector.</param>
+    /// <param name="end">The ending vector in the same coordinate space.</param>
+    /// <param name="amount">The interpolation fraction, clamped to [0, 1].</param>
+    /// <returns>The component-wise interpolated vector.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d Lerp(this Vector3d start, Vector3d end, Fixed64 amount) => Vector3d.Lerp(start, end, amount);
 
-    /// <inheritdoc cref="Vector3d.UnclampedLerp(Vector3d, Vector3d, Fixed64)" />
+    /// <summary>Linearly interpolates between two vectors.</summary>
+    /// <param name="start">The starting vector.</param>
+    /// <param name="end">The ending vector in the same coordinate space.</param>
+    /// <param name="amount">The interpolation fraction. Values outside [0, 1] extrapolate.</param>
+    /// <returns>The result of <c>start + (end − start) * amount</c>, using saturating component arithmetic.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d UnclampedLerp(this Vector3d start, Vector3d end, Fixed64 amount) =>
         Vector3d.UnclampedLerp(start, end, amount);
 
-    /// <inheritdoc cref="Vector3d.Slerp(Vector3d, Vector3d, Fixed64)" />
+    /// <summary>Interpolates between unit directions on a sphere.</summary>
+    /// <param name="start">The starting unit vector.</param>
+    /// <param name="end">The ending unit vector in the same coordinate space.</param>
+    /// <param name="amount">The interpolation fraction. The method uses it as supplied. Use [0, 1] to interpolate between the endpoints.</param>
+    /// <returns>The interpolated direction for endpoints that define an arc.</returns>
+    /// <remarks>Opposite endpoints do not define an arc plane. Supply an intermediate direction when the arc plane matters.</remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d Slerp(this Vector3d start, Vector3d end, Fixed64 amount) => Vector3d.Slerp(start, end, amount);
 
@@ -138,27 +153,23 @@ public static partial class Vector3dExtensions
 
     #region Equality
 
-    /// <summary>
-    /// Compares two vectors for approximate equality, allowing a fixed absolute difference.
-    /// </summary>
-    /// <param name="me">The current vector.</param>
-    /// <param name="other">The vector to compare against.</param>
-    /// <param name="allowedDifference">The allowed absolute difference between each component.</param>
-    /// <returns>True if the components are within the allowed difference, false otherwise.</returns>
+    /// <summary>Compares two vectors within a component-wise absolute tolerance.</summary>
+    /// <param name="me">The reference vector.</param>
+    /// <param name="other">The vector to compare in the same coordinate space.</param>
+    /// <param name="allowedDifference">The nonnegative absolute tolerance per component, in input units.</param>
+    /// <returns><see langword="true"/> if all corresponding components agree within the tolerance, including the boundary, otherwise <see langword="false"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool FuzzyEqualAbsolute(this Vector3d me, Vector3d other, Fixed64 allowedDifference) =>
         (me.X - other.X).Abs() <= allowedDifference
         && (me.Y - other.Y).Abs() <= allowedDifference
         && (me.Z - other.Z).Abs() <= allowedDifference;
 
-    /// <summary>
-    /// Compares two vectors for approximate equality, allowing a fractional difference (percentage).
-    /// Handles zero components by only using the allowed percentage difference.
-    /// </summary>
-    /// <param name="me">The current vector.</param>
-    /// <param name="other">The vector to compare against.</param>
-    /// <param name="percentage">The allowed fractional difference (percentage) for each component.</param>
-    /// <returns>True if the components are within the allowed percentage difference, false otherwise.</returns>
+    /// <summary>Compares two vectors within a component-wise relative tolerance.</summary>
+    /// <param name="me">The reference vector.</param>
+    /// <param name="other">The vector to compare in the same coordinate space.</param>
+    /// <param name="percentage">The allowed relative error as a nonnegative fraction. Null selects <see cref="Fixed64.Epsilon"/>.</param>
+    /// <returns><see langword="true"/> if all corresponding components agree within the tolerance, including the boundary, otherwise <see langword="false"/>.</returns>
+    /// <remarks>The tolerance is relative to each reference component’s magnitude. A magnitude below <see cref="Fixed64.Epsilon"/> uses the fraction as an absolute tolerance.</remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool FuzzyEqual(this Vector3d me, Vector3d other, Fixed64? percentage = null)
     {

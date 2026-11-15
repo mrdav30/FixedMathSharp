@@ -12,9 +12,13 @@ using MemoryPack;
 namespace FixedMathSharp;
 
 /// <summary>
-/// A deterministic fixed-point curve that interpolates values between keyframes.
-/// Used for animations, physics calculations, and procedural data.
+/// Interpolates fixed-point values between time-ordered keyframes.
 /// </summary>
+/// <remarks>
+/// Both <see langword="default"/> and <c>new FixedCurve()</c> leave the keyframe array null.
+/// Pass a mode or a keyframe array to construct an initialized curve.
+/// Struct copies share the keyframe array. Preserve ascending time order when editing it.
+/// </remarks>
 [Serializable]
 [MemoryPackable]
 public partial struct FixedCurve : IEquatable<FixedCurve>
@@ -26,15 +30,17 @@ public partial struct FixedCurve : IEquatable<FixedCurve>
     /// <summary>
     /// Initializes a new instance of the <see cref="FixedCurve"/> with a default linear interpolation mode.
     /// </summary>
-    /// <param name="keyframes">The keyframes defining the curve.</param>
+    /// <param name="keyframes">The array of keyframes. The constructor sorts it in place by ascending time and retains it. Null selects an empty array.</param>
+    /// <remarks>Use distinct times when the order of equal-time keys matters. The sort is unstable.</remarks>
     public FixedCurve(params FixedCurveKey[] keyframes)
         : this(FixedCurveMode.Linear, keyframes) { }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="FixedCurve"/> with a specified interpolation mode.
     /// </summary>
-    /// <param name="mode">The interpolation method to use.</param>
-    /// <param name="keyframes">The keyframes defining the curve.</param>
+    /// <param name="mode">The interpolation rule. An unrecognized value uses linear interpolation.</param>
+    /// <param name="keyframes">The array of keyframes. The constructor sorts it in place by ascending time and retains it. Null selects an empty array.</param>
+    /// <remarks>Use distinct times when the order of equal-time keys matters. The sort is unstable.</remarks>
     [JsonConstructor]
     [MemoryPackConstructor]
     public FixedCurve(FixedCurveMode mode, params FixedCurveKey[] keyframes)
@@ -59,6 +65,7 @@ public partial struct FixedCurve : IEquatable<FixedCurve>
     /// <summary>
     /// Gets the mode used for the fixed curve calculation.
     /// </summary>
+    /// <value>The interpolation rule between successive keys. Unrecognized values are evaluated as linear interpolation.</value>
     [JsonInclude]
     [MemoryPackOrder(0)]
     [MemoryPackAllowSerialize]
@@ -67,6 +74,7 @@ public partial struct FixedCurve : IEquatable<FixedCurve>
     /// <summary>
     /// Gets the collection of keyframes that define the curve.
     /// </summary>
+    /// <value>The mutable array retained by the constructor, ordered by ascending time. The default struct exposes a null array.</value>
     [JsonInclude]
     [MemoryPackOrder(1)]
     public FixedCurveKey[] Keyframes { get; private set; }
@@ -78,8 +86,10 @@ public partial struct FixedCurve : IEquatable<FixedCurve>
     /// <summary>
     /// Evaluates the curve at a given time using the specified interpolation mode.
     /// </summary>
-    /// <param name="time">The time at which to evaluate the curve.</param>
-    /// <returns>The interpolated value at the given time.</returns>
+    /// <param name="time">The evaluation time in the same units as the keyframe times.</param>
+    /// <returns>The sampled value. Times outside the key range use the nearest endpoint value, and an empty curve returns <see cref="Fixed64.One"/>.</returns>
+    /// <remarks>Step interpolation holds the current key value until the next key time. Cubic tangents are slopes with respect to the normalized segment parameter. Evaluation reads the current keyframe array.</remarks>
+    /// <exception cref="NullReferenceException">This curve is the default struct and has no keyframe array.</exception>
     public Fixed64 Evaluate(Fixed64 time)
     {
         if (Keyframes.Length == 0) return Fixed64.One;
@@ -117,7 +127,10 @@ public partial struct FixedCurve : IEquatable<FixedCurve>
 
     #region Equality
 
-    /// <inheritdoc/>
+    /// <summary>Compares this value with another instance.</summary>
+    /// <param name="other">The value to compare.</param>
+    /// <returns><see langword="true"/> if the stored mode and ordered sequence of keyframes match, otherwise <see langword="false"/>.</returns>
+    /// <exception cref="NullReferenceException">An operand is a default curve whose keyframe array is read.</exception>
     public bool Equals(FixedCurve other)
     {
         if (Mode != other.Mode || Keyframes.Length != other.Keyframes.Length)
@@ -132,10 +145,15 @@ public partial struct FixedCurve : IEquatable<FixedCurve>
         return true;
     }
 
-    /// <inheritdoc/>
+    /// <summary>Compares this value with an object.</summary>
+    /// <param name="obj">The object to compare.</param>
+    /// <returns><see langword="true"/> if <paramref name="obj"/> is a <see cref="FixedCurve"/> and the stored mode and ordered sequence of keyframes match, otherwise <see langword="false"/>.</returns>
+    /// <exception cref="NullReferenceException">An operand is a default curve whose keyframe array is read.</exception>
     public override bool Equals(object? obj) => obj is FixedCurve other && Equals(other);
 
-    /// <inheritdoc/>
+    /// <summary>Computes the hash code for this value.</summary>
+    /// <returns>A hash based on the stored mode and ordered sequence of keyframes.</returns>
+    /// <exception cref="NullReferenceException">An operand is a default curve whose keyframe array is read.</exception>
     public override int GetHashCode()
     {
         unchecked
@@ -147,14 +165,18 @@ public partial struct FixedCurve : IEquatable<FixedCurve>
         }
     }
 
-    /// <summary>
-    /// Determines whether two FixedCurve instances are equal.
-    /// </summary>
+    /// <summary>Tests two values for equality.</summary>
+    /// <param name="left">The left operand.</param>
+    /// <param name="right">The right operand.</param>
+    /// <returns><see langword="true"/> if the stored mode and ordered sequence of keyframes match, otherwise <see langword="false"/>.</returns>
+    /// <exception cref="NullReferenceException">An operand is a default curve whose keyframe array is read.</exception>
     public static bool operator ==(FixedCurve left, FixedCurve right) => left.Equals(right);
 
-    /// <summary>
-    /// Determines whether two FixedCurve instances are not equal.
-    /// </summary>
+    /// <summary>Tests two values for inequality.</summary>
+    /// <param name="left">The left operand.</param>
+    /// <param name="right">The right operand.</param>
+    /// <returns><see langword="true"/> if the stored modes differ or the ordered keyframe sequences differ, otherwise <see langword="false"/>.</returns>
+    /// <exception cref="NullReferenceException">An operand is a default curve whose keyframe array is read.</exception>
     public static bool operator !=(FixedCurve left, FixedCurve right) => !(left == right);
 
     #endregion

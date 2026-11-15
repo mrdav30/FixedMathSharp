@@ -18,27 +18,34 @@ namespace FixedMathSharp;
 /// This type maps direction vector components between another explicit right/up/forward axis
 /// basis and the FixedMathSharp canonical basis. Matrix storage, transform APIs, clip-space
 /// depth, units, and origins remain adapter-level concerns.
+/// Use the constructor or a named preset to obtain a valid basis. The default struct has three positive X axes.
+/// Mapping permutes and signs components without normalizing them. Negating <see cref="Fixed64.MinValue"/>
+/// saturates to <see cref="Fixed64.MaxValue"/>.
 /// </remarks>
 public readonly struct CoordinateConvention3d : IEquatable<CoordinateConvention3d>
 {
     /// <summary>
     /// The FixedMathSharp canonical convention: <c>+X</c> right, <c>+Y</c> up, <c>+Z</c> forward.
     /// </summary>
+    /// <value>The same convention as <see cref="PositiveZForward"/>.</value>
     public static CoordinateConvention3d Canonical => PositiveZForward;
 
     /// <summary>
     /// The FixedMathSharp canonical convention: <c>+X</c> right, <c>+Y</c> up, <c>+Z</c> forward.
     /// </summary>
+    /// <value>The signed axes +X right, +Y up, and +Z forward.</value>
     public static CoordinateConvention3d PositiveZForward => new(Axis3d.PositiveX, Axis3d.PositiveY, Axis3d.PositiveZ);
 
     /// <summary>
     /// A convention with <c>+X</c> right, <c>+Y</c> up, and <c>-Z</c> forward.
     /// </summary>
+    /// <value>The signed axes +X right, +Y up, and −Z forward.</value>
     public static CoordinateConvention3d NegativeZForward => new(Axis3d.PositiveX, Axis3d.PositiveY, Axis3d.NegativeZ);
 
     /// <summary>
     /// A convention with <c>+Y</c> right, <c>+Z</c> up, and <c>+X</c> forward.
     /// </summary>
+    /// <value>The signed axes +Y right, +Z up, and +X forward.</value>
     public static CoordinateConvention3d XForwardZUp => new(Axis3d.PositiveY, Axis3d.PositiveZ, Axis3d.PositiveX);
 
     /// <summary>
@@ -85,21 +92,25 @@ public readonly struct CoordinateConvention3d : IEquatable<CoordinateConvention3
     /// <summary>
     /// Gets the signed axis used as semantic right in this convention.
     /// </summary>
+    /// <value>The signed component axis assigned to semantic right.</value>
     public Axis3d RightAxis { get; }
 
     /// <summary>
     /// Gets the signed axis used as semantic up in this convention.
     /// </summary>
+    /// <value>The signed component axis assigned to semantic up.</value>
     public Axis3d UpAxis { get; }
 
     /// <summary>
     /// Gets the signed axis used as semantic forward in this convention.
     /// </summary>
+    /// <value>The signed component axis assigned to semantic forward.</value>
     public Axis3d ForwardAxis { get; }
 
     /// <summary>
     /// Gets the semantic right direction expressed in this convention's component basis.
     /// </summary>
+    /// <value>The signed unit vector for <see cref="RightAxis"/>.</value>
     public Vector3d Right
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -109,6 +120,7 @@ public readonly struct CoordinateConvention3d : IEquatable<CoordinateConvention3
     /// <summary>
     /// Gets the semantic left direction expressed in this convention's component basis.
     /// </summary>
+    /// <value>The unit vector opposing <see cref="Right"/>.</value>
     public Vector3d Left
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -118,6 +130,7 @@ public readonly struct CoordinateConvention3d : IEquatable<CoordinateConvention3
     /// <summary>
     /// Gets the semantic up direction expressed in this convention's component basis.
     /// </summary>
+    /// <value>The signed unit vector for <see cref="UpAxis"/>.</value>
     public Vector3d Up
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -127,6 +140,7 @@ public readonly struct CoordinateConvention3d : IEquatable<CoordinateConvention3
     /// <summary>
     /// Gets the semantic down direction expressed in this convention's component basis.
     /// </summary>
+    /// <value>The unit vector opposing <see cref="Up"/>.</value>
     public Vector3d Down
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -136,6 +150,7 @@ public readonly struct CoordinateConvention3d : IEquatable<CoordinateConvention3
     /// <summary>
     /// Gets the semantic forward direction expressed in this convention's component basis.
     /// </summary>
+    /// <value>The signed unit vector for <see cref="ForwardAxis"/>.</value>
     public Vector3d Forward
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -145,6 +160,7 @@ public readonly struct CoordinateConvention3d : IEquatable<CoordinateConvention3
     /// <summary>
     /// Gets the semantic backward direction expressed in this convention's component basis.
     /// </summary>
+    /// <value>The unit vector opposing <see cref="Forward"/>.</value>
     public Vector3d Backward
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -173,32 +189,39 @@ public readonly struct CoordinateConvention3d : IEquatable<CoordinateConvention3
         (AxisToVector(UpAxis) * canonicalDirection.Y) +
         (AxisToVector(ForwardAxis) * canonicalDirection.Z);
 
-    /// <inheritdoc />
+    /// <summary>Compares this value with another instance.</summary>
+    /// <param name="other">The value to compare.</param>
+    /// <returns><see langword="true"/> if the signed right, up, and forward axes match, otherwise <see langword="false"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Equals(CoordinateConvention3d other) =>
         RightAxis == other.RightAxis &&
         UpAxis == other.UpAxis &&
         ForwardAxis == other.ForwardAxis;
 
-    /// <inheritdoc />
+    /// <summary>Compares this value with an object.</summary>
+    /// <param name="obj">The object to compare.</param>
+    /// <returns><see langword="true"/> if <paramref name="obj"/> is a <see cref="CoordinateConvention3d"/> and the signed right, up, and forward axes match, otherwise <see langword="false"/>.</returns>
     public override bool Equals(object? obj) => obj is CoordinateConvention3d other && Equals(other);
 
-    /// <inheritdoc />
+    /// <summary>Computes the hash code for this value.</summary>
+    /// <returns>A hash combining the three signed axes in right, up, forward order.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override int GetHashCode() =>
         ((int)RightAxis * 397) ^
         ((int)UpAxis * 31) ^
         (int)ForwardAxis;
 
-    /// <summary>
-    /// Determines whether two conventions are equal.
-    /// </summary>
+    /// <summary>Tests two values for equality.</summary>
+    /// <param name="left">The left operand.</param>
+    /// <param name="right">The right operand.</param>
+    /// <returns><see langword="true"/> if the signed right, up, and forward axes match, otherwise <see langword="false"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator ==(CoordinateConvention3d left, CoordinateConvention3d right) => left.Equals(right);
 
-    /// <summary>
-    /// Determines whether two conventions are not equal.
-    /// </summary>
+    /// <summary>Tests two values for inequality.</summary>
+    /// <param name="left">The left operand.</param>
+    /// <param name="right">The right operand.</param>
+    /// <returns><see langword="true"/> if a corresponding signed axis differs, otherwise <see langword="false"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator !=(CoordinateConvention3d left, CoordinateConvention3d right) => !left.Equals(right);
 

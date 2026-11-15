@@ -21,6 +21,18 @@ public partial struct FixedBoundBox
     /// Creates the representable-domain intersection of a centered capsule's
     /// tight axis-aligned bounds without materializing its rotated axis.
     /// </summary>
+    /// <param name="center">The center in the bound's coordinate space.</param>
+    /// <param name="rotation">The normalized quaternion from shape-local to result coordinates.</param>
+    /// <param name="localAxisDirection">The normalized axis in shape-local coordinates.</param>
+    /// <param name="axisLength">The nonnegative length of the capsule's central segment. Zero makes the core a point.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units. Zero reduces the cross-section to its center.</param>
+    /// <returns>The axis-aligned box of the shape, clipped to the representable coordinate range.</returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="rotation"/> or <paramref name="localAxisDirection"/> must be normalized.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="radius"/> is negative, or <paramref name="axisLength"/> is negative.
+    /// </exception>
     public static FixedBoundBox FromCenteredCapsuleClippedToDomain(
         Vector3d center,
         FixedQuaternion rotation,
@@ -94,6 +106,18 @@ public partial struct FixedBoundBox
     /// cylinder's tight axis-aligned bounds without materializing its rotated
     /// axis.
     /// </summary>
+    /// <param name="center">The center in the bound's coordinate space.</param>
+    /// <param name="rotation">The normalized quaternion from shape-local to result coordinates.</param>
+    /// <param name="localAxisDirection">The normalized axis in shape-local coordinates.</param>
+    /// <param name="axisLength">The positive distance between the cylinder's end caps.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units. Zero reduces the cross-section to its center.</param>
+    /// <returns>The axis-aligned box of the shape, clipped to the representable coordinate range.</returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="rotation"/> or <paramref name="localAxisDirection"/> must be normalized.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="radius"/> is negative or <paramref name="axisLength"/> is zero or negative.
+    /// </exception>
     public static FixedBoundBox FromCenteredFiniteCylinderClippedToDomain(
         Vector3d center,
         FixedQuaternion rotation,
@@ -148,6 +172,13 @@ public partial struct FixedBoundBox
     /// </param>
     /// <param name="height">The positive full base-to-apex height.</param>
     /// <param name="radius">The nonnegative base radius.</param>
+    /// <returns>The axis-aligned box of the shape, clipped to the representable coordinate range.</returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="rotation"/> or <paramref name="localAxisDirection"/> must be normalized.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="radius"/> is negative or <paramref name="height"/> is zero or negative.
+    /// </exception>
     public static FixedBoundBox FromCenteredFiniteConeClippedToDomain(
         Vector3d center,
         FixedQuaternion rotation,

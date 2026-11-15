@@ -35,6 +35,8 @@ public partial struct FixedBoundArea
         /// <summary>
         /// Initializes a normalized state from minimum and maximum corners.
         /// </summary>
+        /// <param name="min">One corner. The lesser coordinate on each axis becomes the minimum.</param>
+        /// <param name="max">The opposite corner. The greater coordinate on each axis becomes the maximum.</param>
         [JsonConstructor]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public BoundingAreaState(Vector2d min, Vector2d max)

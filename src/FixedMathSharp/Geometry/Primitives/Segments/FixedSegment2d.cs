@@ -42,6 +42,8 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     /// <summary>
     /// Initializes a new segment from start and end points.
     /// </summary>
+    /// <param name="start">The first endpoint.</param>
+    /// <param name="end">The second endpoint in the same coordinate space.</param>
     [JsonConstructor]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public FixedSegment2d(Vector2d start, Vector2d end)
@@ -57,6 +59,7 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     /// <summary>
     /// The vector from <see cref="Start"/> to <see cref="End"/>.
     /// </summary>
+    /// <value>The signed displacement from start to end in the segment's coordinate space.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Vector2d Delta
@@ -68,6 +71,7 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     /// <summary>
     /// The segment length.
     /// </summary>
+    /// <value>The endpoint distance in coordinate units.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Fixed64 Length
@@ -79,6 +83,7 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     /// <summary>
     /// The squared segment length.
     /// </summary>
+    /// <value>The squared endpoint distance in squared coordinate units.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Fixed64 LengthSquared
@@ -90,6 +95,7 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     /// <summary>
     /// The normalized axis-aligned area that contains this segment.
     /// </summary>
+    /// <value>The axis-aligned bounds of the stored vertices or endpoints.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public FixedBoundArea Bounds
@@ -105,6 +111,8 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     /// <summary>
     /// Finds the closest point on this finite segment to the supplied point.
     /// </summary>
+    /// <param name="point">The point in the query coordinate space.</param>
+    /// <returns>The closest point on the finite segment, including its endpoints.</returns>
     /// <remarks>
     /// Zero-length segments deterministically return <see cref="Start"/>.
     /// </remarks>
@@ -114,6 +122,8 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     /// <summary>
     /// Computes the squared distance from the supplied point to this finite segment.
     /// </summary>
+    /// <param name="point">The point in the query coordinate space.</param>
+    /// <returns>The squared distance in squared coordinate units, saturated if it exceeds the scalar range.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Fixed64 DistanceSquared(Vector2d point)
     {
@@ -124,6 +134,12 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     /// Determines whether the exact minimum distance to another finite segment
     /// is at least the supplied threshold.
     /// </summary>
+    /// <param name="other">The second shape in the same coordinate space.</param>
+    /// <param name="minimumDistance">The nonnegative threshold in coordinate units.</param>
+    /// <returns>
+    /// <see langword="true"/> when the exact minimum distance meets or exceeds the supplied threshold and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
     /// <remarks>
     /// The comparison uses wide rational distances and does not materialize a
     /// rounded closest point or square root. Equality is accepted.
@@ -151,6 +167,19 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     /// <summary>
     /// Finds the closed parameter interval where this segment intersects a capsule.
     /// </summary>
+    /// <param name="capsuleAxis">The central segment in the query frame. Its endpoints may coincide.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="entryParameter">
+    /// The first parameter in the closed intersection interval, from zero at the start to one at the end on
+    /// success.
+    /// </param>
+    /// <param name="exitParameter">
+    /// The last parameter in the closed intersection interval, from zero at the start to one at the end on success.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the path intersects the closed shape within the tested interval and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
     /// <remarks>
     /// The capsule is described by its finite center-line segment and radius.
     /// Returned parameters are clamped to [0, 1]. A zero-length capsule axis is
@@ -175,6 +204,14 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     /// Finds a conservative parameter enclosure for the closed interval where
     /// this segment intersects an endpoint-authored capsule.
     /// </summary>
+    /// <param name="capsuleAxis">The central segment in the query frame. Its endpoints may coincide.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="entryParameter">The closed entry parameter rounded down on success.</param>
+    /// <param name="exitParameter">The closed exit parameter rounded up on success.</param>
+    /// <returns>
+    /// <see langword="true"/> when the path intersects the closed shape within the tested interval and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
     /// <remarks>
     /// The exact finite-axis solve rounds its representable interval bounds to
     /// nearest. This method expands each returned bound outward by one raw
@@ -210,6 +247,20 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     /// Finds the closed parameter interval where this segment intersects a radially
     /// expanded capsule.
     /// </summary>
+    /// <param name="capsuleAxis">The central segment in the query frame. Its endpoints may coincide.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="radiusExpansion">A nonnegative addition to the radius in coordinate units.</param>
+    /// <param name="entryParameter">
+    /// The first parameter in the closed intersection interval, from zero at the start to one at the end on
+    /// success.
+    /// </param>
+    /// <param name="exitParameter">
+    /// The last parameter in the closed intersection interval, from zero at the start to one at the end on success.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the path intersects the closed shape within the tested interval and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
     /// <remarks>
     /// The authored radius and sweep expansion remain separate until the exact
     /// finite-axis solve. Returned parameters are clamped to [0, 1]. A zero-length
@@ -238,6 +289,24 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     /// Finds the closed parameter interval where this segment intersects a capsule
     /// and reports exact endpoint containment.
     /// </summary>
+    /// <param name="capsuleAxis">The central segment in the query frame. Its endpoints may coincide.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="radiusExpansion">A nonnegative addition to the radius in coordinate units.</param>
+    /// <param name="entryParameter">
+    /// The first parameter in the closed intersection interval, from zero at the start to one at the end on
+    /// success.
+    /// </param>
+    /// <param name="exitParameter">
+    /// The last parameter in the closed intersection interval, from zero at the start to one at the end on success.
+    /// </param>
+    /// <param name="startContained">
+    /// <see langword="true"/> when the exact start lies inside or on the expanded shape boundary.
+    /// </param>
+    /// <param name="endContainedStrict"><see langword="true"/> when the exact end lies strictly inside the expanded shape.</param>
+    /// <returns>
+    /// <see langword="true"/> when the path intersects the closed shape within the tested interval and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
     /// <remarks>
     /// <paramref name="startContained"/> is inclusive of the capsule boundary.
     /// <paramref name="endContainedStrict"/> is true only for the mathematical
@@ -278,6 +347,21 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     /// Finds the closed parameter interval where this segment intersects a
     /// centered capsule.
     /// </summary>
+    /// <param name="center">The center in the query coordinate space.</param>
+    /// <param name="axisDirection">The normalized axis direction in world coordinates.</param>
+    /// <param name="axisLength">The full nonnegative length of the central segment. Zero makes the core a point.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="entryParameter">
+    /// The first parameter in the closed intersection interval, from zero at the start to one at the end on
+    /// success.
+    /// </param>
+    /// <param name="exitParameter">
+    /// The last parameter in the closed intersection interval, from zero at the start to one at the end on success.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the path intersects the closed shape within the tested interval and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
     /// <exception cref="ArgumentException">
     /// Thrown when <paramref name="axisDirection"/> is zero or not normalized.
     /// </exception>
@@ -305,6 +389,22 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     /// Finds the closed parameter interval where this segment intersects a
     /// centered, radially expanded capsule.
     /// </summary>
+    /// <param name="center">The center in the query coordinate space.</param>
+    /// <param name="axisDirection">The normalized axis direction in world coordinates.</param>
+    /// <param name="axisLength">The full nonnegative length of the central segment. Zero makes the core a point.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="radiusExpansion">A nonnegative addition to the radius in coordinate units.</param>
+    /// <param name="entryParameter">
+    /// The first parameter in the closed intersection interval, from zero at the start to one at the end on
+    /// success.
+    /// </param>
+    /// <param name="exitParameter">
+    /// The last parameter in the closed intersection interval, from zero at the start to one at the end on success.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the path intersects the closed shape within the tested interval and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
     /// <exception cref="ArgumentException">
     /// Thrown when <paramref name="axisDirection"/> is zero or not normalized.
     /// </exception>
@@ -337,6 +437,26 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     /// centered, radially expanded capsule and reports exact endpoint
     /// containment.
     /// </summary>
+    /// <param name="center">The center in the query coordinate space.</param>
+    /// <param name="axisDirection">The normalized axis direction in world coordinates.</param>
+    /// <param name="axisLength">The full nonnegative length of the central segment. Zero makes the core a point.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="radiusExpansion">A nonnegative addition to the radius in coordinate units.</param>
+    /// <param name="entryParameter">
+    /// The first parameter in the closed intersection interval, from zero at the start to one at the end on
+    /// success.
+    /// </param>
+    /// <param name="exitParameter">
+    /// The last parameter in the closed intersection interval, from zero at the start to one at the end on success.
+    /// </param>
+    /// <param name="startContained">
+    /// <see langword="true"/> when the exact start lies inside or on the expanded shape boundary.
+    /// </param>
+    /// <param name="endContainedStrict"><see langword="true"/> when the exact end lies strictly inside the expanded shape.</param>
+    /// <returns>
+    /// <see langword="true"/> when the path intersects the closed shape within the tested interval and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
     /// <remarks>
     /// The normalized axis defines the conceptual center-line endpoints as
     /// <c>center +/- axisDirection * (axisLength / 2)</c> without constructing or
@@ -387,6 +507,14 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     /// <summary>
     /// Attempts to find the unique intersection point shared by this segment and another segment.
     /// </summary>
+    /// <param name="other">The second shape in the same coordinate space.</param>
+    /// <param name="thisParameter">
+    /// The nearest-even parameter on this segment from zero to one on success, or zero on failure.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when exactly one point is shared by the segments and <see langword="false"/>
+    /// otherwise.
+    /// </returns>
     /// <remarks>
     /// Closed endpoint touches and coincident point segments have one unique intersection.
     /// Collinear segments with a positive-length overlap do not.
@@ -401,6 +529,14 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     /// <summary>
     /// Attempts to enclose the unique intersection parameter on this segment.
     /// </summary>
+    /// <param name="other">The second shape in the same coordinate space.</param>
+    /// <param name="nearestParameter">The nearest-even parameter on this segment from zero to one on success.</param>
+    /// <param name="lowerParameter">The nearest parameter minus one raw unit, clamped to zero. Zero on failure.</param>
+    /// <param name="upperParameter">The nearest parameter plus one raw unit, clamped to one. Zero on failure.</param>
+    /// <returns>
+    /// <see langword="true"/> when exactly one point is shared by the segments and <see langword="false"/>
+    /// otherwise.
+    /// </returns>
     /// <remarks>
     /// The exact rational intersection is enclosed by expanding the nearest
     /// representable parameter by one raw unit and clamping to [0, 1]. Collinear
@@ -432,6 +568,8 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     /// <summary>
     /// Returns the closest finite points on this segment and another segment.
     /// </summary>
+    /// <param name="other">The second shape in the same coordinate space.</param>
+    /// <returns>The closest pair in query coordinates, with the point on this segment first.</returns>
     /// <remarks>
     /// Exact shared endpoints are returned in this-start, this-end, other-start,
     /// other-end order before parameterized interior intersections. Remaining endpoint
@@ -631,6 +769,8 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     /// <summary>
     /// Deconstructs the segment into start and end points.
     /// </summary>
+    /// <param name="start">The first endpoint.</param>
+    /// <param name="end">The second endpoint in the same coordinate space.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Deconstruct(out Vector2d start, out Vector2d end)
     {
@@ -642,15 +782,17 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
 
     #region Operators
 
-    /// <summary>
-    /// Determines whether two segments have the same ordered endpoints.
-    /// </summary>
+    /// <summary>Tests whether the stored geometry is equal.</summary>
+    /// <param name="left">The first value to compare.</param>
+    /// <param name="right">The second value to compare.</param>
+    /// <returns><see langword="true"/> when both endpoints match in order and <see langword="false"/> otherwise.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator ==(FixedSegment2d left, FixedSegment2d right) => left.Equals(right);
 
-    /// <summary>
-    /// Determines whether two segments have different ordered endpoints.
-    /// </summary>
+    /// <summary>Tests whether the stored geometry is different.</summary>
+    /// <param name="left">The first value to compare.</param>
+    /// <param name="right">The second value to compare.</param>
+    /// <returns><see langword="true"/> when the stored values differ and <see langword="false"/> otherwise.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator !=(FixedSegment2d left, FixedSegment2d right) => !left.Equals(right);
 
@@ -658,20 +800,28 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
 
     #region Equality
 
-    /// <inheritdoc />
+    /// <summary>Compares the stored geometry for equality.</summary>
+    /// <param name="other">The value to compare with this instance.</param>
+    /// <returns><see langword="true"/> when both endpoints match in order and <see langword="false"/> otherwise.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Equals(FixedSegment2d other)
     {
         return Start == other.Start && End == other.End;
     }
 
-    /// <inheritdoc />
+    /// <summary>Compares the stored geometry for equality.</summary>
+    /// <param name="obj">The value to compare with this instance.</param>
+    /// <returns>
+    /// <see langword="true"/> when <paramref name="obj"/> is a <see cref="FixedSegment2d"/> and both endpoints
+    /// match in order and <see langword="false"/> otherwise.
+    /// </returns>
     public override bool Equals(object? obj)
     {
         return obj is FixedSegment2d other && Equals(other);
     }
 
-    /// <inheritdoc />
+    /// <summary>Computes a hash code for the stored geometry.</summary>
+    /// <returns>A hash code consistent with structural equality.</returns>
     public override int GetHashCode()
     {
         unchecked
@@ -689,6 +839,19 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     /// Finds the physical-distance interval where this segment intersects a
     /// circle, mapped to the caller-supplied total distance.
     /// </summary>
+    /// <param name="circle">The circle in the segment's coordinate space.</param>
+    /// <param name="totalDistance">
+    /// The caller-supplied distance mapped to the full segment. Zero is allowed only for coincident endpoints.
+    /// </param>
+    /// <param name="entryDistance">The first distance along the authored segment interval on success.</param>
+    /// <param name="exitDistance">The last distance along the authored segment interval on success.</param>
+    /// <returns>
+    /// <see langword="true"/> when the path intersects the closed shape within the tested interval and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <remarks>The exact chord parameter is mapped to the authored distance interval before the endpoints are rounded.</remarks>
+    /// <exception cref="ArgumentException"><paramref name="totalDistance"/> is zero for a nonzero-length segment.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="totalDistance"/> is negative.</exception>
     public readonly bool TryGetCircleIntersectionDistanceInterval(
         FixedBoundCircle circle,
         Fixed64 totalDistance,
@@ -707,6 +870,26 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     /// Finds the physical-distance interval where this segment intersects a
     /// radially expanded circle and reports exact endpoint containment.
     /// </summary>
+    /// <param name="circle">The circle in the segment's coordinate space.</param>
+    /// <param name="radiusExpansion">A nonnegative addition to the radius in coordinate units.</param>
+    /// <param name="totalDistance">
+    /// The caller-supplied distance mapped to the full segment. Zero is allowed only for coincident endpoints.
+    /// </param>
+    /// <param name="entryDistance">The first distance along the authored segment interval on success.</param>
+    /// <param name="exitDistance">The last distance along the authored segment interval on success.</param>
+    /// <param name="startContained">
+    /// <see langword="true"/> when the exact start lies inside or on the expanded shape boundary.
+    /// </param>
+    /// <param name="endContainedStrict"><see langword="true"/> when the exact end lies strictly inside the expanded shape.</param>
+    /// <returns>
+    /// <see langword="true"/> when the path intersects the closed shape within the tested interval and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <remarks>The exact chord parameter is mapped to the authored distance interval before the endpoints are rounded.</remarks>
+    /// <exception cref="ArgumentException"><paramref name="totalDistance"/> is zero for a nonzero-length segment.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="radiusExpansion"/> is negative or <paramref name="totalDistance"/> is negative.
+    /// </exception>
     /// <remarks>
     /// The exact segment interval maps to <c>[0, totalDistance]</c> with one
     /// final round-half-to-even conversion. Start containment is inclusive;
@@ -740,6 +923,22 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     /// Finds the physical-distance interval where this segment intersects an
     /// endpoint-authored capsule.
     /// </summary>
+    /// <param name="capsuleAxis">The central segment in the query frame. Its endpoints may coincide.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="totalDistance">
+    /// The caller-supplied distance mapped to the full segment. Zero is allowed only for coincident endpoints.
+    /// </param>
+    /// <param name="entryDistance">The first distance along the authored segment interval on success.</param>
+    /// <param name="exitDistance">The last distance along the authored segment interval on success.</param>
+    /// <returns>
+    /// <see langword="true"/> when the path intersects the closed shape within the tested interval and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <remarks>The exact chord parameter is mapped to the authored distance interval before the endpoints are rounded.</remarks>
+    /// <exception cref="ArgumentException"><paramref name="totalDistance"/> is zero for a nonzero-length segment.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="radius"/> is negative or <paramref name="totalDistance"/> is negative.
+    /// </exception>
     public readonly bool TryGetCapsuleIntersectionDistanceInterval(
         FixedSegment2d capsuleAxis,
         Fixed64 radius,
@@ -761,6 +960,28 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     /// endpoint-authored, radially expanded capsule and reports exact endpoint
     /// containment.
     /// </summary>
+    /// <param name="capsuleAxis">The central segment in the query frame. Its endpoints may coincide.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="radiusExpansion">A nonnegative addition to the radius in coordinate units.</param>
+    /// <param name="totalDistance">
+    /// The caller-supplied distance mapped to the full segment. Zero is allowed only for coincident endpoints.
+    /// </param>
+    /// <param name="entryDistance">The first distance along the authored segment interval on success.</param>
+    /// <param name="exitDistance">The last distance along the authored segment interval on success.</param>
+    /// <param name="startContained">
+    /// <see langword="true"/> when the exact start lies inside or on the expanded shape boundary.
+    /// </param>
+    /// <param name="endContainedStrict"><see langword="true"/> when the exact end lies strictly inside the expanded shape.</param>
+    /// <returns>
+    /// <see langword="true"/> when the path intersects the closed shape within the tested interval and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <remarks>The exact chord parameter is mapped to the authored distance interval before the endpoints are rounded.</remarks>
+    /// <exception cref="ArgumentException"><paramref name="totalDistance"/> is zero for a nonzero-length segment.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="radius"/> is negative, <paramref name="radiusExpansion"/> is negative, or
+    /// <paramref name="totalDistance"/> is negative.
+    /// </exception>
     public readonly bool TryGetCapsuleIntersectionDistanceInterval(
         FixedSegment2d capsuleAxis,
         Fixed64 radius,
@@ -793,6 +1014,28 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     /// Finds the physical-distance interval where this segment intersects a
     /// centered capsule.
     /// </summary>
+    /// <param name="center">The center in the query coordinate space.</param>
+    /// <param name="axisDirection">The normalized axis direction in world coordinates.</param>
+    /// <param name="axisLength">The full nonnegative length of the central segment. Zero makes the core a point.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="totalDistance">
+    /// The caller-supplied distance mapped to the full segment. Zero is allowed only for coincident endpoints.
+    /// </param>
+    /// <param name="entryDistance">The first distance along the authored segment interval on success.</param>
+    /// <param name="exitDistance">The last distance along the authored segment interval on success.</param>
+    /// <returns>
+    /// <see langword="true"/> when the path intersects the closed shape within the tested interval and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <remarks>The exact chord parameter is mapped to the authored distance interval before the endpoints are rounded.</remarks>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="axisDirection"/> is not normalized or <paramref name="totalDistance"/> is zero for a
+    /// nonzero-length segment.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="axisLength"/> is negative, <paramref name="radius"/> is negative, or
+    /// <paramref name="totalDistance"/> is negative.
+    /// </exception>
     public readonly bool TryGetCapsuleIntersectionDistanceInterval(
         Vector2d center,
         Vector2d axisDirection,
@@ -818,6 +1061,33 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     /// centered, radially expanded capsule and reports exact endpoint
     /// containment.
     /// </summary>
+    /// <param name="center">The center in the query coordinate space.</param>
+    /// <param name="axisDirection">The normalized axis direction in world coordinates.</param>
+    /// <param name="axisLength">The full nonnegative length of the central segment. Zero makes the core a point.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="radiusExpansion">A nonnegative addition to the radius in coordinate units.</param>
+    /// <param name="totalDistance">
+    /// The caller-supplied distance mapped to the full segment. Zero is allowed only for coincident endpoints.
+    /// </param>
+    /// <param name="entryDistance">The first distance along the authored segment interval on success.</param>
+    /// <param name="exitDistance">The last distance along the authored segment interval on success.</param>
+    /// <param name="startContained">
+    /// <see langword="true"/> when the exact start lies inside or on the expanded shape boundary.
+    /// </param>
+    /// <param name="endContainedStrict"><see langword="true"/> when the exact end lies strictly inside the expanded shape.</param>
+    /// <returns>
+    /// <see langword="true"/> when the path intersects the closed shape within the tested interval and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <remarks>The exact chord parameter is mapped to the authored distance interval before the endpoints are rounded.</remarks>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="axisDirection"/> is not normalized or <paramref name="totalDistance"/> is zero for a
+    /// nonzero-length segment.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="axisLength"/> is negative, <paramref name="radius"/> is negative,
+    /// <paramref name="radiusExpansion"/> is negative, or <paramref name="totalDistance"/> is negative.
+    /// </exception>
     public readonly bool TryGetCapsuleIntersectionDistanceInterval(
         Vector2d center,
         Vector2d axisDirection,
@@ -855,13 +1125,18 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     /// Reconstructs the point at an authored physical distance along this
     /// segment using one exact chord interpolation per coordinate.
     /// </summary>
+    /// <param name="distance">A distance from zero through the supplied total distance.</param>
+    /// <param name="totalDistance">
+    /// The caller-supplied distance mapped to the full segment. Zero is allowed only for coincident endpoints.
+    /// </param>
+    /// <returns>The point interpolated on the original segment using the ratio of distance to total distance.</returns>
     /// <remarks>
     /// This method does not normalize <see cref="Delta"/>. It therefore retains
     /// representable chord components that would round away in a normalized
     /// direction. The final coordinates use round-half-to-even.
     /// </remarks>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// Thrown when <paramref name="totalDistance"/> is negative, or when
+    /// Thrown when <paramref name="totalDistance"/> is negative or when
     /// <paramref name="distance"/> is outside [0, <paramref name="totalDistance"/>].
     /// </exception>
     /// <exception cref="ArgumentException">

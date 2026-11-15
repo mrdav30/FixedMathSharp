@@ -21,7 +21,9 @@ public static partial class Vector2dExtensions
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d Clamp(this Vector2d value, Vector2d min, Vector2d max) => Vector2d.Clamp(value, min, max);
 
-    /// <inheritdoc cref="Vector2d.Clamp(Vector2d, Vector2d, Vector2d)" />
+    /// <summary>Clamps every component to the interval [−1, 1].</summary>
+    /// <param name="value">The vector to clamp.</param>
+    /// <returns>A copy with each component independently clamped.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d ClampOne(this Vector2d value) => Vector2d.Clamp(value, Vector2d.Negative, Vector2d.One);
 
@@ -77,13 +79,11 @@ public static partial class Vector2dExtensions
 
     #region Equality
 
-    /// <summary>
-    /// Compares two vectors for approximate equality, allowing a fixed absolute difference.
-    /// </summary>
-    /// <param name="me">The current vector.</param>
-    /// <param name="other">The vector to compare against.</param>
-    /// <param name="allowedDifference">The allowed absolute difference between each component.</param>
-    /// <returns>True if the components are within the allowed difference, false otherwise.</returns>
+    /// <summary>Compares two vectors within a component-wise absolute tolerance.</summary>
+    /// <param name="me">The reference vector.</param>
+    /// <param name="other">The vector to compare in the same coordinate space.</param>
+    /// <param name="allowedDifference">The nonnegative absolute tolerance per component, in input units.</param>
+    /// <returns><see langword="true"/> if all corresponding components agree within the tolerance, including the boundary, otherwise <see langword="false"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool FuzzyEqualAbsolute(this Vector2d me, Vector2d other, Fixed64 allowedDifference)
     {
@@ -91,14 +91,12 @@ public static partial class Vector2dExtensions
                (me.Y - other.Y).Abs() <= allowedDifference;
     }
 
-    /// <summary>
-    /// Compares two vectors for approximate equality, allowing a fractional difference (percentage).
-    /// Handles zero components by only using the allowed percentage difference.
-    /// </summary>
-    /// <param name="me">The current vector.</param>
-    /// <param name="other">The vector to compare against.</param>
-    /// <param name="percentage">The allowed fractional difference (percentage) for each component.</param>
-    /// <returns>True if the components are within the allowed percentage difference, false otherwise.</returns>
+    /// <summary>Compares two vectors within a component-wise relative tolerance.</summary>
+    /// <param name="me">The reference vector.</param>
+    /// <param name="other">The vector to compare in the same coordinate space.</param>
+    /// <param name="percentage">The allowed relative error as a nonnegative fraction. Null selects <see cref="Fixed64.Epsilon"/>.</param>
+    /// <returns><see langword="true"/> if all corresponding components agree within the tolerance, including the boundary, otherwise <see langword="false"/>.</returns>
+    /// <remarks>The tolerance is relative to each reference component’s magnitude. A magnitude below <see cref="Fixed64.Epsilon"/> uses the fraction as an absolute tolerance.</remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool FuzzyEqual(this Vector2d me, Vector2d other, Fixed64? percentage = null)
     {

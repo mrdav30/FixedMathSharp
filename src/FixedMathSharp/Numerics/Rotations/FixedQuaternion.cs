@@ -34,11 +34,13 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>, IFormattabl
     /// <summary>
     /// Identity quaternion (0, 0, 0, 1).
     /// </summary>
+    /// <value>The identity rotation <c>(0, 0, 0, 1)</c>.</value>
     public static FixedQuaternion Identity => new(Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One);
 
     /// <summary>
     /// Empty quaternion (0, 0, 0, 0).
     /// </summary>
+    /// <value>The zero payload <c>(0, 0, 0, 0)</c>. Individual rotation operations define how they handle this degenerate value.</value>
     public static FixedQuaternion Zero => new(Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero);
 
     #endregion
@@ -83,6 +85,11 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>, IFormattabl
     /// <summary>
     /// Creates a new FixedQuaternion with the specified components.
     /// </summary>
+    /// <param name="x">The X component.</param>
+    /// <param name="y">The Y component.</param>
+    /// <param name="z">The Z component.</param>
+    /// <param name="w">The W component. The W component is the scalar part.</param>
+    /// <remarks>Components are stored as supplied. The constructor does not normalize them.</remarks>
     public FixedQuaternion(Fixed64 x, Fixed64 y, Fixed64 z, Fixed64 w)
     {
         X = x;
@@ -97,6 +104,7 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>, IFormattabl
     /// <summary>
     /// Normalized version of this quaternion.
     /// </summary>
+    /// <value>An approximately unit quaternion, or <see cref="Identity"/> for zero. A value already within the normalization tolerance is returned as supplied.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public FixedQuaternion Normalized
@@ -108,6 +116,7 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>, IFormattabl
     /// <summary>
     /// Gets the magnitude of this quaternion.
     /// </summary>
+    /// <value>The 4D Euclidean length, rounded once and saturated to <see cref="Fixed64.MaxValue"/> if needed.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Fixed64 Magnitude
@@ -119,6 +128,7 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>, IFormattabl
     /// <summary>
     /// Gets the squared magnitude of this quaternion.
     /// </summary>
+    /// <value>The sum of the individually rounded squares, saturated to <see cref="Fixed64.MaxValue"/> if needed.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Fixed64 MagnitudeSquared
@@ -130,6 +140,7 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>, IFormattabl
     /// <summary>
     /// Returns the Euler angles (in degrees) of this quaternion.
     /// </summary>
+    /// <value>Pitch, yaw, and roll in degrees in X, Y, and Z order. Setting it replaces this quaternion with the corresponding normalized YXZ composition.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Vector3d EulerAngles
@@ -145,8 +156,8 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>, IFormattabl
     /// </summary>
     /// <remarks>Index 0 corresponds to the x component, 1 to y, 2 to z, and 3 to w.</remarks>
     /// <param name="index">The zero-based index of the component to access. Valid values are 0 (x), 1 (y), 2 (z), and 3 (w).</param>
-    /// <returns>The value of the component at the specified index.</returns>
     /// <exception cref="IndexOutOfRangeException">Thrown when the specified index is less than 0 or greater than 3.</exception>
+    /// <value>The selected component. Setting it replaces only that component.</value>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Fixed64 this[int index]
@@ -192,10 +203,11 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>, IFormattabl
     /// <summary>
     /// Set x, y, z and w components of an existing Quaternion.
     /// </summary>
-    /// <param name="newX"></param>
-    /// <param name="newY"></param>
-    /// <param name="newZ"></param>
-    /// <param name="newW"></param>
+    /// <param name="newX">The replacement X component.</param>
+    /// <param name="newY">The replacement Y component.</param>
+    /// <param name="newZ">The replacement Z component.</param>
+    /// <param name="newW">The replacement W component.</param>
+    /// <remarks>Components are assigned as supplied. The method does not normalize them.</remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Set(Fixed64 newX, Fixed64 newY, Fixed64 newZ, Fixed64 newW)
     {
@@ -208,18 +220,20 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>, IFormattabl
     /// <summary>
     /// Normalizes this quaternion in place.
     /// </summary>
+    /// <returns>A copy of the normalized quaternion. A zero input becomes <see cref="Identity"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public FixedQuaternion NormalizeInPlace() => this = GetNormalized(this);
 
-    /// <summary>
-    /// Returns the conjugate of this quaternion (inverses the rotational effect).
-    /// </summary>
+    /// <summary>Computes the quaternion conjugate.</summary>
+    /// <returns>A copy with the vector part negated and W preserved.</returns>
+    /// <remarks>For a unit quaternion, the conjugate represents the inverse rotation.</remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public FixedQuaternion Conjugate() => new(-X, -Y, -Z, W);
 
     /// <summary>
     /// Returns the inverse of this quaternion.
     /// </summary>
+    /// <returns>The conjugate scaled by the reciprocal of the computed squared magnitude. When that magnitude rounds to zero, returns the input.</returns>
     public FixedQuaternion Inverse()
     {
         if (this == Identity) return Identity;
@@ -233,6 +247,8 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>, IFormattabl
     /// <summary>
     /// Rotates a vector by this quaternion.
     /// </summary>
+    /// <param name="v">The vector expressed in the input frame.</param>
+    /// <returns>The rotated vector using the normalized quaternion and fixed-point quaternion products. A zero quaternion returns the input vector.</returns>
     public Vector3d Rotate(Vector3d v)
     {
         FixedQuaternion normalizedQuat = Normalized;
@@ -246,16 +262,14 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>, IFormattabl
     /// Attempts to rotate a vector using the quaternion's exact
     /// scale-invariant rational basis.
     /// </summary>
-    /// <remarks>
-    /// Each result component is rounded once after the complete linear
-    /// combination. The zero quaternion preserves the legacy
-    /// <see cref="Rotate(Vector3d)"/> result of zero.
-    /// </remarks>
     /// <returns>
     /// <see langword="true"/> when every final component is representable;
     /// otherwise, <see langword="false"/> and <paramref name="result"/> is
     /// <see langword="default"/>.
     /// </returns>
+    /// <param name="vector">The vector expressed in the input frame.</param>
+    /// <param name="result">The rounded rotated vector on success, or the zero vector on failure.</param>
+    /// <remarks>A zero quaternion succeeds with the zero vector. Each component is rounded once after the complete linear combination.</remarks>
     public bool TryRotate(Vector3d vector, out Vector3d result)
     {
         if (this == Zero)
@@ -278,6 +292,10 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>, IFormattabl
     /// The zero quaternion preserves the legacy rotation contract and returns
     /// <paramref name="origin"/>.
     /// </remarks>
+    /// <param name="origin">The world-space origin of the local frame.</param>
+    /// <param name="localPoint">The point expressed in the local frame.</param>
+    /// <param name="result">The world-space point on success, or the zero vector on failure.</param>
+    /// <returns><see langword="true"/> if every final world coordinate is representable, otherwise <see langword="false"/>.</returns>
     public bool TryTransformPoint(
         Vector3d origin,
         Vector3d localPoint,
@@ -306,6 +324,11 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>, IFormattabl
     /// The zero quaternion preserves the legacy rotation contract and returns
     /// the exact sum of the two origins.
     /// </remarks>
+    /// <param name="firstOrigin">The first translation in world coordinates.</param>
+    /// <param name="secondOrigin">The second translation in world coordinates.</param>
+    /// <param name="localPoint">The point expressed in the local frame.</param>
+    /// <param name="result">The world-space point on success, or the zero vector on failure.</param>
+    /// <returns><see langword="true"/> if every final world coordinate is representable, otherwise <see langword="false"/>.</returns>
     public bool TryTransformPoint(
         Vector3d firstOrigin,
         Vector3d secondOrigin,
@@ -334,10 +357,13 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>, IFormattabl
     /// Attempts to obtain the exact relative offset
     /// <c>firstOrigin + firstOffset - secondOrigin - Rotate(secondLocalPoint)</c>.
     /// </summary>
-    /// <remarks>
-    /// No rotated point or intermediate sum is narrowed independently. The
-    /// zero quaternion preserves the legacy zero-rotation-result contract.
-    /// </remarks>
+    /// <param name="firstOrigin">The first frame’s world-space origin.</param>
+    /// <param name="firstOffset">The first point offset in world-space axes.</param>
+    /// <param name="secondOrigin">The second frame’s world-space origin.</param>
+    /// <param name="secondLocalPoint">The second point offset before applying this rotation.</param>
+    /// <param name="result">The rounded difference between the two world-space points on success, or the zero vector on failure.</param>
+    /// <returns><see langword="true"/> if every final component is representable, otherwise <see langword="false"/>.</returns>
+    /// <remarks>A zero quaternion treats the rotated second point as zero. Intermediates remain wide until the final difference is rounded.</remarks>
     public bool TryGetRelativeOffset(
         Vector3d firstOrigin,
         Vector3d firstOffset,
@@ -376,10 +402,10 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>, IFormattabl
     /// <summary>
     /// Rotates this quaternion by a given angle around a specified axis (default: Y-axis).
     /// </summary>
-    /// <param name="sin">Sine of the rotation angle.</param>
-    /// <param name="cos">Cosine of the rotation angle.</param>
-    /// <param name="axis">The axis to rotate around (default: Vector3d.Up).</param>
-    /// <returns>A new quaternion representing the rotated result.</returns>
+    /// <param name="sin">The sine of the angle.</param>
+    /// <param name="cos">The cosine of the same angle.</param>
+    /// <param name="axis">The rotation axis. Null selects <see cref="Vector3d.Up"/>.</param>
+    /// <returns>The additional rotation multiplied on the left of this quaternion.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public FixedQuaternion Rotated(Fixed64 sin, Fixed64 cos, Vector3d? axis = null)
     {

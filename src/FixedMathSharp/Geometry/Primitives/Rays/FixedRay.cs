@@ -46,6 +46,8 @@ public partial struct FixedRay : IEquatable<FixedRay>
     /// <summary>
     /// Initializes a new ray with the specified origin and direction.
     /// </summary>
+    /// <param name="position">The ray origin in the supplied coordinate space.</param>
+    /// <param name="direction">The direction vector in the origin's coordinate space. The ray stores it as supplied.</param>
     [JsonConstructor]
     public FixedRay(Vector3d position, Vector3d direction)
     {
@@ -61,6 +63,8 @@ public partial struct FixedRay : IEquatable<FixedRay>
     /// Gets the point at the specified ray parameter with one final
     /// round-half-to-even conversion per coordinate.
     /// </summary>
+    /// <param name="parameter">The multiplier on the stored direction. Negative values evaluate points behind the origin.</param>
+    /// <returns>The origin plus the scaled direction, rounded nearest-even and saturated per coordinate.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector3d GetPoint(Fixed64 parameter) => new(
         Fixed64.MultiplyAdd(Direction.X, parameter, Position.X),
@@ -98,6 +102,11 @@ public partial struct FixedRay : IEquatable<FixedRay>
     /// <summary>
     /// Finds the first forward intersection with the specified plane.
     /// </summary>
+    /// <param name="plane">The plane in the same coordinate space as this ray.</param>
+    /// <returns>
+    /// The nonnegative parameter at which the ray crosses the plane, or <see langword="null"/> when the crossing is
+    /// behind the origin or the absolute direction-normal dot product is at most <see cref="Fixed64.Epsilon"/>.
+    /// </returns>
     public Fixed64? Intersects(FixedPlane plane)
     {
         Fixed64 denominator = plane.DotNormal(Direction);
@@ -108,9 +117,16 @@ public partial struct FixedRay : IEquatable<FixedRay>
         return t < Fixed64.Zero ? null : t;
     }
 
-    /// <summary>
-    /// Finds the first forward intersection with the specified bounding box.
-    /// </summary>
+    /// <summary>Tests the ray against the bound using fixed-point slabs.</summary>
+    /// <param name="box">The box in the same coordinate space as this instance.</param>
+    /// <returns>
+    /// The computed nonnegative entry parameter, or <see langword="null"/> when the computed interval is empty.
+    /// Starting inside or on the boundary returns zero.
+    /// </returns>
+    /// <remarks>
+    /// The slab endpoint differences and division use saturating fixed-point arithmetic. A reported parameter can
+    /// be <see cref="Fixed64.MaxValue"/> when the geometric entry lies beyond the scalar range.
+    /// </remarks>
     public Fixed64? Intersects(FixedBoundBox box)
     {
         return IntersectsBoxLike(box.Min, box.Max);
@@ -119,6 +135,11 @@ public partial struct FixedRay : IEquatable<FixedRay>
     /// <summary>
     /// Finds the first forward intersection with the specified bounding sphere.
     /// </summary>
+    /// <param name="sphere">The sphere in the same coordinate space as this instance.</param>
+    /// <returns>
+    /// The first nonnegative ray parameter, or <see langword="null"/> when no hit lies in the tested interval.
+    /// Starting inside or on the boundary returns zero.
+    /// </returns>
     public Fixed64? Intersects(FixedBoundSphere sphere) =>
         WideRayIntersection.Intersects(Position, Direction, sphere, Fixed64.MaxValue);
 
@@ -126,6 +147,12 @@ public partial struct FixedRay : IEquatable<FixedRay>
     /// Finds the first forward intersection with the specified bounding sphere
     /// at or before <paramref name="maxParameter"/>.
     /// </summary>
+    /// <param name="sphere">The sphere in the same coordinate space as this instance.</param>
+    /// <param name="maxParameter">The inclusive upper bound on the ray parameter. A negative value gives an empty interval.</param>
+    /// <returns>
+    /// The first nonnegative ray parameter, or <see langword="null"/> when no hit lies in the tested interval.
+    /// Starting inside or on the boundary returns zero.
+    /// </returns>
     /// <remarks>
     /// Offset differences, quadratic products, the discriminant, and root
     /// ordering are evaluated without fixed-point saturation. The returned
@@ -139,6 +166,13 @@ public partial struct FixedRay : IEquatable<FixedRay>
     /// expanded by <paramref name="radiusExpansion"/>, at or before
     /// <paramref name="maxParameter"/>.
     /// </summary>
+    /// <param name="sphere">The sphere in the same coordinate space as this instance.</param>
+    /// <param name="radiusExpansion">A nonnegative addition to the radius, in coordinate units.</param>
+    /// <param name="maxParameter">The inclusive upper bound on the ray parameter. A negative value gives an empty interval.</param>
+    /// <returns>
+    /// The first nonnegative ray parameter, or <see langword="null"/> when no hit lies in the tested interval.
+    /// Starting inside or on the boundary returns zero.
+    /// </returns>
     /// <remarks>
     /// The two radii are combined in wide arithmetic, so their sum may exceed
     /// <see cref="Fixed64.MaxValue"/> without saturation.
@@ -156,6 +190,14 @@ public partial struct FixedRay : IEquatable<FixedRay>
     /// Gets the closed parameter interval where this ray overlaps the sphere,
     /// clipped to <c>[0, <paramref name="maxParameter"/>]</c>.
     /// </summary>
+    /// <param name="sphere">The sphere in the same coordinate space as this instance.</param>
+    /// <param name="maxParameter">The inclusive upper bound on the ray parameter. A negative value gives an empty interval.</param>
+    /// <param name="entry">The lower bound of the overlap interval on success, or the default value on failure.</param>
+    /// <param name="exit">The upper bound of the overlap interval on success, or the default value on failure.</param>
+    /// <returns>
+    /// <see langword="true"/> when the ray overlaps the closed shape within the requested parameter interval and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
     /// <remarks>
     /// Direction need not be normalized. Exact root clipping precedes
     /// deterministic round-half-to-even conversion of both endpoints.
@@ -178,6 +220,15 @@ public partial struct FixedRay : IEquatable<FixedRay>
     /// expanded by <paramref name="radiusExpansion"/>, clipped to
     /// <c>[0, <paramref name="maxParameter"/>]</c>.
     /// </summary>
+    /// <param name="sphere">The sphere in the same coordinate space as this instance.</param>
+    /// <param name="radiusExpansion">A nonnegative addition to the radius, in coordinate units.</param>
+    /// <param name="maxParameter">The inclusive upper bound on the ray parameter. A negative value gives an empty interval.</param>
+    /// <param name="entry">The lower bound of the overlap interval on success, or the default value on failure.</param>
+    /// <param name="exit">The upper bound of the overlap interval on success, or the default value on failure.</param>
+    /// <returns>
+    /// <see langword="true"/> when the ray overlaps the closed shape within the requested parameter interval and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
     /// <exception cref="ArgumentOutOfRangeException">
     /// <paramref name="radiusExpansion"/> is negative.
     /// </exception>
@@ -199,6 +250,15 @@ public partial struct FixedRay : IEquatable<FixedRay>
     /// <summary>
     /// Finds the first forward intersection with the specified frustum.
     /// </summary>
+    /// <param name="frustum">The frustum in the same coordinate space as this ray.</param>
+    /// <returns>
+    /// The computed nonnegative entry parameter, or <see langword="null"/> if clipping against the six planes
+    /// yields an empty interval.
+    /// </returns>
+    /// <remarks>
+    /// The test treats a direction-normal dot product with magnitude at most <see cref="Fixed64.Epsilon"/> as
+    /// parallel to that plane. Clipping uses fixed-point arithmetic.
+    /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Fixed64? Intersects(FixedBoundFrustum frustum)
     {
@@ -262,6 +322,8 @@ public partial struct FixedRay : IEquatable<FixedRay>
     /// <summary>
     /// Deconstructs the ray into its origin and direction.
     /// </summary>
+    /// <param name="position">The ray origin in the supplied coordinate space.</param>
+    /// <param name="direction">The stored direction. Its magnitude is preserved.</param>
     public void Deconstruct(out Vector3d position, out Vector3d direction)
     {
         position = Position;
@@ -272,15 +334,17 @@ public partial struct FixedRay : IEquatable<FixedRay>
 
     #region Operators
 
-    /// <summary>
-    /// Determines whether two rays are equal.
-    /// </summary>
+    /// <summary>Tests whether the stored geometry is equal.</summary>
+    /// <param name="left">The first value to compare.</param>
+    /// <param name="right">The second value to compare.</param>
+    /// <returns><see langword="true"/> when the positions and directions match and <see langword="false"/> otherwise.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator ==(FixedRay left, FixedRay right) => left.Equals(right);
 
-    /// <summary>
-    /// Determines whether two rays are not equal.
-    /// </summary>
+    /// <summary>Tests whether the stored geometry is different.</summary>
+    /// <param name="left">The first value to compare.</param>
+    /// <param name="right">The second value to compare.</param>
+    /// <returns><see langword="true"/> when the stored values differ and <see langword="false"/> otherwise.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator !=(FixedRay left, FixedRay right) => !left.Equals(right);
 
@@ -288,18 +352,26 @@ public partial struct FixedRay : IEquatable<FixedRay>
 
     #region Equality
 
-    /// <inheritdoc/>
+    /// <summary>Compares the stored geometry for equality.</summary>
+    /// <param name="obj">The value to compare with this instance.</param>
+    /// <returns>
+    /// <see langword="true"/> when <paramref name="obj"/> is a <see cref="FixedRay"/> and the positions and
+    /// directions match and <see langword="false"/> otherwise.
+    /// </returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override bool Equals(object? obj) => obj is FixedRay other && Equals(other);
 
-    /// <inheritdoc/>
+    /// <summary>Compares the stored geometry for equality.</summary>
+    /// <param name="other">The value to compare with this instance.</param>
+    /// <returns><see langword="true"/> when the positions and directions match and <see langword="false"/> otherwise.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Equals(FixedRay other)
     {
         return Position.Equals(other.Position) && Direction.Equals(other.Direction);
     }
 
-    /// <inheritdoc/>
+    /// <summary>Computes a hash code for the stored geometry.</summary>
+    /// <returns>A hash code consistent with structural equality.</returns>
     public override int GetHashCode()
     {
         unchecked
@@ -317,6 +389,20 @@ public partial struct FixedRay : IEquatable<FixedRay>
     /// Gets the closed parameter interval where this ray overlaps a capsule,
     /// clipped to <c>[0, <paramref name="maxParameter"/>]</c>.
     /// </summary>
+    /// <param name="capsuleAxis">The central segment in the ray's coordinate space. It can have coincident endpoints.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="maxParameter">The inclusive upper bound on the ray parameter. A negative value gives an empty interval.</param>
+    /// <param name="entryParameter">
+    /// The lower ray parameter of the overlap interval on success, or the default value on failure.
+    /// </param>
+    /// <param name="exitParameter">
+    /// The upper ray parameter of the overlap interval on success, or the default value on failure.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the ray overlaps the closed shape within the requested parameter interval and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="radius"/> is negative.</exception>
     public readonly bool TryGetCapsuleIntersectionInterval(
         FixedSegment capsuleAxis,
         Fixed64 radius,
@@ -331,6 +417,31 @@ public partial struct FixedRay : IEquatable<FixedRay>
     /// Gets the closed parameter interval where this ray overlaps a radially
     /// expanded capsule and reports exact bounded-endpoint containment.
     /// </summary>
+    /// <param name="capsuleAxis">The central segment in the ray's coordinate space. It can have coincident endpoints.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="radiusExpansion">A nonnegative addition to the radius, in coordinate units.</param>
+    /// <param name="maxParameter">The inclusive upper bound on the ray parameter. A negative value gives an empty interval.</param>
+    /// <param name="entryParameter">
+    /// The lower ray parameter of the overlap interval on success, or the default value on failure.
+    /// </param>
+    /// <param name="exitParameter">
+    /// The upper ray parameter of the overlap interval on success, or the default value on failure.
+    /// </param>
+    /// <param name="originContained">
+    /// <see langword="true"/> if the ray origin lies on or inside the expanded shape, computed before rounding. An
+    /// empty interval returns <see langword="false"/>.
+    /// </param>
+    /// <param name="maximumContainedStrict">
+    /// <see langword="true"/> if the point at <paramref name="maxParameter"/> lies strictly inside the expanded
+    /// shape, computed before rounding. An empty interval returns <see langword="false"/>.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the ray overlaps the closed shape within the requested parameter interval and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="radius"/> or <paramref name="radiusExpansion"/> are negative.
+    /// </exception>
     /// <remarks>
     /// Direction need not be normalized. When it is normalized, returned
     /// parameters are physical distances. The origin is tested inclusively;
@@ -370,6 +481,25 @@ public partial struct FixedRay : IEquatable<FixedRay>
     /// Gets the closed parameter interval where this ray overlaps a centered
     /// capsule, clipped to <c>[0, <paramref name="maxParameter"/>]</c>.
     /// </summary>
+    /// <param name="center">The shape center in world coordinates.</param>
+    /// <param name="axisDirection">The normalized axis direction in world coordinates.</param>
+    /// <param name="axisLength">The full nonnegative length of the central segment.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="maxParameter">The inclusive upper bound on the ray parameter. A negative value gives an empty interval.</param>
+    /// <param name="entryParameter">
+    /// The lower ray parameter of the overlap interval on success, or the default value on failure.
+    /// </param>
+    /// <param name="exitParameter">
+    /// The upper ray parameter of the overlap interval on success, or the default value on failure.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the ray overlaps the closed shape within the requested parameter interval and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException"><paramref name="axisDirection"/> is not normalized.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="radius"/> or <paramref name="axisLength"/> are negative.
+    /// </exception>
     public readonly bool TryGetCapsuleIntersectionInterval(
         Vector3d center,
         Vector3d axisDirection,
@@ -386,6 +516,35 @@ public partial struct FixedRay : IEquatable<FixedRay>
     /// Gets the closed parameter interval where this ray overlaps a centered,
     /// radially expanded capsule and reports exact endpoint containment.
     /// </summary>
+    /// <param name="center">The shape center in world coordinates.</param>
+    /// <param name="axisDirection">The normalized axis direction in world coordinates.</param>
+    /// <param name="axisLength">The full nonnegative length of the central segment.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="radiusExpansion">A nonnegative addition to the radius, in coordinate units.</param>
+    /// <param name="maxParameter">The inclusive upper bound on the ray parameter. A negative value gives an empty interval.</param>
+    /// <param name="entryParameter">
+    /// The lower ray parameter of the overlap interval on success, or the default value on failure.
+    /// </param>
+    /// <param name="exitParameter">
+    /// The upper ray parameter of the overlap interval on success, or the default value on failure.
+    /// </param>
+    /// <param name="originContained">
+    /// <see langword="true"/> if the ray origin lies on or inside the expanded shape, computed before rounding. An
+    /// empty interval returns <see langword="false"/>.
+    /// </param>
+    /// <param name="maximumContainedStrict">
+    /// <see langword="true"/> if the point at <paramref name="maxParameter"/> lies strictly inside the expanded
+    /// shape, computed before rounding. An empty interval returns <see langword="false"/>.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the ray overlaps the closed shape within the requested parameter interval and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException"><paramref name="axisDirection"/> is not normalized.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="radius"/> or <paramref name="radiusExpansion"/> or <paramref name="axisLength"/> are
+    /// negative.
+    /// </exception>
     public readonly bool TryGetCapsuleIntersectionInterval(
         Vector3d center,
         Vector3d axisDirection,
@@ -419,6 +578,23 @@ public partial struct FixedRay : IEquatable<FixedRay>
     /// Gets the closed parameter interval where this ray overlaps a finite
     /// cylinder, clipped to <c>[0, <paramref name="maxParameter"/>]</c>.
     /// </summary>
+    /// <param name="cylinderAxis">
+    /// The segment between the cap centers in the ray's coordinate space. Its endpoints must be distinct.
+    /// </param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="maxParameter">The inclusive upper bound on the ray parameter. A negative value gives an empty interval.</param>
+    /// <param name="entryParameter">
+    /// The lower ray parameter of the overlap interval on success, or the default value on failure.
+    /// </param>
+    /// <param name="exitParameter">
+    /// The upper ray parameter of the overlap interval on success, or the default value on failure.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the ray overlaps the closed shape within the requested parameter interval and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException"><paramref name="cylinderAxis"/> has coincident endpoints.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="radius"/> is negative.</exception>
     public readonly bool TryGetFiniteCylinderIntersectionInterval(
         FixedSegment cylinderAxis,
         Fixed64 radius,
@@ -433,6 +609,34 @@ public partial struct FixedRay : IEquatable<FixedRay>
     /// Gets the closed parameter interval where this ray overlaps a radially
     /// expanded finite cylinder and reports exact endpoint containment.
     /// </summary>
+    /// <param name="cylinderAxis">
+    /// The segment between the cap centers in the ray's coordinate space. Its endpoints must be distinct.
+    /// </param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="radiusExpansion">A nonnegative addition to the radius, in coordinate units.</param>
+    /// <param name="maxParameter">The inclusive upper bound on the ray parameter. A negative value gives an empty interval.</param>
+    /// <param name="entryParameter">
+    /// The lower ray parameter of the overlap interval on success, or the default value on failure.
+    /// </param>
+    /// <param name="exitParameter">
+    /// The upper ray parameter of the overlap interval on success, or the default value on failure.
+    /// </param>
+    /// <param name="originContained">
+    /// <see langword="true"/> if the ray origin lies on or inside the expanded shape, computed before rounding. An
+    /// empty interval returns <see langword="false"/>.
+    /// </param>
+    /// <param name="maximumContainedStrict">
+    /// <see langword="true"/> if the point at <paramref name="maxParameter"/> lies strictly inside the expanded
+    /// shape, computed before rounding. An empty interval returns <see langword="false"/>.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the ray overlaps the closed shape within the requested parameter interval and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException"><paramref name="cylinderAxis"/> has coincident endpoints.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="radius"/> or <paramref name="radiusExpansion"/> are negative.
+    /// </exception>
     public readonly bool TryGetFiniteCylinderIntersectionInterval(
         FixedSegment cylinderAxis,
         Fixed64 radius,
@@ -469,6 +673,28 @@ public partial struct FixedRay : IEquatable<FixedRay>
     /// Gets the closed parameter interval where this ray overlaps a centered,
     /// affinely expanded finite cylinder.
     /// </summary>
+    /// <param name="center">The shape center in world coordinates.</param>
+    /// <param name="axisDirection">The normalized axis direction in world coordinates.</param>
+    /// <param name="axisLength">The full positive distance between the cap centers.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="radiusExpansion">A nonnegative addition to the radius, in coordinate units.</param>
+    /// <param name="axialExpansion">A nonnegative distance to extend the cylinder at each axial end.</param>
+    /// <param name="maxParameter">The inclusive upper bound on the ray parameter. A negative value gives an empty interval.</param>
+    /// <param name="entryParameter">
+    /// The lower ray parameter of the overlap interval on success, or the default value on failure.
+    /// </param>
+    /// <param name="exitParameter">
+    /// The upper ray parameter of the overlap interval on success, or the default value on failure.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the ray overlaps the closed shape within the requested parameter interval and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException"><paramref name="axisDirection"/> is not normalized.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="radius"/> or <paramref name="radiusExpansion"/> or <paramref name="axialExpansion"/> are
+    /// negative. <paramref name="axisLength"/> must also be positive.
+    /// </exception>
     public readonly bool TryGetFiniteCylinderIntersectionInterval(
         Vector3d center,
         Vector3d axisDirection,
@@ -488,6 +714,36 @@ public partial struct FixedRay : IEquatable<FixedRay>
     /// Gets the closed parameter interval where this ray overlaps a centered,
     /// affinely expanded finite cylinder and reports exact endpoint containment.
     /// </summary>
+    /// <param name="center">The shape center in world coordinates.</param>
+    /// <param name="axisDirection">The normalized axis direction in world coordinates.</param>
+    /// <param name="axisLength">The full positive distance between the cap centers.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="radiusExpansion">A nonnegative addition to the radius, in coordinate units.</param>
+    /// <param name="axialExpansion">A nonnegative distance to extend the cylinder at each axial end.</param>
+    /// <param name="maxParameter">The inclusive upper bound on the ray parameter. A negative value gives an empty interval.</param>
+    /// <param name="entryParameter">
+    /// The lower ray parameter of the overlap interval on success, or the default value on failure.
+    /// </param>
+    /// <param name="exitParameter">
+    /// The upper ray parameter of the overlap interval on success, or the default value on failure.
+    /// </param>
+    /// <param name="originContained">
+    /// <see langword="true"/> if the ray origin lies on or inside the expanded shape, computed before rounding. An
+    /// empty interval returns <see langword="false"/>.
+    /// </param>
+    /// <param name="maximumContainedStrict">
+    /// <see langword="true"/> if the point at <paramref name="maxParameter"/> lies strictly inside the expanded
+    /// shape, computed before rounding. An empty interval returns <see langword="false"/>.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the ray overlaps the closed shape within the requested parameter interval and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException"><paramref name="axisDirection"/> is not normalized.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="radius"/> or <paramref name="radiusExpansion"/> or <paramref name="axialExpansion"/> are
+    /// negative. <paramref name="axisLength"/> must also be positive.
+    /// </exception>
     public readonly bool TryGetFiniteCylinderIntersectionInterval(
         Vector3d center,
         Vector3d axisDirection,

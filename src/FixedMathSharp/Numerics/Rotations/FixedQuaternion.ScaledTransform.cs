@@ -18,6 +18,12 @@ public partial struct FixedQuaternion
     /// and a world origin with one final round-half-to-even conversion per
     /// component.
     /// </summary>
+    /// <param name="origin">The world-space origin of the local frame.</param>
+    /// <param name="localPoint">The point expressed in the local frame.</param>
+    /// <param name="scale">The per-axis scales applied before rotation.</param>
+    /// <param name="result">The world-space point on success, or the zero vector on failure.</param>
+    /// <returns><see langword="true"/> if every final world coordinate is representable, otherwise <see langword="false"/>.</returns>
+    /// <remarks>Intermediate scaled, translated, and rotated values stay wide until final rounding. A zero quaternion succeeds and returns the origin.</remarks>
     public bool TryTransformScaledPoint(
         Vector3d origin,
         Vector3d localPoint,
@@ -35,13 +41,13 @@ public partial struct FixedQuaternion
     /// local displacement by this rotation and a world origin with one final
     /// round-half-to-even conversion per component.
     /// </summary>
-    /// <remarks>
-    /// Computes
-    /// <c>origin + Rotate(scale * localPoint + localDisplacement)</c> without
-    /// narrowing the scaled point, local sum, or rotated offset independently.
-    /// The zero quaternion preserves the legacy rotation contract and returns
-    /// <paramref name="origin"/>.
-    /// </remarks>
+    /// <param name="origin">The world-space origin of the local frame.</param>
+    /// <param name="localPoint">The point expressed in the local frame.</param>
+    /// <param name="scale">The per-axis scales applied before rotation.</param>
+    /// <param name="localDisplacement">The offset added in local coordinates after scaling and before rotation.</param>
+    /// <param name="result">The world-space point on success, or the zero vector on failure.</param>
+    /// <returns><see langword="true"/> if every final world coordinate is representable, otherwise <see langword="false"/>.</returns>
+    /// <remarks>Intermediate scaled, translated, and rotated values stay wide until final rounding. A zero quaternion succeeds and returns the origin.</remarks>
     public bool TryTransformScaledPoint(
         Vector3d origin,
         Vector3d localPoint,

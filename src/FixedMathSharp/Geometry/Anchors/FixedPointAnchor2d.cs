@@ -24,27 +24,34 @@ public readonly struct FixedPointAnchor2d : IEquatable<FixedPointAnchor2d>
     /// <summary>
     /// Gets the point frame's world-space origin.
     /// </summary>
+    /// <value>The stored origin in world coordinates.</value>
     public Vector2d Origin { get; }
 
     /// <summary>
     /// Gets the point frame's counterclockwise rotation in radians.
     /// </summary>
+    /// <value>The counterclockwise local-to-world angle in radians.</value>
     public Fixed64 Rotation { get; }
 
     /// <summary>
     /// Gets the point in its supplied local frame.
     /// </summary>
+    /// <value>The first point component in local coordinates.</value>
     public Vector2d LocalPoint { get; }
 
     /// <summary>
     /// An additional local-space feature displacement that exact operations
     /// add to <see cref="LocalPoint"/> without a scalar intermediate.
     /// </summary>
+    /// <value>The second point component in local coordinates, applied additively.</value>
     public Vector2d LocalDisplacement { get; }
 
     /// <summary>
     /// Creates a transformed point anchor.
     /// </summary>
+    /// <param name="origin">The frame origin in world coordinates.</param>
+    /// <param name="rotation">The counterclockwise rotation from local coordinates to world coordinates, in radians.</param>
+    /// <param name="localPoint">The first local component of the point.</param>
     public FixedPointAnchor2d(
         Vector2d origin,
         Fixed64 rotation,
@@ -56,6 +63,10 @@ public readonly struct FixedPointAnchor2d : IEquatable<FixedPointAnchor2d>
     /// Creates a transformed point anchor from two additive local-space
     /// feature components.
     /// </summary>
+    /// <param name="origin">The frame origin in world coordinates.</param>
+    /// <param name="rotation">The counterclockwise rotation from local coordinates to world coordinates, in radians.</param>
+    /// <param name="localPoint">The first local component of the point.</param>
+    /// <param name="localDisplacement">An additional local displacement retained separately from the point.</param>
     public FixedPointAnchor2d(
         Vector2d origin,
         Fixed64 rotation,
@@ -89,6 +100,11 @@ public readonly struct FixedPointAnchor2d : IEquatable<FixedPointAnchor2d>
     /// Attempts to materialize the conceptual world-space point with one
     /// final round-half-to-even conversion per component.
     /// </summary>
+    /// <param name="point">The rounded world point on success, or the default value on failure.</param>
+    /// <returns>
+    /// <see langword="true"/> when the final rounded coordinates are representable and <see langword="false"/>
+    /// otherwise.
+    /// </returns>
     public bool TryGetPoint(out Vector2d point) =>
         WidePointAnchor2d.TryGetPoint(
             Origin,
@@ -102,6 +118,12 @@ public readonly struct FixedPointAnchor2d : IEquatable<FixedPointAnchor2d>
     /// Attempts to obtain this point's exact offset from another transformed
     /// point without materializing either world-space point.
     /// </summary>
+    /// <param name="other">The anchor to subtract, with its own frame.</param>
+    /// <param name="offset">The world-space difference on success, or the default value on failure.</param>
+    /// <returns>
+    /// <see langword="true"/> when the final rounded coordinates are representable and <see langword="false"/>
+    /// otherwise.
+    /// </returns>
     public bool TryGetOffsetFrom(
         in FixedPointAnchor2d other,
         out Vector2d offset) =>
@@ -127,6 +149,8 @@ public readonly struct FixedPointAnchor2d : IEquatable<FixedPointAnchor2d>
     /// distances are equal, or a positive value when
     /// <paramref name="second"/> is closer.
     /// </returns>
+    /// <param name="first">The first candidate point.</param>
+    /// <param name="second">The second candidate point.</param>
     public int CompareSquaredDistance(
         in FixedPointAnchor2d first,
         in FixedPointAnchor2d second) =>
@@ -139,6 +163,13 @@ public readonly struct FixedPointAnchor2d : IEquatable<FixedPointAnchor2d>
     /// Attempts to express this conceptual point in another rotated frame
     /// without materializing the world-space point.
     /// </summary>
+    /// <param name="frameOrigin">The new frame's origin in world coordinates.</param>
+    /// <param name="frameRotation">The new frame's counterclockwise local-to-world rotation in radians.</param>
+    /// <param name="localPoint">The rounded point in the target frame on success, or the default value on failure.</param>
+    /// <returns>
+    /// <see langword="true"/> when the final rounded coordinates are representable and <see langword="false"/>
+    /// otherwise.
+    /// </returns>
     public bool TryGetLocalPointIn(
         Vector2d frameOrigin,
         Fixed64 frameRotation,
@@ -157,9 +188,17 @@ public readonly struct FixedPointAnchor2d : IEquatable<FixedPointAnchor2d>
     /// Attempts to express this exact conceptual point in another rotated
     /// frame without discarding sub-lattice feature information.
     /// </summary>
+    /// <param name="frameOrigin">The new frame's origin in world coordinates.</param>
+    /// <param name="frameRotation">The new frame's counterclockwise local-to-world rotation in radians.</param>
+    /// <param name="anchor">The equivalent anchor in the new frame on success, or the default value on failure.</param>
+    /// <returns>
+    /// <see langword="true"/> when the same conceptual point can be retained exactly in the target frame and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
     /// <remarks>
-    /// The operation fails when the target frame would require a general
-    /// rational local coordinate that a compact point anchor cannot retain.
+    /// An identical frame returns this anchor with its retained residuals.
+    /// For a different frame, a single Q32.32 local vector must represent the
+    /// same conceptual point exactly.
     /// </remarks>
     public bool TryReframe(
         Vector2d frameOrigin,
@@ -200,6 +239,8 @@ public readonly struct FixedPointAnchor2d : IEquatable<FixedPointAnchor2d>
     /// Compares the complete local feature identity of this anchor with
     /// <paramref name="other"/> in deterministic component order.
     /// </summary>
+    /// <param name="other">The anchor whose local feature is compared.</param>
+    /// <returns>A negative value, zero, or a positive value according to lexicographic order of the local feature terms.</returns>
     /// <remarks>
     /// Frame origin and rotation are intentionally excluded. Exact
     /// sub-lattice centered-axis residuals are included after the public local
@@ -240,6 +281,8 @@ public readonly struct FixedPointAnchor2d : IEquatable<FixedPointAnchor2d>
     /// <summary>
     /// Returns a stable 64-bit hash of the complete local feature identity.
     /// </summary>
+    /// <returns>An unsigned deterministic 64-bit hash of the local feature terms.</returns>
+    /// <remarks>Uses the same components as <see cref="CompareLocalFeature(in FixedPointAnchor2d)"/>.</remarks>
     public ulong GetLocalFeatureHash64()
     {
         ulong hash = 14695981039346656037UL;
@@ -252,10 +295,12 @@ public readonly struct FixedPointAnchor2d : IEquatable<FixedPointAnchor2d>
         return hash;
     }
 
-    /// <summary>
-    /// Returns whether both anchors have identical frames, rounded local
-    /// components, and any retained exact feature identity.
-    /// </summary>
+    /// <summary>Compares the stored geometry for equality.</summary>
+    /// <param name="other">The value to compare with this instance.</param>
+    /// <returns>
+    /// <see langword="true"/> when the stored origins, rotations, local coordinates, and additive terms match and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
     public bool Equals(FixedPointAnchor2d other) =>
         Origin == other.Origin
         && Rotation == other.Rotation
@@ -263,13 +308,17 @@ public readonly struct FixedPointAnchor2d : IEquatable<FixedPointAnchor2d>
         && LocalDisplacement == other.LocalDisplacement
         && ExactLocalTerm.Equals(other.ExactLocalTerm);
 
-    /// <summary>
-    /// Returns a hash code for the complete frame and exact feature identity.
-    /// </summary>
+    /// <summary>Compares the stored geometry for equality.</summary>
+    /// <param name="obj">The value to compare with this instance.</param>
+    /// <returns>
+    /// <see langword="true"/> when <paramref name="obj"/> is a <see cref="FixedPointAnchor2d"/> and the stored
+    /// origins, rotations, local coordinates, and additive terms match and <see langword="false"/> otherwise.
+    /// </returns>
     public override bool Equals(object? obj) =>
         obj is FixedPointAnchor2d other && Equals(other);
 
-    /// <inheritdoc />
+    /// <summary>Computes a hash code for the stored geometry.</summary>
+    /// <returns>A hash code consistent with structural equality.</returns>
     public override int GetHashCode()
     {
         unchecked
@@ -285,19 +334,22 @@ public readonly struct FixedPointAnchor2d : IEquatable<FixedPointAnchor2d>
         }
     }
 
-    /// <summary>
-    /// Returns whether two anchors have identical frame and local-point
-    /// components.
-    /// </summary>
+    /// <summary>Tests whether the stored geometry is equal.</summary>
+    /// <param name="left">The first value to compare.</param>
+    /// <param name="right">The second value to compare.</param>
+    /// <returns>
+    /// <see langword="true"/> when the stored origins, rotations, local coordinates, and additive terms match and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
     public static bool operator ==(
         FixedPointAnchor2d left,
         FixedPointAnchor2d right) =>
         left.Equals(right);
 
-    /// <summary>
-    /// Returns whether two anchors differ in any frame or local-point
-    /// component.
-    /// </summary>
+    /// <summary>Tests whether the stored geometry is different.</summary>
+    /// <param name="left">The first value to compare.</param>
+    /// <param name="right">The second value to compare.</param>
+    /// <returns><see langword="true"/> when the stored values differ and <see langword="false"/> otherwise.</returns>
     public static bool operator !=(
         FixedPointAnchor2d left,
         FixedPointAnchor2d right) =>

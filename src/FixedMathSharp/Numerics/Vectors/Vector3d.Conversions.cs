@@ -19,13 +19,17 @@ public partial struct Vector3d
     /// <summary>
     /// Returns a string that represents the current object in the format "(x, y, z)".
     /// </summary>
-    /// <returns>A string representation of the object, displaying the x, y, and z values in a formatted tuple.</returns>
+    /// <returns>A parenthesized, comma-separated list of components, using the default invariant numeric format.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override string ToString() => ToString(null, CultureInfo.InvariantCulture);
 
     /// <summary>
     /// Returns a string that represents the current object in the format "(x, y, z)".
     /// </summary>
+    /// <param name="format">The numeric format for each component. A null or empty string uses the default format.</param>
+    /// <param name="formatProvider">The provider used for all components. Null selects the invariant culture.</param>
+    /// <returns>A parenthesized, comma-separated list of formatted components.</returns>
+    /// <exception cref="FormatException">The component format is invalid.</exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public string ToString(string? format, IFormatProvider? formatProvider)
     {
@@ -37,6 +41,12 @@ public partial struct Vector3d
     /// <summary>
     /// Formats this vector into the provided destination buffer.
     /// </summary>
+    /// <param name="destination">The caller-owned output span. This method writes from its start and may leave a partial prefix on failure.</param>
+    /// <param name="charsWritten">The number of characters written on success, or zero when the destination is too small.</param>
+    /// <param name="format">The numeric format for each component. An empty span selects the default format.</param>
+    /// <param name="provider">The provider used for all components. Null selects the invariant culture.</param>
+    /// <returns><see langword="true"/> if all components and punctuation fit, otherwise <see langword="false"/>.</returns>
+    /// <exception cref="FormatException">The component format is invalid.</exception>
     public bool TryFormat(
         Span<char> destination,
         out int charsWritten,
@@ -74,12 +84,17 @@ public partial struct Vector3d
     /// <summary>
     /// Converts this <see cref="Vector3d"/> to a <see cref="Vector4d"/> with an explicit W component.
     /// </summary>
+    /// <param name="w">The new W component.</param>
+    /// <returns>The existing X, Y, and Z components with the supplied W component.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector4d ToVector4d(Fixed64 w) => new(X, Y, Z, w);
 
     /// <summary>
     /// Deconstructs the Vector3d into its three Fixed64 components.
     /// </summary>
+    /// <param name="x">The fixed-point X component.</param>
+    /// <param name="y">The fixed-point Y component.</param>
+    /// <param name="z">The fixed-point Z component.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Deconstruct(out Fixed64 x, out Fixed64 y, out Fixed64 z)
     {
@@ -91,6 +106,9 @@ public partial struct Vector3d
     /// <summary>
     /// Deconstructs the Vector3d into its three int components.
     /// </summary>
+    /// <param name="x">The X component rounded to the nearest integer with ties to even.</param>
+    /// <param name="y">The Y component rounded to the nearest integer with ties to even.</param>
+    /// <param name="z">The Z component rounded to the nearest integer with ties to even.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Deconstruct(out int x, out int y, out int z)
     {
@@ -102,6 +120,9 @@ public partial struct Vector3d
     /// <summary>
     /// Deconstructs the Vector3d into its three long components.
     /// </summary>
+    /// <param name="x">The signed 64-bit raw Q32.32 payload of the X component.</param>
+    /// <param name="y">The signed 64-bit raw Q32.32 payload of the Y component.</param>
+    /// <param name="z">The signed 64-bit raw Q32.32 payload of the Z component.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Deconstruct(out long x, out long y, out long z)
     {
@@ -113,6 +134,9 @@ public partial struct Vector3d
     /// <summary>
     /// Deconstructs the Vector3d into its three double components.
     /// </summary>
+    /// <param name="x">The double-precision approximation of the X component.</param>
+    /// <param name="y">The double-precision approximation of the Y component.</param>
+    /// <param name="z">The double-precision approximation of the Z component.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Deconstruct(out double x, out double y, out double z)
     {

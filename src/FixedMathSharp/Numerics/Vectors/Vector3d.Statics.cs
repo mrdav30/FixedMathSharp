@@ -21,6 +21,9 @@ public partial struct Vector3d
     /// <summary>
     /// Adds two vectors component-wise.
     /// </summary>
+    /// <param name="v1">The first vector to add.</param>
+    /// <param name="v2">The second vector to add.</param>
+    /// <returns>The component-wise sum, with each component saturated at the representable endpoints.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d Add(Vector3d v1, Vector3d v2) => v1 + v2;
 
@@ -53,6 +56,9 @@ public partial struct Vector3d
     /// <summary>
     /// Subtracts two vectors component-wise.
     /// </summary>
+    /// <param name="v1">The vector to subtract from.</param>
+    /// <param name="v2">The vector to subtract.</param>
+    /// <returns>The component-wise difference, with each component saturated at the representable endpoints.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d Subtract(Vector3d v1, Vector3d v2) => v1 - v2;
 
@@ -118,6 +124,12 @@ public partial struct Vector3d
     /// (secondLeft + secondRight)</c> component-wise without intermediate
     /// saturation.
     /// </summary>
+    /// <param name="firstLeft">The first addend of the minuend sum.</param>
+    /// <param name="firstRight">The second addend of the minuend sum.</param>
+    /// <param name="secondLeft">The first addend of the subtrahend sum.</param>
+    /// <param name="secondRight">The second addend of the subtrahend sum.</param>
+    /// <param name="result">The difference of the two sums on success, or the zero vector on failure.</param>
+    /// <returns><see langword="true"/> if all final components are representable, otherwise <see langword="false"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool TrySubtractSums(
         Vector3d firstLeft,
@@ -158,6 +170,10 @@ public partial struct Vector3d
     /// Attempts to calculate the cross product with one final
     /// round-half-to-even conversion per component.
     /// </summary>
+    /// <param name="left">The first operand.</param>
+    /// <param name="right">The second operand in the same coordinate space.</param>
+    /// <param name="result">The cross product on success, or the zero vector on failure.</param>
+    /// <returns><see langword="true"/> if all final components are representable, otherwise <see langword="false"/>.</returns>
     public static bool TryCross(
         Vector3d left,
         Vector3d right,
@@ -195,6 +211,10 @@ public partial struct Vector3d
     /// Attempts to calculate the dot product with one final
     /// round-half-to-even conversion.
     /// </summary>
+    /// <param name="left">The first operand.</param>
+    /// <param name="right">The second operand in the same coordinate space.</param>
+    /// <param name="result">The rounded dot product on success, or zero on failure.</param>
+    /// <returns><see langword="true"/> if the rounded dot product is representable, otherwise <see langword="false"/>.</returns>
     public static bool TryDot(
         Vector3d left,
         Vector3d right,
@@ -212,6 +232,12 @@ public partial struct Vector3d
     /// Attempts to combine two scaled vectors with one final
     /// round-half-to-even conversion per component.
     /// </summary>
+    /// <param name="first">The first vector in the common coordinate space.</param>
+    /// <param name="firstScale">The scalar applied to the first vector.</param>
+    /// <param name="second">The second vector in the common coordinate space.</param>
+    /// <param name="secondScale">The scalar applied to the second vector.</param>
+    /// <param name="result">The rounded combination on success, or the zero vector on failure.</param>
+    /// <returns><see langword="true"/> if all final components are representable, otherwise <see langword="false"/>.</returns>
     public static bool TryLinearCombination(
         Vector3d first,
         Fixed64 firstScale,
@@ -251,6 +277,14 @@ public partial struct Vector3d
     /// Attempts to combine three scaled vectors with one final
     /// round-half-to-even conversion per component.
     /// </summary>
+    /// <param name="first">The first vector in the common coordinate space.</param>
+    /// <param name="firstScale">The scalar applied to the first vector.</param>
+    /// <param name="second">The second vector in the common coordinate space.</param>
+    /// <param name="secondScale">The scalar applied to the second vector.</param>
+    /// <param name="third">The third vector in the common coordinate space.</param>
+    /// <param name="thirdScale">The scalar applied to the third vector.</param>
+    /// <param name="result">The rounded combination on success, or the zero vector on failure.</param>
+    /// <returns><see langword="true"/> if all final components are representable, otherwise <see langword="false"/>.</returns>
     public static bool TryLinearCombination(
         Vector3d first,
         Fixed64 firstScale,
@@ -298,6 +332,15 @@ public partial struct Vector3d
     /// Attempts to combine three scaled vectors, apply a final scale, and
     /// round each completed component once.
     /// </summary>
+    /// <param name="first">The first vector in the common coordinate space.</param>
+    /// <param name="firstScale">The scalar applied to the first vector.</param>
+    /// <param name="second">The second vector in the common coordinate space.</param>
+    /// <param name="secondScale">The scalar applied to the second vector.</param>
+    /// <param name="third">The third vector in the common coordinate space.</param>
+    /// <param name="thirdScale">The scalar applied to the third vector.</param>
+    /// <param name="resultScale">The scalar applied after forming the sum and before rounding.</param>
+    /// <param name="result">The rounded combination on success, or the zero vector on failure.</param>
+    /// <returns><see langword="true"/> if all final components are representable, otherwise <see langword="false"/>.</returns>
     public static bool TryScaledLinearCombination(
         Vector3d first,
         Fixed64 firstScale,
@@ -407,6 +450,10 @@ public partial struct Vector3d
     /// Zero and negative projections return zero; an unrepresentable positive
     /// parameter saturates to <see cref="Fixed64.MaxValue"/>.
     /// </remarks>
+    /// <param name="target">The endpoint of the difference in the common coordinate space.</param>
+    /// <param name="source">The origin of the difference in the same coordinate space.</param>
+    /// <param name="direction">The projection axis. Use a nonzero direction to define a parameter.</param>
+    /// <returns>The projection of target minus source onto the axis, divided by the squared axis length and clamped to the nonnegative representable range.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 ProjectNonNegativeDifferenceParameter(
         Vector3d target,
@@ -417,24 +464,36 @@ public partial struct Vector3d
     /// <summary>
     /// Multiplies two vectors component-wise.
     /// </summary>
+    /// <param name="v1">The first factor.</param>
+    /// <param name="v2">The second factor.</param>
+    /// <returns>The component-wise product, with each component saturated at the representable endpoints.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d Multiply(Vector3d v1, Vector3d v2) => v1 * v2;
 
     /// <summary>
     /// Multiplies each vector component by the specified scalar.
     /// </summary>
+    /// <param name="value">The vector to scale.</param>
+    /// <param name="factor">The scalar factor.</param>
+    /// <returns>The component-wise product, with each component saturated at the representable endpoints.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d Multiply(Vector3d value, Fixed64 factor) => value * factor;
 
     /// <summary>
     /// Divides each component of the first vector by the corresponding component of the second vector.
     /// </summary>
+    /// <param name="v1">The numerator.</param>
+    /// <param name="v2">The divisor.</param>
+    /// <returns>The component-wise quotient, with each component saturated at the representable endpoints. A zero divisor component yields zero in that component.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d Divide(Vector3d v1, Vector3d v2) => v1 / v2;
 
     /// <summary>
     /// Divides each vector component by the specified scalar.
     /// </summary>
+    /// <param name="value">The vector to scale.</param>
+    /// <param name="divisor">The scalar divisor.</param>
+    /// <returns>The component-wise quotient, with each component saturated at the representable endpoints. A zero divisor yields the zero vector.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d Divide(Vector3d value, Fixed64 divisor) => value / divisor;
 
@@ -471,11 +530,11 @@ public partial struct Vector3d
     /// <summary>
     /// Moves from a to b at some speed dependent of a delta time with out passing b.
     /// </summary>
-    /// <param name="a"></param>
-    /// <param name="b"></param>
-    /// <param name="speed"></param>
-    /// <param name="dt"></param>
-    /// <returns></returns>
+    /// <param name="a">The starting point.</param>
+    /// <param name="b">The target point in the same coordinate space.</param>
+    /// <param name="speed">The movement speed in distance units per time unit. Use a nonnegative speed to approach the target.</param>
+    /// <param name="dt">The elapsed time in units matching the speed. Use a nonnegative duration.</param>
+    /// <returns>The point after moving by speed times elapsed time along the direction to the target, or the target when that step exceeds the computed distance.</returns>
     public static Vector3d SpeedLerp(Vector3d a, Vector3d b, Fixed64 speed, Fixed64 dt)
     {
         Vector3d v = b - a;
@@ -485,16 +544,14 @@ public partial struct Vector3d
             : a + v.Normalized * dv;
     }
 
-    /// <summary>
-    /// Spherically interpolates between two vectors, moving along the shortest arc on a unit sphere.
-    /// </summary>
-    /// <param name="start">The starting vector.</param>
-    /// <param name="end">The ending vector.</param>
-    /// <param name="percent">A value between 0 and 1 that represents the interpolation amount. 0 returns the start vector, and 1 returns the end vector.</param>
-    /// <returns>The interpolated vector between the two input vectors.</returns>
+    /// <summary>Interpolates between unit directions on a sphere.</summary>
+    /// <param name="start">The starting unit vector.</param>
+    /// <param name="end">The ending unit vector in the same coordinate space.</param>
+    /// <param name="percent">The interpolation fraction. The method uses it as supplied. Use [0, 1] to interpolate between the endpoints.</param>
+    /// <returns>The interpolated direction for endpoints that define an arc.</returns>
     /// <remarks>
-    /// Slerp is used to interpolate between two unit vectors on a sphere, providing smooth rotation.
-    /// It can be more computationally expensive than linear interpolation (Lerp) but results in smoother, arc-like motion.
+    /// Opposite endpoints do not define an arc plane. For exactly opposite unit basis vectors,
+    /// the midpoint evaluates to zero. Supply an intermediate direction when the arc plane matters.
     /// </remarks>
     public static Vector3d Slerp(Vector3d start, Vector3d end, Fixed64 percent)
     {
@@ -637,6 +694,14 @@ public partial struct Vector3d
     /// without narrowing either scaled offset or the rotated displacement
     /// independently.
     /// </remarks>
+    /// <param name="outerLocalPoint">The first offset, expressed along the shared frame axes.</param>
+    /// <param name="outerScale">The per-axis scale factors for the first offset.</param>
+    /// <param name="innerFrameOffset">The second offset, expressed along the shared frame axes.</param>
+    /// <param name="innerFrameScale">The per-axis scale factors for the second offset.</param>
+    /// <param name="innerLocalDisplacement">The displacement in the inner frame. It is rotated directly, without either scale.</param>
+    /// <param name="result">The composed offset in the shared frame on success, or the zero vector on failure.</param>
+    /// <param name="innerRotation">The rotation from the inner frame into the shared frame. Supply a unit quaternion to preserve lengths.</param>
+    /// <returns><see langword="true"/> if all final components are representable, otherwise <see langword="false"/>.</returns>
     public static bool TryComposeScaledLocalPoints(
         Vector3d outerLocalPoint,
         Vector3d outerScale,
@@ -663,6 +728,9 @@ public partial struct Vector3d
     /// evaluated exactly even when a component cannot be represented by
     /// <see cref="Fixed64"/>.
     /// </remarks>
+    /// <param name="start">The starting point.</param>
+    /// <param name="end">The ending point in the same coordinate space.</param>
+    /// <returns>The approximate unit direction from start to end, or zero for coincident points.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d GetDirection(Vector3d start, Vector3d end) =>
         WideNormalization.GetDirection(start, end);
@@ -743,6 +811,8 @@ public partial struct Vector3d
     /// </summary>
     /// <returns>A negative value when <paramref name="left"/> is shorter, zero when the
     /// magnitudes are equal, or a positive value when <paramref name="left"/> is longer.</returns>
+    /// <param name="left">The first vector.</param>
+    /// <param name="right">The second vector.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int CompareMagnitudeSquared(Vector3d left, Vector3d right) =>
         Fixed64.CompareMagnitudeSquared(
@@ -760,6 +830,10 @@ public partial struct Vector3d
     /// </summary>
     /// <returns>A negative value when the left distance is shorter, zero when the
     /// distances are equal, or a positive value when the left distance is longer.</returns>
+    /// <param name="leftStart">The start of the left point pair.</param>
+    /// <param name="leftEnd">The end of the left point pair.</param>
+    /// <param name="rightStart">The start of the right point pair.</param>
+    /// <param name="rightEnd">The end of the right point pair.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int CompareDistanceSquared(
         Vector3d leftStart,
@@ -779,6 +853,9 @@ public partial struct Vector3d
     /// </summary>
     /// <returns><c>1</c> for a positive product, <c>-1</c> for a negative product,
     /// or <c>0</c> when the vectors are exactly coplanar.</returns>
+    /// <param name="first">The first vector in the common coordinate space.</param>
+    /// <param name="second">The second vector in the common coordinate space.</param>
+    /// <param name="third">The third vector in the common coordinate space.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int ScalarTripleProductSign(Vector3d first, Vector3d second, Vector3d third) =>
         WideGeometry.GetTripleProductSign(
@@ -806,10 +883,13 @@ public partial struct Vector3d
     /// Attempts to calculate the exact non-negative weighted average with one
     /// final round-half-to-even conversion per component.
     /// </summary>
-    /// <remarks>
-    /// Zero-weight values are ignored. The operation returns
-    /// <see langword="false"/> only when the total weight is zero.
-    /// </remarks>
+    /// <param name="values">The vectors in a common coordinate space, paired by index with the weights.</param>
+    /// <param name="weights">The matching nonnegative relative weights. A zero weight excludes its vector.</param>
+    /// <param name="average">The weighted average on success, or the zero vector on failure.</param>
+    /// <returns><see langword="true"/> if the total weight is positive, otherwise <see langword="false"/>.</returns>
+    /// <remarks>The spans are read during the call. Each component is divided by the exact total weight and rounded once with ties to even.</remarks>
+    /// <exception cref="ArgumentException">The spans have different lengths.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">A weight is negative.</exception>
     public static bool TryGetWeightedAverage(
         ReadOnlySpan<Vector3d> values,
         ReadOnlySpan<Fixed64> weights,
@@ -835,9 +915,10 @@ public partial struct Vector3d
     /// <summary>
     /// Clamps the given Vector3d within the specified magnitude.
     /// </summary>
-    /// <param name="value"></param>
-    /// <param name="maxMagnitude"></param>
-    /// <returns></returns>
+    /// <param name="value">The vector whose length is limited.</param>
+    /// <param name="maxMagnitude">The nonnegative length limit in the vector’s units.</param>
+    /// <returns>The input when its squared length does not exceed the squared limit, or its direction scaled to the limit otherwise.</returns>
+    /// <remarks>The comparison uses saturated squared lengths. Use a limit whose square is representable when the distinction at large magnitudes matters.</remarks>
     public static Vector3d ClampMagnitude(Vector3d value, Fixed64 maxMagnitude)
     {
         if (value.MagnitudeSquared > maxMagnitude * maxMagnitude)
@@ -847,11 +928,12 @@ public partial struct Vector3d
     }
 
     /// <summary>
-    /// Determines if two vectors are exactly parallel by checking if their cross product is zero.
+    /// Tests whether the squared length of the computed cross product is zero.
     /// </summary>
     /// <param name="v1">The first vector.</param>
     /// <param name="v2">The second vector.</param>
-    /// <returns>True if the vectors are exactly parallel, false otherwise.</returns>
+    /// <returns><see langword="true"/> if the fixed-point squared cross-product length is zero, otherwise <see langword="false"/>.</returns>
+    /// <remarks>Rounding in the cross product or its squared length can produce zero for nonparallel vectors.</remarks>
     public static bool AreParallel(Vector3d v1, Vector3d v2) => Cross(v1, v2).MagnitudeSquared == Fixed64.Zero;
 
     /// <summary>
@@ -880,11 +962,17 @@ public partial struct Vector3d
     public static Vector3d Midpoint(Vector3d v1, Vector3d v2) =>
         new(FixedMath.Midpoint(v1.X, v2.X), FixedMath.Midpoint(v1.Y, v2.Y), FixedMath.Midpoint(v1.Z, v2.Z));
 
-    /// <inheritdoc cref="Distance(Fixed64, Fixed64, Fixed64)" />
+    /// <summary>Computes the distance between two points.</summary>
+    /// <param name="start">The first point.</param>
+    /// <param name="end">The second point in the same coordinate space.</param>
+    /// <returns>The Euclidean distance with saturation at <see cref="Fixed64.MaxValue"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 Distance(Vector3d start, Vector3d end) => start.Distance(end.X, end.Y, end.Z);
 
-    /// <inheritdoc cref="DistanceSquared(Fixed64, Fixed64, Fixed64)" />
+    /// <summary>Computes the squared distance between two points.</summary>
+    /// <param name="start">The first point.</param>
+    /// <param name="end">The second point in the same coordinate space.</param>
+    /// <returns>The Euclidean squared distance with saturation at <see cref="Fixed64.MaxValue"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 DistanceSquared(Vector3d start, Vector3d end) => start.DistanceSquared(end.X, end.Y, end.Z);
 
@@ -927,31 +1015,34 @@ public partial struct Vector3d
     /// <summary>
     /// Dot Product of two vectors.
     /// </summary>
-    /// <param name="lhs"></param>
-    /// <param name="rhs"></param>
-    /// <returns></returns>
+    /// <param name="lhs">The first vector.</param>
+    /// <param name="rhs">The second vector in the same coordinate space.</param>
+    /// <returns>The sum of the component products using rounded, saturating fixed-point operations.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 Dot(Vector3d lhs, Vector3d rhs) => lhs.Dot(rhs.X, rhs.Y, rhs.Z);
 
     /// <summary>
     /// Cross Product of two vectors.
     /// </summary>
-    /// <param name="lhs"></param>
-    /// <param name="rhs"></param>
-    /// <returns></returns>
+    /// <param name="lhs">The first vector.</param>
+    /// <param name="rhs">The second vector in the same coordinate space.</param>
+    /// <returns>The right-handed cross product using rounded, saturating component arithmetic.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d Cross(Vector3d lhs, Vector3d rhs) => lhs.Cross(rhs.X, rhs.Y, rhs.Z);
 
-    /// <inheritdoc cref="CrossProduct(Fixed64, Fixed64, Fixed64)"/>
+    /// <summary>Sums the three components of the cross product.</summary>
+    /// <param name="lhs">The first vector.</param>
+    /// <param name="rhs">The second vector in the same coordinate space.</param>
+    /// <returns>The signed sum of the right-handed cross product components, using rounded, saturating component arithmetic.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 CrossProduct(Vector3d lhs, Vector3d rhs) => lhs.CrossProduct(rhs.X, rhs.Y, rhs.Z);
 
     /// <summary>
     /// Projects a vector onto another vector.
     /// </summary>
-    /// <param name="vector"></param>
-    /// <param name="onNormal"></param>
-    /// <returns></returns>
+    /// <param name="vector">The vector to project.</param>
+    /// <param name="onNormal">The axis to project onto, expressed in the same coordinate space. It need not be unit length.</param>
+    /// <returns>The projection onto the axis, or zero if the computed squared axis length is less than <see cref="Fixed64.Epsilon"/>.</returns>
     public static Vector3d Project(Vector3d vector, Vector3d onNormal)
     {
         Fixed64 sqrMag = Dot(onNormal, onNormal);
@@ -969,9 +1060,9 @@ public partial struct Vector3d
     /// <summary>
     /// Projects a vector onto a plane defined by a normal orthogonal to the plane.
     /// </summary>
-    /// <param name="vector"></param>
-    /// <param name="planeNormal"></param>
-    /// <returns></returns>
+    /// <param name="vector">The vector to project.</param>
+    /// <param name="planeNormal">The normal to the plane through the origin. It need not be unit length.</param>
+    /// <returns>The input with its normal component removed. A computed squared normal length below <see cref="Fixed64.Epsilon"/> returns the input.</returns>
     public static Vector3d ProjectOnPlane(Vector3d vector, Vector3d planeNormal)
     {
         Fixed64 sqrMag = Dot(planeNormal, planeNormal);
@@ -995,6 +1086,9 @@ public partial struct Vector3d
     /// returns the normalized input vector; a zero projection returns
     /// <see cref="Zero"/>.
     /// </remarks>
+    /// <param name="vector">The vector to project.</param>
+    /// <param name="planeNormal">The normal to the plane through the origin in the same coordinate space.</param>
+    /// <returns>The approximate unit direction of the projected vector, or zero for a zero projection.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d GetNormalizedProjectionOnPlane(
         Vector3d vector,
@@ -1018,14 +1112,14 @@ public partial struct Vector3d
     }
 
     /// <summary>
-    /// Computes the angle in degrees between two vectors.
+    /// Estimates the smaller angle in degrees between two vectors.
     /// </summary>
     /// <param name="from">The starting vector.</param>
     /// <param name="to">The target vector.</param>
-    /// <returns>The angle in degrees between the two vectors.</returns>
+    /// <returns>The angle in degrees in [0, 180], or zero when the computed product of the lengths is below <see cref="Fixed64.Epsilon"/>.</returns>
     /// <remarks>
-    /// This method calculates the angle by using the dot product between the vectors and normalizing the result.
-    /// The angle is always the smaller angle between the two vectors on a plane.
+    /// The dot product and squared-length product use rounded, saturating fixed-point arithmetic.
+    /// Normalize the directions first when the lengths are too small or the squared-length product can saturate.
     /// </remarks>
     public static Fixed64 Angle(Vector3d from, Vector3d to)
     {
@@ -1088,6 +1182,8 @@ public partial struct Vector3d
     /// <summary>
     /// Returns a vector that is the negation of the specified vector, effectively reversing its direction.
     /// </summary>
+    /// <param name="value">The vector to negate.</param>
+    /// <returns>A copy with every component negated. The negation of <see cref="Fixed64.MinValue"/> saturates to <see cref="Fixed64.MaxValue"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d Negate(Vector3d value) => -value;
 
@@ -1122,14 +1218,11 @@ public partial struct Vector3d
         return source + position;
     }
 
-    /// <summary>
-    /// Reflects a vector off the plane defined by a normal. 
-    /// The result is a vector that points in the direction a perfectly reflected ray would go, 
-    /// based on the incoming vector and the normal of the plane it reflects off.
-    /// </summary>
+    /// <summary>Reflects a vector across a plane with a unit normal.</summary>
     /// <param name="vector">The vector to reflect.</param>
-    /// <param name="normal">The normal of the plane to reflect off.</param>
-    /// <returns>The reflected vector.</returns>
+    /// <param name="normal">The unit plane normal in the same coordinate space as the vector.</param>
+    /// <returns>The reflected vector, computed as <c>vector - 2 * Dot(vector, normal) * normal</c>.</returns>
+    /// <remarks>The formula uses the normal as supplied, without a normalization step.</remarks>
     public static Vector3d Reflect(Vector3d vector, Vector3d normal)
     {
         Fixed64 dot = Dot(vector, normal);

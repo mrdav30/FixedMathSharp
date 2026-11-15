@@ -19,6 +19,24 @@ public static class FixedSlabProjection
     /// Attempts to return the support point of a centered capsule's X/Z
     /// projection after clipping the capsule to <paramref name="slabY"/>.
     /// </summary>
+    /// <param name="center">The shape center in world coordinates.</param>
+    /// <param name="axisDirection">The normalized shape axis in world space.</param>
+    /// <param name="axisLength">The nonnegative length of the capsule's central segment. Zero describes a sphere.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="slabY">The closed interval of world Y coordinates, with minimum at most maximum.</param>
+    /// <param name="direction">The normalized support direction in the world X/Z projection.</param>
+    /// <param name="support">The selected point in world X/Z coordinates on success, or the default value on failure.</param>
+    /// <returns>
+    /// <see langword="true"/> when the clipped shape is nonempty and its selected support point is representable
+    /// and <see langword="false"/> otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="axisDirection"/> or <paramref name="direction"/> is not normalized, or
+    /// <paramref name="slabY"/> has reversed limits.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="radius"/> is negative or <paramref name="axisLength"/> is negative.
+    /// </exception>
     public static bool TryGetCapsuleSupport(
         Vector3d center,
         Vector3d axisDirection,
@@ -37,6 +55,24 @@ public static class FixedSlabProjection
     /// Attempts to return the support point of a centered finite cylinder's
     /// X/Z projection after clipping the cylinder to <paramref name="slabY"/>.
     /// </summary>
+    /// <param name="center">The shape center in world coordinates.</param>
+    /// <param name="axisDirection">The normalized shape axis in world space.</param>
+    /// <param name="axisLength">The full distance between the end-cap centers. It must be positive.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="slabY">The closed interval of world Y coordinates, with minimum at most maximum.</param>
+    /// <param name="direction">The normalized support direction in the world X/Z projection.</param>
+    /// <param name="support">The selected point in world X/Z coordinates on success, or the default value on failure.</param>
+    /// <returns>
+    /// <see langword="true"/> when the clipped shape is nonempty and its selected support point is representable
+    /// and <see langword="false"/> otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="axisDirection"/> or <paramref name="direction"/> is not normalized, or
+    /// <paramref name="slabY"/> has reversed limits.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="radius"/> is negative or <paramref name="axisLength"/> is not positive.
+    /// </exception>
     public static bool TryGetCylinderSupport(
         Vector3d center,
         Vector3d axisDirection,
@@ -63,6 +99,13 @@ public static class FixedSlabProjection
     /// <param name="direction">The normalized X/Z support direction.</param>
     /// <param name="support">The winning planar support point when representable.</param>
     /// <returns><see langword="true"/> when the clipped cone has a representable support point.</returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="axisDirection"/> or <paramref name="direction"/> is not normalized, or
+    /// <paramref name="slabY"/> has reversed limits.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="radius"/> is negative or <paramref name="height"/> is not positive.
+    /// </exception>
     public static bool TryGetConeSupport(
         Vector3d center,
         Vector3d axisDirection,

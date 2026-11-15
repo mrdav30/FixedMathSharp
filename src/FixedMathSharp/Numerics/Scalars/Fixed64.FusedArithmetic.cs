@@ -24,6 +24,10 @@ public partial struct Fixed64
     /// Multiplies two values, adds a third, and performs one final
     /// round-half-to-even conversion. An unrepresentable result saturates.
     /// </summary>
+    /// <param name="left">The first factor.</param>
+    /// <param name="right">The second factor.</param>
+    /// <param name="addend">The value added to the exact product.</param>
+    /// <returns>The rounded sum, saturated at the representable endpoints.</returns>
     public static Fixed64 MultiplyAdd(Fixed64 left, Fixed64 right, Fixed64 addend) =>
         MultiplyAdd(left, right, addend, out _);
 
@@ -31,6 +35,11 @@ public partial struct Fixed64
     /// Attempts to multiply two values and add a third with one final
     /// round-half-to-even conversion and no intermediate saturation.
     /// </summary>
+    /// <param name="left">The first factor.</param>
+    /// <param name="right">The second factor.</param>
+    /// <param name="addend">The value added to the exact product.</param>
+    /// <param name="result">The rounded sum on success, or zero on failure.</param>
+    /// <returns><see langword="true"/> if the rounded sum is representable, otherwise <see langword="false"/>.</returns>
     public static bool TryMultiplyAdd(
         Fixed64 left,
         Fixed64 right,
@@ -330,6 +339,12 @@ public partial struct Fixed64
     /// The subtraction and both products remain exact even when an intermediate
     /// value lies outside the public Q32.32 domain.
     /// </remarks>
+    /// <param name="value">The minuend.</param>
+    /// <param name="subtrahend">The value subtracted before multiplication.</param>
+    /// <param name="firstMultiplier">The first factor applied to the difference.</param>
+    /// <param name="secondMultiplier">The second factor applied to the difference.</param>
+    /// <param name="result">The rounded product on success, or zero on failure.</param>
+    /// <returns><see langword="true"/> if the rounded product is representable, otherwise <see langword="false"/>.</returns>
     public static bool TryMultiplyDifference(
         Fixed64 value,
         Fixed64 subtrahend,
@@ -504,6 +519,16 @@ public partial struct Fixed64
     /// Attempts to multiply four values and divide by the exact sum of four
     /// values with one final round-half-to-even operation.
     /// </summary>
+    /// <param name="first">The first factor of the numerator.</param>
+    /// <param name="second">The second factor of the numerator.</param>
+    /// <param name="third">The third factor of the numerator.</param>
+    /// <param name="fourth">The fourth factor of the numerator.</param>
+    /// <param name="firstDivisorTerm">The first term of the denominator sum.</param>
+    /// <param name="secondDivisorTerm">The second term of the denominator sum.</param>
+    /// <param name="thirdDivisorTerm">The third term of the denominator sum.</param>
+    /// <param name="fourthDivisorTerm">The fourth term of the denominator sum.</param>
+    /// <param name="result">The rounded quotient on success, or zero on failure.</param>
+    /// <returns><see langword="true"/> if the denominator sum is nonzero and the rounded quotient is representable, otherwise <see langword="false"/>.</returns>
     public static bool TryMultiplyDivideBySum(
         Fixed64 first,
         Fixed64 second,

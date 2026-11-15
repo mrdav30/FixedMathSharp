@@ -21,6 +21,10 @@ public static class FixedConvexPrismRelations
     /// bottom-center points has strict positive-volume overlap with a rotated
     /// vertical convex prism at any shared continuous parameter in [0, 1].
     /// </summary>
+    /// <returns>
+    /// <see langword="true"/> when the query finds strict overlap somewhere along the sweep and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
     /// <remarks>
     /// Planar tangency, vertical tangency, and contact that exists only where
     /// the planar and vertical strict intervals meet at one boundary parameter
@@ -73,6 +77,29 @@ public static class FixedConvexPrismRelations
     /// Attempts to construct canonical contact anchors between a rigidly
     /// transformed triangle and a rotated vertical convex prism.
     /// </summary>
+    /// <param name="triangleOrigin">The triangle frame's origin in world coordinates.</param>
+    /// <param name="triangleRotation">The triangle's normalized local-to-world rotation.</param>
+    /// <param name="triangle">The triangle's three ordered vertices in its local frame.</param>
+    /// <param name="prismOrigin">The prism frame's origin in world coordinates.</param>
+    /// <param name="prismRotation">The scalar rotation in radians applied to the local X/Z footprint.</param>
+    /// <param name="prismLocalOffsets">
+    /// At least three convex footprint vertices in local X/Z coordinates, in boundary order. The span is read
+    /// during the call.
+    /// </param>
+    /// <param name="prismHalfThickness">The positive distance from the prism midplane to either cap along world Y.</param>
+    /// <param name="contact">
+    /// The paired shape-local witnesses, world normal, and depth on success. Use this result only when the method
+    /// returns <see langword="true"/>.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the closed shapes touch or overlap and the requested contact is available and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="triangleRotation"/> is not normalized or <paramref name="prismLocalOffsets"/> has fewer than
+    /// three vertices.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="prismHalfThickness"/> is not positive.</exception>
     public static bool TryGetTriangleContact(
         Vector3d triangleOrigin,
         FixedQuaternion triangleRotation,
@@ -106,6 +133,27 @@ public static class FixedConvexPrismRelations
     /// Attempts to construct canonical contact anchors between a sphere and a
     /// rotated vertical convex prism.
     /// </summary>
+    /// <param name="sphereCenter">The sphere center in the query coordinate space.</param>
+    /// <param name="sphereRadius">The sphere's nonnegative radius in coordinate units.</param>
+    /// <param name="prismOrigin">The prism frame's origin in world coordinates.</param>
+    /// <param name="prismRotation">The scalar rotation in radians applied to the local X/Z footprint.</param>
+    /// <param name="prismLocalOffsets">
+    /// At least three convex footprint vertices in local X/Z coordinates, in boundary order. The span is read
+    /// during the call.
+    /// </param>
+    /// <param name="prismHalfThickness">The positive distance from the prism midplane to either cap along world Y.</param>
+    /// <param name="contact">
+    /// The paired shape-local witnesses, world normal, and depth on success. Use this result only when the method
+    /// returns <see langword="true"/>.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the closed shapes touch or overlap and the requested contact is available and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException"><paramref name="prismLocalOffsets"/> has fewer than three vertices.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="sphereRadius"/> is negative or <paramref name="prismHalfThickness"/> is not positive.
+    /// </exception>
     public static bool TryGetSphereContact(
         Vector3d sphereCenter,
         Fixed64 sphereRadius,
@@ -136,6 +184,34 @@ public static class FixedConvexPrismRelations
     /// Attempts to construct canonical contact anchors between a centered
     /// capsule and a rotated vertical convex prism.
     /// </summary>
+    /// <param name="capsuleCenter">The capsule center in the query coordinate space.</param>
+    /// <param name="capsuleRotation">The capsule's normalized local-to-world rotation.</param>
+    /// <param name="localCapsuleAxisDirection">The normalized capsule axis in shape-local coordinates.</param>
+    /// <param name="capsuleAxisLength">The full nonnegative length of the capsule's central segment.</param>
+    /// <param name="capsuleRadius">The capsule's nonnegative radius in coordinate units.</param>
+    /// <param name="prismOrigin">The prism frame's origin in world coordinates.</param>
+    /// <param name="prismRotation">The scalar rotation in radians applied to the local X/Z footprint.</param>
+    /// <param name="prismLocalOffsets">
+    /// At least three convex footprint vertices in local X/Z coordinates, in boundary order. The span is read
+    /// during the call.
+    /// </param>
+    /// <param name="prismHalfThickness">The positive distance from the prism midplane to either cap along world Y.</param>
+    /// <param name="contact">
+    /// The paired shape-local witnesses, world normal, and depth on success. Use this result only when the method
+    /// returns <see langword="true"/>.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the closed shapes touch or overlap and the requested contact is available and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="capsuleRotation"/> is not normalized, <paramref name="localCapsuleAxisDirection"/> is not
+    /// normalized, or <paramref name="prismLocalOffsets"/> has fewer than three vertices.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="capsuleAxisLength"/> is negative, <paramref name="capsuleRadius"/> is negative, or
+    /// <paramref name="prismHalfThickness"/> is not positive.
+    /// </exception>
     public static bool TryGetCenteredCapsuleContact(
         Vector3d capsuleCenter,
         FixedQuaternion capsuleRotation,
@@ -174,6 +250,34 @@ public static class FixedConvexPrismRelations
     /// Attempts to find the minimum-depth contact between a centered
     /// finite cylinder and a rotated vertical convex prism.
     /// </summary>
+    /// <param name="cylinderCenter">The cylinder center in the query coordinate space.</param>
+    /// <param name="cylinderRotation">The cylinder's normalized local-to-world rotation.</param>
+    /// <param name="localCylinderAxisDirection">The normalized cylinder axis in shape-local coordinates.</param>
+    /// <param name="cylinderAxisLength">The full positive distance between the cap centers.</param>
+    /// <param name="cylinderRadius">The cylinder's nonnegative radius in coordinate units.</param>
+    /// <param name="prismOrigin">The prism frame's origin in world coordinates.</param>
+    /// <param name="prismRotation">The scalar rotation in radians applied to the local X/Z footprint.</param>
+    /// <param name="prismLocalOffsets">
+    /// At least three convex footprint vertices in local X/Z coordinates, in boundary order. The span is read
+    /// during the call.
+    /// </param>
+    /// <param name="prismHalfThickness">The positive distance from the prism midplane to either cap along world Y.</param>
+    /// <param name="contact">
+    /// The paired shape-local witnesses, world normal, and depth on success. Use this result only when the method
+    /// returns <see langword="true"/>.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the closed shapes touch or overlap and the requested contact is available and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="cylinderRotation"/> is not normalized, <paramref name="localCylinderAxisDirection"/> is not
+    /// normalized, or <paramref name="prismLocalOffsets"/> has fewer than three vertices.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="cylinderAxisLength"/> is not positive, <paramref name="cylinderRadius"/> is negative or
+    /// <paramref name="prismHalfThickness"/> is not positive.
+    /// </exception>
     /// <remarks>
     /// The complete support fan includes prism faces, real edges and vertices
     /// against both flat caps, the side and circular rims. Classification and
@@ -235,6 +339,34 @@ public static class FixedConvexPrismRelations
     /// Attempts to find the minimum-depth contact between a centered
     /// finite cone and a rotated vertical convex prism.
     /// </summary>
+    /// <param name="coneCenter">The cone center in the query coordinate space.</param>
+    /// <param name="coneRotation">The cone's normalized local-to-world rotation.</param>
+    /// <param name="localConeAxisDirection">The normalized cone axis in shape-local coordinates.</param>
+    /// <param name="coneHeight">The cone's full positive axis length.</param>
+    /// <param name="coneRadius">The cone's nonnegative radius in coordinate units.</param>
+    /// <param name="prismOrigin">The prism frame's origin in world coordinates.</param>
+    /// <param name="prismRotation">The scalar rotation in radians applied to the local X/Z footprint.</param>
+    /// <param name="prismLocalOffsets">
+    /// At least three convex footprint vertices in local X/Z coordinates, in boundary order. The span is read
+    /// during the call.
+    /// </param>
+    /// <param name="prismHalfThickness">The positive distance from the prism midplane to either cap along world Y.</param>
+    /// <param name="contact">
+    /// The paired shape-local witnesses, world normal, and depth on success. Use this result only when the method
+    /// returns <see langword="true"/>.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the closed shapes touch or overlap and the requested contact is available and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="coneRotation"/> is not normalized, <paramref name="localConeAxisDirection"/> is not
+    /// normalized, or <paramref name="prismLocalOffsets"/> has fewer than three vertices.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="coneHeight"/> is not positive, <paramref name="coneRadius"/> is negative or
+    /// <paramref name="prismHalfThickness"/> is not positive.
+    /// </exception>
     /// <remarks>
     /// The complete support fan includes prism faces, real edges and vertices
     /// against the base disk and rim, apex and lateral generators.

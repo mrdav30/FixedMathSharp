@@ -27,10 +27,12 @@ public readonly struct FixedContactLocalPoints
     /// <summary>
     /// The point in the primary relation's first rigid frame.
     /// </summary>
+    /// <value>The first contact witness expressed in the first shape's local coordinates.</value>
     public Vector3d FirstLocalPoint { get; }
 
     /// <summary>
     /// The point in the primary relation's second rigid frame.
     /// </summary>
+    /// <value>The second contact witness expressed in the second shape's local coordinates.</value>
     public Vector3d SecondLocalPoint { get; }
 }

@@ -11,9 +11,15 @@ using System.Runtime.CompilerServices;
 namespace FixedMathSharp.Random
 {
     /// <summary>
-    /// Fast, seedable, deterministic RNG suitable for lockstep sims and map gen.
-    /// Uses xoroshiro128++ with splitmix64 seeding. No allocations, no time/GUID.
+    /// Generates pseudorandom values from explicitly seeded xoroshiro128++ state.
     /// </summary>
+    /// <remarks>
+    /// Initialize the generator with a seed before drawing values. A default instance has
+    /// all-zero state, which cannot advance and can cause bounded draws to loop indefinitely.
+    /// Draws mutate the instance, and copying the struct copies the stream at its current position.
+    /// The same seed and draw sequence produce the same values. See <see cref="NextBytes"/>
+    /// for byte order when exchanging byte streams across architectures.
+    /// </remarks>
     public struct DeterministicRandom
     {
         // xoroshiro128++ state
@@ -23,16 +29,12 @@ namespace FixedMathSharp.Random
         #region Construction / Seeding
 
         /// <summary>
-        /// Initializes a new instance of the DeterministicRandom class using the specified seed value.
+        /// Initializes a random stream from a seed.
         /// </summary>
         /// <remarks>
-        /// This constructor expands the provided seed into the internal state required for deterministic random number generation. 
-        /// The generated sequence is fully determined by the seed value.
+        /// The constructor expands the seed into two state words using SplitMix64.
         /// </remarks>
-        /// <param name="seed">
-        /// The initial seed value used to generate the internal state. 
-        /// Using the same seed will produce the same sequence of random numbers.
-        /// </param>
+        /// <param name="seed">Any 64-bit unsigned seed, including zero.</param>
         public DeterministicRandom(ulong seed)
         {
             // Expand a single seed into two 64-bit state words via splitmix64.
@@ -40,10 +42,11 @@ namespace FixedMathSharp.Random
             _s1 = SplitMix64(ref seed);
         }
 
-        /// <summary>
-        /// Create a stream deterministically 
-        /// Derived from (worldSeed, featureKey[,index]).
-        /// </summary>
+        /// <summary>Creates a stream from a world seed, feature key, and index.</summary>
+        /// <param name="worldSeed">The seed shared by features in the world.</param>
+        /// <param name="featureKey">The caller-supplied key for a feature.</param>
+        /// <param name="index">The caller-supplied index within the feature. The default is zero.</param>
+        /// <returns>A seeded stream determined by the three input values.</returns>
         public static DeterministicRandom FromWorldFeature(ulong worldSeed, ulong featureKey, ulong index = 0)
         {
             // Simple reversible mix (swap for a stronger mix if required).
@@ -56,9 +59,8 @@ namespace FixedMathSharp.Random
 
         #region Core PRNG
 
-        /// <summary>
-        /// xoroshiro128++ next 64 bits.
-        /// </summary>
+        /// <summary>Advances the stream by one word.</summary>
+        /// <returns>The next 64-bit unsigned value.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ulong NextU64()
         {
@@ -72,9 +74,8 @@ namespace FixedMathSharp.Random
             return result;
         }
 
-        /// <summary>
-        /// Next non-negative Int32 in [0, int.MaxValue].
-        /// </summary>
+        /// <summary>Draws a nonnegative integer from the stream.</summary>
+        /// <returns>An integer from zero through <see cref="int.MaxValue"/>, inclusive.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Next()
         {
@@ -82,9 +83,10 @@ namespace FixedMathSharp.Random
             return (int)(NextU64() >> 33);
         }
 
-        /// <summary>
-        /// Unbiased int in [0, maxExclusive).
-        /// </summary>
+        /// <summary>Draws a uniformly distributed integer below a positive bound.</summary>
+        /// <param name="maxExclusive">The positive, exclusive upper bound.</param>
+        /// <returns>An integer from zero up to the upper bound, excluding the bound.</returns>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxExclusive"/> is zero or negative. The stream does not advance.</exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Next(int maxExclusive)
         {
@@ -93,9 +95,11 @@ namespace FixedMathSharp.Random
                 : (int)NextBounded((uint)maxExclusive);
         }
 
-        /// <summary>
-        /// Unbiased int in [min, maxExclusive).
-        /// </summary>
+        /// <summary>Draws a uniformly distributed integer from the specified interval.</summary>
+        /// <param name="minInclusive">The inclusive lower bound.</param>
+        /// <param name="maxExclusive">The exclusive upper bound, greater than <paramref name="minInclusive"/>.</param>
+        /// <returns>An integer within the half-open interval.</returns>
+        /// <exception cref="ArgumentException">The lower bound is greater than or equal to the upper bound. The stream does not advance.</exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Next(int minInclusive, int maxExclusive)
         {
@@ -106,9 +110,13 @@ namespace FixedMathSharp.Random
             return minInclusive + (int)NextBounded(range);
         }
 
-        /// <summary>
-        /// Fill span with random bytes.
-        /// </summary>
+        /// <summary>Overwrites a span with random bytes.</summary>
+        /// <param name="buffer">Caller-owned storage. Every byte in the span is replaced.</param>
+        /// <remarks>
+        /// Each full eight-byte block consumes one word and uses native byte order.
+        /// A partial final block consumes one additional word, least significant byte first,
+        /// and discards unused bytes. An empty span leaves the stream position unchanged.
+        /// </remarks>
         public void NextBytes(Span<byte> buffer)
         {
             int i = 0;
@@ -133,9 +141,8 @@ namespace FixedMathSharp.Random
 
         #region Fixed64 helpers
 
-        /// <summary>
-        /// Random Fixed64 in [0,1).
-        /// </summary>
+        /// <summary>Draws a uniformly distributed fixed-point fraction.</summary>
+        /// <returns>A value from zero up to one, excluding one.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Fixed64 NextFixed6401()
         {
@@ -145,9 +152,10 @@ namespace FixedMathSharp.Random
             return Fixed64.FromRaw((long)r);
         }
 
-        /// <summary>
-        /// Random Fixed64 in [0, maxExclusive).
-        /// </summary>
+        /// <summary>Draws uniformly from the representable fixed-point values below a positive bound.</summary>
+        /// <param name="maxExclusive">The positive, exclusive upper bound.</param>
+        /// <returns>A value from zero up to the upper bound, excluding the bound.</returns>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxExclusive"/> is zero or negative. The stream does not advance.</exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Fixed64 NextFixed64(Fixed64 maxExclusive)
         {
@@ -159,9 +167,11 @@ namespace FixedMathSharp.Random
             return Fixed64.FromRaw((long)r);
         }
 
-        /// <summary>
-        /// Random Fixed64 in [minInclusive, maxExclusive).
-        /// </summary>
+        /// <summary>Draws uniformly from the representable fixed-point values in the specified interval.</summary>
+        /// <param name="minInclusive">The inclusive lower bound.</param>
+        /// <param name="maxExclusive">The exclusive upper bound, greater than <paramref name="minInclusive"/>.</param>
+        /// <returns>A value within the half-open interval.</returns>
+        /// <exception cref="ArgumentException">The lower bound is greater than or equal to the upper bound. The stream does not advance.</exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Fixed64 NextFixed64(Fixed64 minInclusive, Fixed64 maxExclusive)
         {

@@ -15,11 +15,12 @@ using MemoryPack;
 namespace FixedMathSharp;
 
 /// <summary>
-/// Represents a Q(64-SHIFT_AMOUNT).SHIFT_AMOUNT fixed-point number.
-/// Provides high precision for fixed-point arithmetic where SHIFT_AMOUNT bits 
-/// are used for the fractional part and (64 - SHIFT_AMOUNT) bits for the integer part.
-/// The precision is determined by SHIFT_AMOUNT, which defines the resolution of fractional values.
+/// Represents a signed Q32.32 fixed-point number.
 /// </summary>
+/// <remarks>
+/// The numeric value is the signed 64-bit raw payload divided by 2³². The range is −2³¹
+/// through 2³¹ minus one raw unit. One raw unit is 2⁻³².
+/// </remarks>
 [Serializable]
 [MemoryPackable]
 public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqualityComparer<Fixed64>, IFormattable
@@ -29,100 +30,77 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
 {
     #region Static Fields
 
-    /// <inheritdoc cref="FixedMath.MAX_VALUE_L" />
+    /// <summary>Gets the largest representable number.</summary>
+    /// <value>2³¹ minus one raw unit.</value>
     public static Fixed64 MaxValue => new(FixedMath.MAX_VALUE_L);
-    /// <inheritdoc cref="FixedMath.MIN_VALUE_L" />
+    /// <summary>Gets the smallest representable number.</summary>
+    /// <value>−2³¹.</value>
     public static Fixed64 MinValue => new(FixedMath.MIN_VALUE_L);
 
-    /// <inheritdoc cref="FixedMath.ONE_L" />
+    /// <summary>Gets the multiplicative identity.</summary>
+    /// <value>Exactly one.</value>
     public static Fixed64 One => new(FixedMath.ONE_L);
-    /// <summary>
-    /// Represents the value -1 shifted left by the number of bits specified by SHIFT_AMOUNT_I.
-    /// </summary>
+    /// <summary>Gets negative one.</summary>
+    /// <value>Exactly −1.</value>
     public static Fixed64 NegOne => -One;
-    /// <summary>
-    /// Represents the value 2 shifted left by the number of bits specified by SHIFT_AMOUNT_I.
-    /// </summary>
+    /// <summary>Gets the number two.</summary>
+    /// <value>Exactly two.</value>
     public static Fixed64 Two => One * 2;
-    /// <summary>
-    /// Represents the value 3 shifted left by the number of bits specified by SHIFT_AMOUNT_I.
-    /// </summary>
+    /// <summary>Gets the number three.</summary>
+    /// <value>Exactly three.</value>
     public static Fixed64 Three => One * 3;
-    /// <summary>
-    /// Represents the value 0.5 shifted left by the number of bits specified by SHIFT_AMOUNT_I.
-    /// </summary>
+    /// <summary>Gets one half.</summary>
+    /// <value>Exactly 0.5.</value>
     public static Fixed64 Half => One / 2;
-    /// <summary>
-    /// Represents the value 0.25 shifted left by the number of bits specified by SHIFT_AMOUNT_I.
-    /// </summary>
+    /// <summary>Gets one quarter.</summary>
+    /// <value>Exactly 0.25.</value>
     public static Fixed64 Quarter => One / 4;
-    /// <summary>
-    /// Represents the value 0.125 shifted left by the number of bits specified by SHIFT_AMOUNT_I.
-    /// </summary>
+    /// <summary>Gets one eighth.</summary>
+    /// <value>Exactly 0.125.</value>
     public static Fixed64 Eighth => One / 8;
-    /// <summary>
-    /// Represents the value 0 as a fixed-point number.
-    /// </summary>
+    /// <summary>Gets the additive identity.</summary>
+    /// <value>Exactly zero.</value>
     public static Fixed64 Zero => new(0);
 
-    /// <inheritdoc cref="FixedMath.PI_LONG" />
+    /// <summary>Gets the fixed-point approximation of π.</summary>
+    /// <value>The canonical angle for half a turn in radians.</value>
     public static Fixed64 Pi => new(FixedMath.PI_LONG);
-    /// <summary>
-    /// Represents the mathematical constant 2π as a fixed-point value.
-    /// </summary>
-    /// <remarks>This value is commonly used to represent a full rotation in radians.</remarks>
+    /// <summary>Gets the fixed-point approximation of 2π.</summary>
+    /// <value>The canonical angle for one turn in radians.</value>
     public static Fixed64 TwoPi => Pi * Two;
-    /// <summary>
-    /// Represents the mathematical constant π divided by 2 as a fixed-point value.
-    /// </summary>
-    /// <remarks>This value is used where π/2 is required.</remarks>
+    /// <summary>Gets the fixed-point approximation of π/2.</summary>
+    /// <value>The canonical angle for one quarter turn in radians.</value>
     public static Fixed64 HalfPi => Pi / new Fixed64(2);
-    /// <summary>
-    /// Represents the mathematical constant π divided by 3 as a fixed-point value.
-    /// </summary>
+    /// <summary>Gets the fixed-point approximation of π/3.</summary>
+    /// <value>An angle of 60 degrees expressed in radians.</value>
     public static Fixed64 PiOver3 => Pi / new Fixed64(3);
-    /// <summary>
-    /// Represents the mathematical constant π divided by 4 as a fixed-point value.
-    /// </summary>
+    /// <summary>Gets the fixed-point approximation of π/4.</summary>
+    /// <value>An angle of 45 degrees expressed in radians.</value>
     public static Fixed64 PiOver4 => Pi / new Fixed64(4);
-    /// <summary>
-    /// Represents the mathematical constant π divided by 6 as a fixed-point value.
-    /// </summary>
+    /// <summary>Gets the fixed-point approximation of π/6.</summary>
+    /// <value>An angle of 30 degrees expressed in radians.</value>
     public static Fixed64 PiOver6 => Pi / new Fixed64(6);
-    /// <summary>
-    /// Represents the multiplicative inverse of the mathematical constant π (pi) as a fixed-point value.
-    /// </summary>
+    /// <summary>Gets the fixed-point approximation of 1/π.</summary>
+    /// <value>The fixed-point reciprocal of <see cref="Pi"/>.</value>
     public static Fixed64 InvertedPi => One / Pi;
-    /// <summary>
-    /// Represents the fixed-point value for 180.
-    /// </summary>
+    /// <summary>Gets the number 180.</summary>
+    /// <value>The number of degrees in half a turn.</value>
     public static Fixed64 OneEighty => new(180);
-    /// <summary>
-    /// Degrees to radians conversion factor (π / 180)
-    /// </summary>
+    /// <summary>Gets the degrees-to-radians scale factor.</summary>
+    /// <value>The rounded ratio of <see cref="Pi"/> to <see cref="OneEighty"/>.</value>
     public static Fixed64 Deg2Rad => Pi / OneEighty;
-    /// <summary>
-    /// Radians to degrees conversion factor (180 / π)
-    /// </summary>
+    /// <summary>Gets the radians-to-degrees scale factor.</summary>
+    /// <value>The rounded ratio of <see cref="OneEighty"/> to <see cref="Pi"/>.</value>
     public static Fixed64 Rad2Deg => OneEighty / Pi;
 
-    /// <inheritdoc cref="FixedMath.LN2_LONG" />
+    /// <summary>Gets the fixed-point approximation of the natural logarithm of two.</summary>
+    /// <value>The fixed-point approximation of ln(2).</value>
     public static Fixed64 Ln2 => new(FixedMath.LN2_LONG);
-    /// <summary>
-    /// Represents the maximum value for the base-2 logarithm that can be represented by a Fixed64 instance.
-    /// </summary>
-    /// <remarks>
-    /// This constant is useful when performing logarithmic calculations to ensure results 
-    /// do not exceed the representable range of the Fixed64 type.
-    /// </remarks>
+    /// <summary>Gets the positive logarithm-related constant.</summary>
+    /// <value>Exactly 63. <see cref="FixedMath.Pow2(Fixed64)"/> returns <see cref="MaxValue"/> for this exponent.</value>
     public static Fixed64 Log2Max => new(63L * FixedMath.ONE_L);
-    /// <summary>
-    /// Represents the minimum base-2 logarithm value supported by the Fixed64 type.
-    /// </summary>
-    /// <remarks>
-    /// This constant can be used as a lower bound when performing logarithmic calculations
-    /// with Fixed64 values to prevent underflow or invalid results.
-    /// </remarks>
+    /// <summary>Gets the negative logarithm-related constant.</summary>
+    /// <value>Exactly −64. <see cref="FixedMath.Pow2(Fixed64)"/> returns <see cref="MinIncrement"/> for this exponent.</value>
     public static Fixed64 Log2Min => new(-64L * FixedMath.ONE_L);
 
     internal static Fixed64 PadeA1 => new(FixedMath.PADE_A1_LONG);
@@ -136,9 +114,11 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
     internal static Fixed64 CosCoeff6 => new(FixedMath.COS_COEFF_6_LONG); // 1/6!
     internal static Fixed64 CosCoeff8 => new(FixedMath.COS_COEFF_8_LONG); // 1/8!
 
-    /// <inheritdoc cref="FixedMath.MIN_INCREMENT_L" />
+    /// <summary>Gets the smallest positive value.</summary>
+    /// <value>2⁻³², or one raw unit.</value>
     public static Fixed64 MinIncrement => new(FixedMath.MIN_INCREMENT_L);
-    /// <inheritdoc cref="FixedMath.DEFAULT_TOLERANCE_L" />
+    /// <summary>Gets the default tolerance for approximate comparisons.</summary>
+    /// <value>2⁻²⁴, or 256 raw units.</value>
     public static Fixed64 Epsilon => new(FixedMath.DEFAULT_TOLERANCE_L);
 
     #endregion
@@ -164,7 +144,7 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
     /// <summary>
     /// Constructs a Fixed64 from an integer, with the fractional part set to zero.
     /// </summary>
-    /// <param name="value">Integer value to convert to </param>
+    /// <param name="value">The signed integer in ordinary numeric units.</param>
     public Fixed64(int value) : this((long)value << FixedMath.SHIFT_AMOUNT_I) { }
 
     #endregion
@@ -178,6 +158,7 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
     /// Unlike the <see cref="operator +(Fixed64, int)"/>, this method performs a simple addition of the integer value 
     /// to the raw fixed-point representation without any overflow checks or saturation behavior.
     /// </remarks>
+    /// <returns>The adjusted copy. The raw sum wraps on overflow.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Fixed64 Offset(int x)
     {
@@ -187,6 +168,7 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
     /// <summary>
     /// Returns the raw value as a string.
     /// </summary>
+    /// <returns>The signed raw Q32.32 payload formatted as a decimal integer using the invariant culture.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public string ToRawString() => m_rawValue.ToString(CultureInfo.InvariantCulture);
 

@@ -13,8 +13,9 @@ namespace FixedMathSharp;
 /// Provides a mutable deterministic transform snapshot with optional hierarchy composition.
 /// </summary>
 /// <remarks>
-/// This engine-neutral shell stores local components and a parent reference only. It does not
-/// own children, scene state, synchronization, caches, or dirty propagation.
+/// Stores local components by value and retains the parent by reference. World-space views
+/// read the current hierarchy each time, so changing an ancestor affects subsequent reads.
+/// Coordinate access and mutation externally when sharing a hierarchy between threads.
 /// </remarks>
 public class FixedTransform
 {
@@ -26,6 +27,10 @@ public class FixedTransform
     /// <summary>
     /// Initializes a transform from authoritative 3D local components.
     /// </summary>
+    /// <param name="localPosition">Translation in the parent's coordinate space, or world space for a root.</param>
+    /// <param name="localRotation">The local orientation. It is normalized before storage.</param>
+    /// <param name="localScale">The signed scale factors along the local X, Y, and Z axes.</param>
+    /// <param name="parent">The retained parent reference, or <see langword="null"/> for a root.</param>
     public FixedTransform(
         Vector3d localPosition,
         FixedQuaternion localRotation,
@@ -41,6 +46,10 @@ public class FixedTransform
     /// <summary>
     /// Initializes an X/Z local transform at zero Y position with unit Y scale.
     /// </summary>
+    /// <param name="localPositionXZ">Local X and Z translation, in that order.</param>
+    /// <param name="localRotationXZRadians">The angle in radians from local +X toward +Z.</param>
+    /// <param name="localScaleXZ">Signed scale factors along the local X and Z axes, in that order.</param>
+    /// <param name="parent">The retained parent reference, or <see langword="null"/> for a root.</param>
     public FixedTransform(
         Vector2d localPositionXZ,
         Fixed64 localRotationXZRadians,
@@ -56,6 +65,7 @@ public class FixedTransform
     /// <summary>
     /// Gets or sets the authoritative local translation.
     /// </summary>
+    /// <value>A position in the parent's coordinate space, or in world space for a root.</value>
     public Vector3d LocalPosition
     {
         get => _localPosition;
@@ -65,6 +75,7 @@ public class FixedTransform
     /// <summary>
     /// Gets or sets the authoritative normalized local rotation.
     /// </summary>
+    /// <value>The local orientation. Assigned values are normalized before storage.</value>
     public FixedQuaternion LocalRotation
     {
         get => _localRotation;
@@ -74,6 +85,7 @@ public class FixedTransform
     /// <summary>
     /// Gets or sets the authoritative exact signed local scale.
     /// </summary>
+    /// <value>The signed scale factors along the local X, Y, and Z axes, including zero.</value>
     public Vector3d LocalScale
     {
         get => _localScale;
@@ -83,6 +95,7 @@ public class FixedTransform
     /// <summary>
     /// Gets or sets the local rotation as Euler angles in degrees.
     /// </summary>
+    /// <value>Pitch, yaw, and roll in degrees in X, Y, and Z, respectively.</value>
     public Vector3d LocalEulerAngles
     {
         get => _localRotation.EulerAngles;
@@ -92,6 +105,7 @@ public class FixedTransform
     /// <summary>
     /// Gets or sets local X/Z position while preserving local Y.
     /// </summary>
+    /// <value>The X and Z components of <see cref="LocalPosition"/>, in that order.</value>
     public Vector2d LocalPositionXZ
     {
         get => _localPosition.ToVector2d();
@@ -101,6 +115,7 @@ public class FixedTransform
     /// <summary>
     /// Gets or sets local X/Z rotation in radians from planar right toward planar forward.
     /// </summary>
+    /// <value>The signed angle in radians from +X to the projection of the rotated +X axis onto X/Z.</value>
     /// <remarks>The setter replaces pitch and roll with a pure Y-axis rotation.</remarks>
     public Fixed64 LocalRotationXZRadians
     {
@@ -115,6 +130,7 @@ public class FixedTransform
     /// <summary>
     /// Gets or sets local X/Z scale while preserving local Y.
     /// </summary>
+    /// <value>The signed X and Z components of <see cref="LocalScale"/>, in that order.</value>
     public Vector2d LocalScaleXZ
     {
         get => _localScale.ToVector2d();
@@ -124,16 +140,19 @@ public class FixedTransform
     /// <summary>
     /// Gets the optional parent transform.
     /// </summary>
+    /// <value>The live parent reference, or <see langword="null"/> for a root.</value>
     public FixedTransform? Parent => _parent;
 
     /// <summary>
     /// Gets the matrix rebuilt from the authoritative local components.
     /// </summary>
+    /// <value>The row-vector matrix that applies local scale, rotation, then translation.</value>
     public Fixed4x4 LocalMatrix => Fixed4x4.CreateTransform(_localPosition, _localRotation, _localScale);
 
     /// <summary>
     /// Gets the iteratively composed local-to-world matrix.
     /// </summary>
+    /// <value>A snapshot of the current hierarchy's row-vector transform. Intermediate entries can saturate.</value>
     /// <remarks>
     /// Row-vector order multiplies this local matrix by its parent local matrix and then each
     /// ancestor local matrix. Reading is linear in hierarchy depth and allocation-free.
@@ -157,6 +176,8 @@ public class FixedTransform
     /// <summary>
     /// Attempts to get the iteratively composed local-to-world matrix without intermediate saturation.
     /// </summary>
+    /// <param name="matrix">The composed row-vector matrix on success, or <see cref="Fixed4x4.Zero"/> on failure.</param>
+    /// <returns><see langword="true"/> if each local matrix and intermediate product is representable.</returns>
     /// <remarks>Failure returns a zero matrix and does not mutate this transform or any ancestor.</remarks>
     public bool TryGetLocalToWorldMatrix(out Fixed4x4 matrix)
     {
@@ -183,6 +204,7 @@ public class FixedTransform
     /// <summary>
     /// Gets world translation from the composed matrix.
     /// </summary>
+    /// <value>The position of the local origin in world space.</value>
     public Vector3d WorldPosition => _parent == null
         ? _localPosition
         : LocalToWorldMatrix.Translation;
@@ -190,6 +212,7 @@ public class FixedTransform
     /// <summary>
     /// Gets the normalized rotational parent-to-child quaternion chain.
     /// </summary>
+    /// <value>The composed orientation in world space, derived from the local rotation quaternions.</value>
     /// <remarks>
     /// This is an orientation chain derived only from stored local quaternions. It is independent
     /// of scale, reflections, and any shear in <see cref="LocalToWorldMatrix"/>, so it is not a
@@ -217,6 +240,7 @@ public class FixedTransform
     /// <summary>
     /// Gets canonical signed lossy scale from the composed matrix.
     /// </summary>
+    /// <value>The world basis row lengths, with negative X for reflected handedness.</value>
     /// <remarks>Zero magnitudes are preserved and reflected handedness is canonicalized to negative X.</remarks>
     public Vector3d LossyScale => _parent == null
         && _localScale.X >= Fixed64.Zero
@@ -228,6 +252,8 @@ public class FixedTransform
     /// <summary>
     /// Attempts to get canonical signed lossy scale from strict hierarchy composition.
     /// </summary>
+    /// <param name="scale">The signed world basis row lengths on success, or <see cref="Vector3d.Zero"/> on failure.</param>
+    /// <returns><see langword="true"/> if composition and the signed lengths are representable.</returns>
     /// <remarks>Failure returns zero and does not mutate this transform or any ancestor.</remarks>
     public bool TryGetLossyScale(out Vector3d scale)
     {
@@ -252,11 +278,13 @@ public class FixedTransform
     /// <summary>
     /// Gets world position projected onto X/Z.
     /// </summary>
+    /// <value>The X and Z components of <see cref="WorldPosition"/>, in that order.</value>
     public Vector2d WorldPositionXZ => WorldPosition.ToVector2d();
 
     /// <summary>
     /// Gets world X/Z rotation in radians from planar right toward planar forward.
     /// </summary>
+    /// <value>The signed angle in radians from world +X to the rotated +X axis projected onto world X/Z.</value>
     public Fixed64 WorldRotationXZRadians
     {
         get
@@ -269,6 +297,8 @@ public class FixedTransform
     /// <summary>
     /// Attempts to get a verified inverse of the composed local-to-world matrix.
     /// </summary>
+    /// <param name="matrix">The world-to-local matrix on success, or <see cref="Fixed4x4.Identity"/> on failure.</param>
+    /// <returns><see langword="true"/> if the hierarchy composes without saturation and its inverse passes verification.</returns>
     /// <remarks>
     /// The inverse candidate must multiply to identity in both orders within
     /// <see cref="FixedMath.CanonicalSinCosErrorBound"/>. Singular, saturated,
@@ -288,6 +318,8 @@ public class FixedTransform
     /// <summary>
     /// Transforms a point from local space to world space through the complete composed affine hierarchy.
     /// </summary>
+    /// <param name="point">The point in local 3D coordinates.</param>
+    /// <returns>The point in world 3D coordinates.</returns>
     /// <exception cref="InvalidOperationException">
     /// The composed transform or final world-space point is not representable.
     /// </exception>
@@ -303,6 +335,9 @@ public class FixedTransform
     /// <summary>
     /// Attempts to transform a point from local space to world space through the complete composed affine hierarchy.
     /// </summary>
+    /// <param name="point">The point in local 3D coordinates.</param>
+    /// <param name="result">The transformed world point on success, or <see cref="Vector3d.Zero"/> on failure.</param>
+    /// <returns><see langword="true"/> if the composed matrix and world point are representable.</returns>
     public bool TryTransformPoint(Vector3d point, out Vector3d result)
     {
         if (!TryGetLocalToWorldMatrix(out Fixed4x4 matrix))
@@ -317,6 +352,8 @@ public class FixedTransform
     /// <summary>
     /// Transforms a point from world space to local space through the complete composed affine hierarchy.
     /// </summary>
+    /// <param name="point">The point in world 3D coordinates.</param>
+    /// <returns>The point in local 3D coordinates.</returns>
     /// <exception cref="InvalidOperationException">
     /// The composed transform is singular or unrepresentable, or the final local-space point is not representable.
     /// </exception>
@@ -332,6 +369,9 @@ public class FixedTransform
     /// <summary>
     /// Attempts to transform a point from world space to local space through the complete composed affine hierarchy.
     /// </summary>
+    /// <param name="point">The point in world 3D coordinates.</param>
+    /// <param name="result">The transformed local point on success, or <see cref="Vector3d.Zero"/> on failure.</param>
+    /// <returns><see langword="true"/> if the world-to-local matrix passes verification and the local point is representable.</returns>
     public bool TryInverseTransformPoint(Vector3d point, out Vector3d result)
     {
         if (!TryGetWorldToLocalMatrix(out Fixed4x4 matrix))
@@ -346,6 +386,8 @@ public class FixedTransform
     /// <summary>
     /// Transforms a point from local X/Z space to world X/Z space through a plane-preserving affine hierarchy.
     /// </summary>
+    /// <param name="point">The point in local X and Z coordinates, in that order.</param>
+    /// <returns>The point in world X and Z coordinates.</returns>
     /// <exception cref="InvalidOperationException">
     /// The hierarchy couples X/Z with Y, or the composed transform or final world-space point is not representable.
     /// </exception>
@@ -361,6 +403,10 @@ public class FixedTransform
     /// <summary>
     /// Attempts to transform a point from local X/Z space to world X/Z space through a plane-preserving affine hierarchy.
     /// </summary>
+    /// <param name="point">The point in local X and Z coordinates, in that order.</param>
+    /// <param name="result">The world X/Z point on success, or <see cref="Vector2d.Zero"/> on failure.</param>
+    /// <returns><see langword="true"/> if the hierarchy composes without saturation, X/Z is uncoupled from Y, and the point is representable.</returns>
+    /// <remarks>The planar mapping uses only the X/Z basis and translation. It ignores Y translation and scale.</remarks>
     public bool TryTransformPointXZ(Vector2d point, out Vector2d result)
     {
         if (!TryGetPlanarXZMatrix(out Fixed4x4 matrix)
@@ -380,8 +426,11 @@ public class FixedTransform
     /// <summary>
     /// Transforms a point from world X/Z space to local X/Z space through a plane-preserving affine hierarchy.
     /// </summary>
+    /// <param name="point">The point in world X and Z coordinates, in that order.</param>
+    /// <returns>The point in local X and Z coordinates.</returns>
     /// <exception cref="InvalidOperationException">
-    /// The hierarchy couples X/Z with Y, is singular or unrepresentable, or the final local-space point is not representable.
+    /// The hierarchy couples X/Z with Y or cannot be composed without saturation, the planar
+    /// mapping has no verified inverse, or the final local X/Z coordinates are unrepresentable.
     /// </exception>
     public Vector2d InverseTransformPointXZ(Vector2d point)
     {
@@ -395,6 +444,10 @@ public class FixedTransform
     /// <summary>
     /// Attempts to transform a point from world X/Z space to local X/Z space through a plane-preserving affine hierarchy.
     /// </summary>
+    /// <param name="point">The point in world X and Z coordinates, in that order.</param>
+    /// <param name="result">The local X/Z point on success, or <see cref="Vector2d.Zero"/> on failure.</param>
+    /// <returns><see langword="true"/> if the hierarchy composes without saturation, its uncoupled X/Z mapping has a verified inverse, and the point is representable.</returns>
+    /// <remarks>The inverse is verified for the planar mapping, independent of Y translation and scale.</remarks>
     public bool TryInverseTransformPointXZ(Vector2d point, out Vector2d result)
     {
         if (!TryGetPlanarXZMatrix(out Fixed4x4 matrix)
@@ -415,6 +468,7 @@ public class FixedTransform
     /// <summary>
     /// Changes the parent without changing any local component.
     /// </summary>
+    /// <param name="parent">The new parent reference to retain, or <see langword="null"/> to make this a root.</param>
     /// <exception cref="ArgumentException">The proposed parent would create a cycle.</exception>
     public void SetParentKeepingLocal(FixedTransform? parent)
     {
@@ -428,6 +482,11 @@ public class FixedTransform
     /// <summary>
     /// Attempts to change the parent while preserving the complete world matrix.
     /// </summary>
+    /// <param name="parent">The new parent reference to retain on success, or <see langword="null"/> to make this a root.</param>
+    /// <returns>
+    /// <see langword="true"/> if the parent was already assigned or the world matrix was
+    /// reproduced within <see cref="Fixed64.Epsilon"/> per entry with the new parent.
+    /// </returns>
     /// <remarks>Failure leaves the parent and every local component unchanged.</remarks>
     /// <exception cref="ArgumentException">The proposed parent would create a cycle.</exception>
     public bool TrySetParentKeepingWorld(FixedTransform? parent)
@@ -474,6 +533,8 @@ public class FixedTransform
     /// <summary>
     /// Attempts to set world position through the verified parent inverse.
     /// </summary>
+    /// <param name="position">The requested position in world space.</param>
+    /// <returns><see langword="true"/> for a root, or if the parent matrix has a verified inverse and recomposition matches within <see cref="Fixed64.Epsilon"/> per component.</returns>
     /// <remarks>Failure leaves local position unchanged.</remarks>
     public bool TrySetWorldPosition(Vector3d position)
     {
@@ -496,8 +557,11 @@ public class FixedTransform
     }
 
     /// <summary>
-    /// Attempts to set world position and normalized world rotation atomically.
+    /// Attempts to apply world position and normalized world rotation together.
     /// </summary>
+    /// <param name="position">The requested position in world space.</param>
+    /// <param name="rotation">The requested world orientation, normalized before computing local rotation.</param>
+    /// <returns><see langword="true"/> if both components were applied. Position uses the same acceptance test as <see cref="TrySetWorldPosition"/>.</returns>
     /// <remarks>
     /// Relative rotation is derived from the parent's stored rotational hierarchy, independent
     /// of scale and shear. Failure leaves both local position and local rotation unchanged.
@@ -531,6 +595,10 @@ public class FixedTransform
     /// <summary>
     /// Attempts to create a transform from a strict, nonsingular local TRS matrix.
     /// </summary>
+    /// <param name="localMatrix">A local row-vector matrix for scale, then rotation, then translation.</param>
+    /// <param name="transform">The newly constructed transform on success, or <see langword="null"/> on failure.</param>
+    /// <param name="parent">The parent reference to retain on success, or <see langword="null"/> for a root.</param>
+    /// <returns><see langword="true"/> if the supplied local matrix can be decomposed into representable components within tolerance.</returns>
     /// <remarks>
     /// Uses <see cref="Fixed4x4.Decompose"/>'s normalized-basis tolerance and scale-dependent
     /// reconstruction bound. Perspective, shear, singular and unrepresentable inputs return null and false.

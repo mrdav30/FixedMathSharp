@@ -16,6 +16,17 @@ public static partial class FixedConvex2dRelations
     /// Tests exact closed contact of an upright capsule with a convex polygon,
     /// including tangency and zero-radius axis contact.
     /// </summary>
+    /// <param name="center">The center in the query coordinate space.</param>
+    /// <param name="axisLength">The full nonnegative length of the central segment. Zero makes the core a point.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="convexOrigin">The polygon frame's origin in world coordinates.</param>
+    /// <param name="convexVertexOffsets">
+    /// At least three polygon offsets in boundary order, in either winding. The span is read during the call.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the query finds closed overlap or tangency and <see langword="false"/>
+    /// otherwise.
+    /// </returns>
     /// <remarks>
     /// Uses the same shape and polygon preconditions as
     /// <see cref="IntersectsSweptUprightCapsuleStrict"/>, but tests one stationary
@@ -37,6 +48,18 @@ public static partial class FixedConvex2dRelations
     /// Tests whether an upright capsule swept continuously between two centers
     /// overlaps a convex polygon's interior, excluding boundary-only contact.
     /// </summary>
+    /// <param name="startCenter">The start center in the query coordinate space.</param>
+    /// <param name="endCenter">The end center in the query coordinate space.</param>
+    /// <param name="axisLength">The full nonnegative length of the central segment. Zero makes the core a point.</param>
+    /// <param name="radius">The nonnegative radius in coordinate units.</param>
+    /// <param name="convexOrigin">The polygon frame's origin in world coordinates.</param>
+    /// <param name="convexVertexOffsets">
+    /// At least three polygon offsets in boundary order, in either winding. The span is read during the call.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the query finds strict overlap somewhere along the sweep and
+    /// <see langword="false"/> otherwise.
+    /// </returns>
     /// <remarks>
     /// The capsule axis is parallel to <see cref="Vector2d.Forward"/>. Its total
     /// height is axis length plus twice radius; zero axis length is a circle.
