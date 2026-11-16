@@ -96,10 +96,7 @@ internal static partial class WideFiniteAxisIntersection
                 height,
                 radius)
             : -localAxisDirection;
-        _ = frameRotation.TryRotate(
-            localNormal,
-            out Vector3d rotatedNormal);
-        outwardNormal = WideNormalization.GetNormalized(rotatedNormal);
+        outwardNormal = RotateSurfaceNormal(frameRotation, localNormal);
         return surfaceAnchor;
     }
 

@@ -37,6 +37,13 @@ its own forward/back convention.
 Quaternion angle factories accept the complete finite `Fixed64` domain.
 Trigonometric functions reduce multi-turn radian inputs deterministically.
 
+Use `FixedQuaternion.Identity` for an unchanged orientation.
+`default(FixedQuaternion)` has four zero components and is invalid as a
+rotation. Checked quaternion rotation and point transforms return `false` and
+clear their output for zero. Direct rotation and orientation conversions throw
+on zero. The explicit `Normalized` property retains its identity fallback for
+callers that choose to normalize an all-zero value.
+
 `FixedQuaternion.FromAxisAngle` and `AngleAxis` normalize any nonzero finite
 axis with a scale-safe path. A zero axis returns `FixedQuaternion.Identity`.
 Degree factories use the same rotation path after deterministic conversion to
@@ -53,9 +60,7 @@ Vector3d localWorldForward = quarterTurn.GetWorldForwardInLocalFrame(); // -X
 
 `GetForwardDirection()` applies the rotation to the object's local `+Z` axis.
 `GetWorldForwardInLocalFrame()` expresses canonical world `+Z` in the object's
-local axes. Replace calls to `ToDirection()` with
-`GetWorldForwardInLocalFrame()` to keep the same inverse result. `ToDirection()`
-remains callable and emits a deprecation warning with the replacement name.
+local axes.
 
 `Vector3d.Angle(from, to)` estimates the smaller angle in degrees. When a
 squared length or the product of squared lengths reaches the fixed-point range

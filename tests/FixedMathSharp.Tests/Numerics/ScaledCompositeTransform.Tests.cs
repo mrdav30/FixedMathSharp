@@ -37,7 +37,7 @@ public sealed class ScaledCompositeTransformTests
     }
 
     [Fact]
-    public void QuaternionTransform_IsAtomicAndPreservesZeroQuaternionContract()
+    public void QuaternionTransform_IsAtomicAndRejectsZeroQuaternion()
     {
         Vector3d extreme = new(
             Fixed64.MaxValue,
@@ -51,13 +51,16 @@ public sealed class ScaledCompositeTransformTests
             out Vector3d rejected));
         Assert.Equal(default, rejected);
 
-        Assert.True(FixedQuaternion.Zero.TryTransformScaledPoint(
+        Assert.False(FixedQuaternion.Zero.TryTransformScaledPoint(
             extreme,
             extreme,
             new Vector3d(2, 1, 1),
             Vector3d.One,
             out Vector3d zeroRotation));
-        Assert.Equal(extreme, zeroRotation);
+        Assert.Equal(default, zeroRotation);
+        Assert.False(FixedQuaternion.Zero.TryTransformScaledPoint(
+            extreme, Vector3d.Zero, Vector3d.One, out zeroRotation));
+        Assert.Equal(default, zeroRotation);
     }
 
     [Fact]

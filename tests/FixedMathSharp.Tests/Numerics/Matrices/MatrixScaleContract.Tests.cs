@@ -360,9 +360,11 @@ public class MatrixScaleContractTests
     }
 
     [Fact]
-    public void ToMatrix3x3_ZeroReturnsIdentity()
+    public void RotationMatrixFactories_RejectZeroQuaternion()
     {
-        Assert.Equal(Fixed3x3.Identity, FixedQuaternion.Zero.ToMatrix3x3());
+        Assert.Throws<InvalidOperationException>(() => FixedQuaternion.Zero.ToMatrix3x3());
+        Assert.Throws<InvalidOperationException>(() => Fixed4x4.CreateRotation(FixedQuaternion.Zero));
+        Assert.Throws<InvalidOperationException>(() => Fixed4x4.CreateTransform(Vector3d.Zero, FixedQuaternion.Zero, Vector3d.One));
     }
 
     [Fact]
@@ -479,7 +481,7 @@ public class MatrixScaleContractTests
 
     public static IEnumerable<object[]> StrictQuaternionNormalizationSafetyCases()
     {
-        yield return new object[] { "zero", FixedQuaternion.Zero };
+        yield return new object[] { "identity", FixedQuaternion.Identity };
         yield return new object[]
         {
             "tiny",

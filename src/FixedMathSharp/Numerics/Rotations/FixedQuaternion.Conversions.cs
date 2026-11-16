@@ -21,6 +21,7 @@ public partial struct FixedQuaternion
     /// <summary>Converts this rotation to YXZ Euler angles.</summary>
     /// <returns>Pitch about X, yaw about Y, and roll about Z, in degrees and stored in X, Y, Z order.</returns>
     /// <remarks>The extraction corresponds to the composition <c>qy * qx * qz</c>. At gimbal lock, the method sets roll to zero and chooses a corresponding yaw.</remarks>
+    /// <exception cref="InvalidOperationException">This quaternion is zero.</exception>
     public Vector3d ToEulerAngles()
     {
         Fixed3x3 m = ToMatrix3x3();
@@ -62,39 +63,39 @@ public partial struct FixedQuaternion
 
     /// <summary>Gets this rotation's local forward axis in world coordinates.</summary>
     /// <returns>The rotated <see cref="Vector3d.Forward"/> direction.</returns>
-    /// <remarks>Uses <see cref="Rotate(Vector3d)"/>. A zero quaternion returns canonical forward.</remarks>
+    /// <remarks>Uses <see cref="Rotate(Vector3d)"/>.</remarks>
+    /// <exception cref="InvalidOperationException">This quaternion is zero.</exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector3d GetForwardDirection() => Rotate(Vector3d.Forward);
 
     /// <summary>Expresses canonical world forward in this rotation's local axes.</summary>
     /// <returns>For a unit quaternion, the inverse-rotated <see cref="Vector3d.Forward"/> direction.</returns>
-    /// <remarks>The formula uses the supplied components directly. Normalize nonunit quaternions before using the result as a rotation direction. Zero returns canonical forward.</remarks>
+    /// <remarks>The formula uses the supplied components directly. Normalize nonunit quaternions before using the result as a rotation direction.</remarks>
+    /// <exception cref="InvalidOperationException">This quaternion is zero.</exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Vector3d GetWorldForwardInLocalFrame() =>
-        new(2 * (X * Z - W * Y),
+    public Vector3d GetWorldForwardInLocalFrame()
+    {
+        ThrowIfZeroRotation();
+        return new(2 * (X * Z - W * Y),
             2 * (Y * Z + W * X),
             Fixed64.One - 2 * (X * X + Y * Y));
-
-    /// <inheritdoc cref="GetWorldForwardInLocalFrame()"/>
-    [Obsolete("Use " + nameof(GetWorldForwardInLocalFrame) + "() instead.")]
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Vector3d ToDirection() => GetWorldForwardInLocalFrame();
+    }
 
     /// <summary>
     /// Converts the quaternion into a 3x3 rotation matrix.
     /// </summary>
     /// <remarks>
-    /// Every nonzero scalar multiple represents the same rotation. The zero
-    /// quaternion converts to <see cref="Fixed3x3.Identity"/>.
+    /// Every nonzero scalar multiple represents the same rotation.
     /// </remarks>
     /// <returns>A FixedMatrix3x3 representing the same rotation as the quaternion.</returns>
+    /// <exception cref="InvalidOperationException">This quaternion is zero.</exception>
     public Fixed3x3 ToMatrix3x3()
     {
         Fixed64 componentScale = FixedMath.Max(
             FixedMath.Max(X.Abs(), Y.Abs()),
             FixedMath.Max(Z.Abs(), W.Abs()));
         if (componentScale == Fixed64.Zero)
-            return Fixed3x3.Identity;
+            throw new InvalidOperationException("A zero quaternion cannot represent a rotation. Use FixedQuaternion.Identity for an unchanged orientation.");
 
         Fixed64 x = X;
         Fixed64 y = Y;

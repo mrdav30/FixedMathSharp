@@ -39,36 +39,6 @@ Work that requires staged implementation belongs in a focused feature-work plan.
 
 No active issues.
 
-## Numeric API review from FMS-Issue-041 triage
-
-- Preserve the two integer conversions. `ToInt(-Fixed64.Half)` gives `-1` by
-  flooring, and `(int)(-Fixed64.Half)` gives `0` by truncating toward zero. Both
-  rounding policies are useful and already documented.
-  [Conversion contracts](../../src/FixedMathSharp/Numerics/Scalars/Fixed64.Conversions.cs)
-- Preserve the reflection precondition and the cross-product signs.
-  `Reflect(Right, (2, 0, 0))` gives `(-7, 0, 0)` under the supplied-normal
-  formula, and a unit `Right` normal gives `(-1, 0, 0)`. The signed 2D
-  determinant of `Forward, Right` is `-1`. In 3D, `Up × Right` is `-Forward` and
-  its component sum is `-1`.
-  [Reflection and 3D cross product](../../src/FixedMathSharp/Numerics/Vectors/Vector3d.Statics.cs),
-  [2D determinant](../../src/FixedMathSharp/Numerics/Vectors/Vector2d.cs)
-- **Direction API:** `GetForwardDirection()` returns local forward in world
-  axes. `GetWorldForwardInLocalFrame()` returns canonical world forward in local
-  axes. A positive quarter turn about `Up` gives `+X` and `-X`, respectively.
-  `ToDirection()` remains an obsolete forwarding alias for
-  `GetWorldForwardInLocalFrame()`, preserving its existing inverse result.
-  [Direction contract and migration](../api/guides/coordinate-conventions.md#rotations-and-angles)
-- **Proposed zero quaternion contract:** `Identity` represents an unchanged
-  direction. `Zero` and `default(FixedQuaternion)` are invalid rotations.
-  Checked rotation and point transforms would return `false` with a default
-  result for zero, and a throwing rotation would report the invalid receiver.
-  Currently `Zero.Rotate(Forward)` gives `Forward`, `Zero.TryRotate` succeeds
-  with zero, and `Zero.TryTransformPoint` succeeds with the origin. Audit
-  default initialization and callers that discard `Try*` results before changing
-  these contracts together.
-  [Rotation and transform methods](../../src/FixedMathSharp/Numerics/Rotations/FixedQuaternion.cs),
-  [zero regression](../../tests/FixedMathSharp.Tests/Numerics/Rotations/FixedQuaternion.Tests.cs)
-
 ## Resolved Issues
 
 Historical rows come from committed tracker entries and linked completion

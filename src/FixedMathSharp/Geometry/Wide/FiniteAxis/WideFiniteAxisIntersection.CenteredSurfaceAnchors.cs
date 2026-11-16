@@ -5,6 +5,8 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
+using System;
+
 namespace FixedMathSharp.Geometry;
 
 /// <content>
@@ -93,10 +95,7 @@ internal static partial class WideFiniteAxisIntersection
         contained = axisAnchor.CompareSquaredDistance(
             pointAnchor,
             surfaceAnchor) <= 0;
-        _ = frameRotation.TryRotate(
-            localSurfaceDirection,
-            out Vector3d rotatedNormal);
-        outwardNormal = WideNormalization.GetNormalized(rotatedNormal);
+        outwardNormal = RotateSurfaceNormal(frameRotation, localSurfaceDirection);
         return surfaceAnchor;
     }
 
@@ -309,12 +308,16 @@ internal static partial class WideFiniteAxisIntersection
                 : (cap > 0 || relation.Projection.Sign >= 0
                     ? localAxisDirection
                     : -localAxisDirection);
-            _ = frameRotation.TryRotate(
-                localNormal,
-                out Vector3d rotatedNormal);
-            outwardNormal = WideNormalization.GetNormalized(rotatedNormal);
+            outwardNormal = RotateSurfaceNormal(frameRotation, localNormal);
         }
         return surfaceAnchor;
+    }
+
+    private static Vector3d RotateSurfaceNormal(FixedQuaternion rotation, Vector3d localNormal)
+    {
+        if (!rotation.TryRotate(localNormal, out Vector3d rotatedNormal))
+            throw new InvalidOperationException("The local surface normal cannot be rotated.");
+        return WideNormalization.GetNormalized(rotatedNormal);
     }
 
     private static bool TryGetSignedSurfaceDistance(

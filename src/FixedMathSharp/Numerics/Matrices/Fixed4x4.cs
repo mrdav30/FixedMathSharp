@@ -440,6 +440,7 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>, IFormattable
     /// <param name="translation">The translation vector.</param>
     /// <param name="scale">The scale vector.</param>
     /// <param name="rotation">The rotation quaternion.</param>
+    /// <exception cref="InvalidOperationException"><paramref name="rotation"/> is zero. The matrix remains unchanged.</exception>
     public void SetTransform(Vector3d translation, FixedQuaternion rotation, Vector3d scale) =>
         this = CreateTransform(translation, rotation, scale);
 

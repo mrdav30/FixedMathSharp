@@ -49,8 +49,9 @@ public static class Fixed4x4Extensions
 
     /// <summary>Replaces the matrix's upper-left rotation basis in place.</summary>
     /// <param name="matrix">The matrix to update, retaining its unsigned basis scale and translation.</param>
-    /// <param name="rotation">The new orientation. A zero quaternion represents identity.</param>
+    /// <param name="rotation">The new orientation.</param>
     /// <returns>The updated matrix value.</returns>
+    /// <exception cref="System.InvalidOperationException"><paramref name="rotation"/> is zero.</exception>
     public static Fixed4x4 SetRotation(this ref Fixed4x4 matrix, FixedQuaternion rotation) =>
         matrix = Fixed4x4.SetRotation(matrix, rotation);
 

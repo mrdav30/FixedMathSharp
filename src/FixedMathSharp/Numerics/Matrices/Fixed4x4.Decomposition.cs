@@ -296,11 +296,12 @@ public partial struct Fixed4x4
     /// <param name="matrix">The matrix to modify. The rotation will replace the upper-left 3x3 portion of the matrix.</param>
     /// <param name="rotation">The quaternion representing the new rotation to apply.</param>
     /// <remarks>
-    /// Quaternion magnitude does not affect the replacement rotation; zero
-    /// represents identity. This method preserves the matrix's translation
+    /// Quaternion magnitude does not affect the replacement rotation for a nonzero quaternion.
+    /// This method preserves the matrix's translation
     /// component. For complete transformation updates, use <see cref="SetTransform"/>.
     /// </remarks>
     /// <returns>A copy with the new rotation rows scaled by the original unsigned basis magnitudes.</returns>
+    /// <exception cref="System.InvalidOperationException"><paramref name="rotation"/> is zero.</exception>
     public static Fixed4x4 SetRotation(Fixed4x4 matrix, FixedQuaternion rotation)
     {
         Fixed3x3 rotationMatrix = rotation.ToMatrix3x3();

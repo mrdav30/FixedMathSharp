@@ -31,12 +31,14 @@ public class FixedTransform
     /// <param name="localRotation">The local orientation. It is normalized before storage.</param>
     /// <param name="localScale">The signed scale factors along the local X, Y, and Z axes.</param>
     /// <param name="parent">The retained parent reference, or <see langword="null"/> for a root.</param>
+    /// <exception cref="ArgumentException"><paramref name="localRotation"/> is zero.</exception>
     public FixedTransform(
         Vector3d localPosition,
         FixedQuaternion localRotation,
         Vector3d localScale,
         FixedTransform? parent = null)
     {
+        FixedQuaternion.ValidateRotationArgument(localRotation, nameof(localRotation));
         _localPosition = localPosition;
         _localRotation = localRotation.Normalized;
         _localScale = localScale;
@@ -76,10 +78,15 @@ public class FixedTransform
     /// Gets or sets the authoritative normalized local rotation.
     /// </summary>
     /// <value>The local orientation. Assigned values are normalized before storage.</value>
+    /// <exception cref="ArgumentException">The assigned quaternion is zero.</exception>
     public FixedQuaternion LocalRotation
     {
         get => _localRotation;
-        set => _localRotation = value.Normalized;
+        set
+        {
+            FixedQuaternion.ValidateRotationArgument(value, nameof(value));
+            _localRotation = value.Normalized;
+        }
     }
 
     /// <summary>
@@ -561,13 +568,16 @@ public class FixedTransform
     /// </summary>
     /// <param name="position">The requested position in world space.</param>
     /// <param name="rotation">The requested world orientation, normalized before computing local rotation.</param>
-    /// <returns><see langword="true"/> if both components were applied. Position uses the same acceptance test as <see cref="TrySetWorldPosition"/>.</returns>
+    /// <returns><see langword="true"/> if both components were applied. A zero rotation returns <see langword="false"/>.</returns>
     /// <remarks>
+    /// Position uses the same acceptance test as <see cref="TrySetWorldPosition"/>.
     /// Relative rotation is derived from the parent's stored rotational hierarchy, independent
     /// of scale and shear. Failure leaves both local position and local rotation unchanged.
     /// </remarks>
     public bool TrySetWorldPose(Vector3d position, FixedQuaternion rotation)
     {
+        if (rotation == FixedQuaternion.Zero)
+            return false;
         FixedQuaternion normalizedRotation = rotation.Normalized;
         if (_parent == null)
         {

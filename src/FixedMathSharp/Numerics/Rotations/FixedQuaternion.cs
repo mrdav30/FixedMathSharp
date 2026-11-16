@@ -141,6 +141,7 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>, IFormattabl
     /// Returns the Euler angles (in degrees) of this quaternion.
     /// </summary>
     /// <value>Pitch, yaw, and roll in degrees in X, Y, and Z order. Setting it replaces this quaternion with the corresponding normalized YXZ composition.</value>
+    /// <exception cref="InvalidOperationException">The getter is called on a zero quaternion.</exception>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Vector3d EulerAngles
@@ -248,9 +249,11 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>, IFormattabl
     /// Rotates a vector by this quaternion.
     /// </summary>
     /// <param name="v">The vector expressed in the input frame.</param>
-    /// <returns>The rotated vector using the normalized quaternion and fixed-point quaternion products. A zero quaternion returns the input vector.</returns>
+    /// <returns>The rotated vector using the normalized quaternion and fixed-point quaternion products.</returns>
+    /// <exception cref="InvalidOperationException">This quaternion is zero.</exception>
     public Vector3d Rotate(Vector3d v)
     {
+        ThrowIfZeroRotation();
         FixedQuaternion normalizedQuat = Normalized;
         FixedQuaternion vQuat = new(v.X, v.Y, v.Z, Fixed64.Zero);
         FixedQuaternion invQuat = normalizedQuat.Conjugate();
@@ -263,19 +266,19 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>, IFormattabl
     /// scale-invariant rational basis.
     /// </summary>
     /// <returns>
-    /// <see langword="true"/> when every final component is representable;
+    /// <see langword="true"/> when the quaternion is nonzero and every final component is representable;
     /// otherwise, <see langword="false"/> and <paramref name="result"/> is
     /// <see langword="default"/>.
     /// </returns>
     /// <param name="vector">The vector expressed in the input frame.</param>
     /// <param name="result">The rounded rotated vector on success, or the zero vector on failure.</param>
-    /// <remarks>A zero quaternion succeeds with the zero vector. Each component is rounded once after the complete linear combination.</remarks>
+    /// <remarks>Each component is rounded once after the complete linear combination.</remarks>
     public bool TryRotate(Vector3d vector, out Vector3d result)
     {
         if (this == Zero)
         {
             result = Vector3d.Zero;
-            return true;
+            return false;
         }
 
         return WideOrientedBox.TryTransformLocalOffset(
@@ -288,14 +291,10 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>, IFormattabl
     /// Attempts to transform a local point by this rotation and a world origin
     /// with one final round-half-to-even conversion per component.
     /// </summary>
-    /// <remarks>
-    /// The zero quaternion preserves the legacy rotation contract and returns
-    /// <paramref name="origin"/>.
-    /// </remarks>
     /// <param name="origin">The world-space origin of the local frame.</param>
     /// <param name="localPoint">The point expressed in the local frame.</param>
     /// <param name="result">The world-space point on success, or the zero vector on failure.</param>
-    /// <returns><see langword="true"/> if every final world coordinate is representable, otherwise <see langword="false"/>.</returns>
+    /// <returns><see langword="true"/> if this quaternion is nonzero and every final coordinate is representable.</returns>
     public bool TryTransformPoint(
         Vector3d origin,
         Vector3d localPoint,
@@ -303,8 +302,8 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>, IFormattabl
     {
         if (this == Zero)
         {
-            result = origin;
-            return true;
+            result = default;
+            return false;
         }
         if (this == Identity)
             return Vector3d.TryAdd(origin, localPoint, out result);
@@ -320,15 +319,11 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>, IFormattabl
     /// Attempts to transform a local point by this rotation and add two world
     /// origins with one final round-half-to-even conversion per component.
     /// </summary>
-    /// <remarks>
-    /// The zero quaternion preserves the legacy rotation contract and returns
-    /// the exact sum of the two origins.
-    /// </remarks>
     /// <param name="firstOrigin">The first translation in world coordinates.</param>
     /// <param name="secondOrigin">The second translation in world coordinates.</param>
     /// <param name="localPoint">The point expressed in the local frame.</param>
     /// <param name="result">The world-space point on success, or the zero vector on failure.</param>
-    /// <returns><see langword="true"/> if every final world coordinate is representable, otherwise <see langword="false"/>.</returns>
+    /// <returns><see langword="true"/> if this quaternion is nonzero and every final coordinate is representable.</returns>
     public bool TryTransformPoint(
         Vector3d firstOrigin,
         Vector3d secondOrigin,
@@ -337,12 +332,8 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>, IFormattabl
     {
         if (this == Zero)
         {
-            return Vector3d.TrySubtractSums(
-                firstOrigin,
-                secondOrigin,
-                Vector3d.Zero,
-                Vector3d.Zero,
-                out result);
+            result = default;
+            return false;
         }
 
         return WideOrientedBox.TryMaterializeLocalPoint(
@@ -362,8 +353,8 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>, IFormattabl
     /// <param name="secondOrigin">The second frame’s world-space origin.</param>
     /// <param name="secondLocalPoint">The second point offset before applying this rotation.</param>
     /// <param name="result">The rounded difference between the two world-space points on success, or the zero vector on failure.</param>
-    /// <returns><see langword="true"/> if every final component is representable, otherwise <see langword="false"/>.</returns>
-    /// <remarks>A zero quaternion treats the rotated second point as zero. Intermediates remain wide until the final difference is rounded.</remarks>
+    /// <returns><see langword="true"/> if this quaternion is nonzero and every final component is representable.</returns>
+    /// <remarks>Intermediates remain wide until the final difference is rounded.</remarks>
     public bool TryGetRelativeOffset(
         Vector3d firstOrigin,
         Vector3d firstOffset,
@@ -373,12 +364,8 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>, IFormattabl
     {
         if (this == Zero)
         {
-            return Vector3d.TrySubtractSums(
-                firstOrigin,
-                firstOffset,
-                secondOrigin,
-                Vector3d.Zero,
-                out result);
+            result = default;
+            return false;
         }
         if (this == Identity)
         {
@@ -406,9 +393,11 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>, IFormattabl
     /// <param name="cos">The cosine of the same angle.</param>
     /// <param name="axis">The rotation axis. Null selects <see cref="Vector3d.Up"/>.</param>
     /// <returns>The additional rotation multiplied on the left of this quaternion.</returns>
+    /// <exception cref="InvalidOperationException">This quaternion is zero.</exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public FixedQuaternion Rotated(Fixed64 sin, Fixed64 cos, Vector3d? axis = null)
     {
+        ThrowIfZeroRotation();
         Vector3d rotateAxis = axis ?? Vector3d.Up;
 
         // The rotation angle is the arc tangent of sin and cos
@@ -419,6 +408,20 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>, IFormattabl
 
         // Apply the rotation and return the result
         return rotationQuat * this;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void ThrowIfZeroRotation()
+    {
+        if (this == Zero)
+            throw new InvalidOperationException("A zero quaternion cannot represent a rotation. Use FixedQuaternion.Identity for an unchanged orientation.");
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static void ValidateRotationArgument(FixedQuaternion rotation, string parameterName)
+    {
+        if (rotation == Zero)
+            throw new ArgumentException("A zero quaternion cannot represent a rotation. Use FixedQuaternion.Identity for an unchanged orientation.", parameterName);
     }
 
     #endregion

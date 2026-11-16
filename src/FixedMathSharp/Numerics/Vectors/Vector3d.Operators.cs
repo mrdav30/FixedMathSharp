@@ -5,6 +5,7 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
+using System;
 using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp;
@@ -266,6 +267,7 @@ public partial struct Vector3d
     /// <param name="point">The 3D point to be rotated.</param>
     /// <param name="rotation">The quaternion representing the rotation to apply.</param>
     /// <returns>A new Vector3d representing the rotated point.</returns>
+    /// <exception cref="ArgumentException"><paramref name="rotation"/> is zero.</exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d operator *(Vector3d point, FixedQuaternion rotation) => rotation * point;
 
@@ -273,6 +275,7 @@ public partial struct Vector3d
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d operator *(FixedQuaternion rotation, Vector3d point)
     {
+        FixedQuaternion.ValidateRotationArgument(rotation, nameof(rotation));
         Fixed64 num1 = rotation.X * 2;
         Fixed64 num2 = rotation.Y * 2;
         Fixed64 num3 = rotation.Z * 2;

@@ -662,11 +662,7 @@ public class FixedQuaternionTests
         var quaternion = FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.HalfPi);
 
         Assert.True(quaternion.GetForwardDirection().FuzzyEqual(Vector3d.Right));
-        Vector3d localForward = quaternion.GetWorldForwardInLocalFrame();
-        Assert.True(localForward.FuzzyEqual(Vector3d.Left));
-#pragma warning disable CS0618 // Verify that the obsolete alias preserves the inverse result.
-        Assert.Equal(localForward, quaternion.ToDirection());
-#pragma warning restore CS0618
+        Assert.True(quaternion.GetWorldForwardInLocalFrame().FuzzyEqual(Vector3d.Left));
     }
 
     [Fact]
@@ -936,7 +932,7 @@ public class FixedQuaternionTests
         Assert.True(quaternion.TryRotate(Vector3d.Right, out Vector3d rotated));
         Assert.True(rotated.FuzzyEqual(Vector3d.Up, Fixed64.FromRaw(2)));
 
-        Assert.True(FixedQuaternion.Zero.TryRotate(
+        Assert.False(FixedQuaternion.Zero.TryRotate(
             new Vector3d(Fixed64.MaxValue, Fixed64.MaxValue, Fixed64.MaxValue),
             out Vector3d zero));
         Assert.Equal(Vector3d.Zero, zero);
@@ -1043,38 +1039,25 @@ public class FixedQuaternionTests
     }
 
     [Fact]
-    public void FixedQuaternion_ExactPointOperations_PreserveZeroQuaternionContract()
+    public void FixedQuaternion_RotationEntryPoints_RejectZeroQuaternion()
     {
-        Vector3d origin = new(
-            Fixed64.MaxValue,
-            Fixed64.MinValue,
-            Fixed64.One);
+        FixedQuaternion zero = default;
+        Vector3d point = Vector3d.Right;
+        Vector3d origin = Vector3d.One;
+        Assert.Throws<InvalidOperationException>(() => zero.Rotate(point));
+        Assert.Throws<InvalidOperationException>(() => zero.GetForwardDirection());
+        Assert.Throws<InvalidOperationException>(() => zero.GetWorldForwardInLocalFrame());
+        Assert.Throws<InvalidOperationException>(() => zero.ToEulerAngles());
+        Assert.Throws<InvalidOperationException>(() => zero.Rotated(Fixed64.Zero, Fixed64.One));
+        Assert.Throws<ArgumentException>(() => zero * point);
+        Assert.Throws<ArgumentException>(() => point * zero);
+        Assert.Throws<ArgumentException>(() => Vector3d.Rotate(point, origin, zero));
+        Assert.Throws<ArgumentException>(() => Vector3d.InverseRotate(point, origin, zero));
 
-        Assert.True(FixedQuaternion.Zero.TryTransformPoint(
-            origin,
-            new Vector3d(
-                Fixed64.MaxValue,
-                Fixed64.MaxValue,
-                Fixed64.MaxValue),
-            out Vector3d transformed));
-        Assert.Equal(origin, transformed);
-
-        Assert.True(FixedQuaternion.Zero.TryGetRelativeOffset(
-            origin,
-            new Vector3d(
-                Fixed64.MinValue,
-                Fixed64.MaxValue,
-                Fixed64.Zero),
-            Vector3d.Zero,
-            new Vector3d(
-                Fixed64.MaxValue,
-                Fixed64.MaxValue,
-                Fixed64.MaxValue),
-            out Vector3d relative));
-        Assert.Equal(new Vector3d(
-            -Fixed64.MinIncrement,
-            -Fixed64.MinIncrement,
-            Fixed64.One), relative);
+        Assert.False(zero.TryTransformPoint(origin, point, out Vector3d transformed));
+        Assert.Equal(default, transformed);
+        Assert.False(zero.TryGetRelativeOffset(origin, point, Vector3d.Zero, point, out Vector3d relative));
+        Assert.Equal(default, relative);
     }
 
     [Fact]
@@ -1118,14 +1101,12 @@ public class FixedQuaternionTests
             new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero),
             identityCancellation);
 
-        Assert.True(FixedQuaternion.Zero.TryTransformPoint(
+        Assert.False(FixedQuaternion.Zero.TryTransformPoint(
             new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero),
             new Vector3d(Fixed64.MinValue, Fixed64.Zero, Fixed64.Zero),
             localPoint,
             out Vector3d zeroRotation));
-        Assert.Equal(
-            new Vector3d(-Fixed64.MinIncrement, Fixed64.Zero, Fixed64.Zero),
-            zeroRotation);
+        Assert.Equal(default, zeroRotation);
 
         Assert.False(FixedQuaternion.Identity.TryTransformPoint(
             new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero),
@@ -1170,7 +1151,7 @@ public class FixedQuaternionTests
             Vector3d.One,
             localPoint,
             out transformed));
-        Assert.True(FixedQuaternion.Zero.TryTransformPoint(
+        Assert.False(FixedQuaternion.Zero.TryTransformPoint(
             origin,
             Vector3d.One,
             localPoint,

@@ -1380,8 +1380,9 @@ public partial struct FixedSegment
         // the radial anchors. Keep the exact rigid classifier above for all pairs.
         if (firstAxisLength != Fixed64.Zero || secondAxisLength != Fixed64.Zero)
         {
-            _ = firstRotation.TryRotate(firstLocalAxisDirection, out firstAxisDirection);
-            _ = secondRotation.TryRotate(secondLocalAxisDirection, out secondAxisDirection);
+            if (!firstRotation.TryRotate(firstLocalAxisDirection, out firstAxisDirection)
+                || !secondRotation.TryRotate(secondLocalAxisDirection, out secondAxisDirection))
+                throw new InvalidOperationException("The validated capsule axes cannot be rotated.");
             firstAxisDirection = firstAxisDirection.Normalized;
             secondAxisDirection = secondAxisDirection.Normalized;
         }

@@ -22,8 +22,8 @@ public partial struct FixedQuaternion
     /// <param name="localPoint">The point expressed in the local frame.</param>
     /// <param name="scale">The per-axis scales applied before rotation.</param>
     /// <param name="result">The world-space point on success, or the zero vector on failure.</param>
-    /// <returns><see langword="true"/> if every final world coordinate is representable, otherwise <see langword="false"/>.</returns>
-    /// <remarks>Intermediate scaled, translated, and rotated values stay wide until final rounding. A zero quaternion succeeds and returns the origin.</remarks>
+    /// <returns><see langword="true"/> if this quaternion is nonzero and every final coordinate is representable.</returns>
+    /// <remarks>Intermediate scaled, translated, and rotated values stay wide until final rounding.</remarks>
     public bool TryTransformScaledPoint(
         Vector3d origin,
         Vector3d localPoint,
@@ -46,8 +46,8 @@ public partial struct FixedQuaternion
     /// <param name="scale">The per-axis scales applied before rotation.</param>
     /// <param name="localDisplacement">The offset added in local coordinates after scaling and before rotation.</param>
     /// <param name="result">The world-space point on success, or the zero vector on failure.</param>
-    /// <returns><see langword="true"/> if every final world coordinate is representable, otherwise <see langword="false"/>.</returns>
-    /// <remarks>Intermediate scaled, translated, and rotated values stay wide until final rounding. A zero quaternion succeeds and returns the origin.</remarks>
+    /// <returns><see langword="true"/> if this quaternion is nonzero and every final coordinate is representable.</returns>
+    /// <remarks>Intermediate scaled, translated, and rotated values stay wide until final rounding.</remarks>
     public bool TryTransformScaledPoint(
         Vector3d origin,
         Vector3d localPoint,
@@ -57,8 +57,8 @@ public partial struct FixedQuaternion
     {
         if (this == Zero)
         {
-            result = origin;
-            return true;
+            result = default;
+            return false;
         }
 
         return WideVector3dTransform.TryTransformScaledPoint(

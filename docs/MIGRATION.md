@@ -1,5 +1,82 @@
 # FixedMathSharp Migration Guide
 
+## Migrating From v8.x To v9.x
+
+v9 makes quaternion rotation inputs explicit and corrects several geometry and
+numeric edge cases. Upgrade the standard or Lean package family and its
+companion packages together, then rebuild dependent assemblies.
+
+### v9 Upgrade Checklist
+
+- Replace `FixedQuaternion.ToDirection()` with `GetWorldForwardInLocalFrame()`.
+- Initialize unchanged orientations with `FixedQuaternion.Identity`. Handle
+  `false` before consuming checked rotation and transform results.
+- Check component-sign tests that used
+  `Vector4d.AllComponentsGreaterThanEpsilon()`. The predicate now uses absolute
+  magnitudes in all vector dimensions.
+- Re-run save/load and deterministic replay tests after updating coordinated
+  consumers. Migrate legacy zero poses at the owning load boundary. Verify
+  corrected camera, geometry and numeric results before refreshing any golden
+  values or replay hashes.
+
+### Rename `ToDirection()`
+
+v9 removes `FixedQuaternion.ToDirection()`. Use `GetWorldForwardInLocalFrame()`
+to express canonical world `+Z` in the quaternion's local axes. Use
+`GetForwardDirection()` when you want the object's local forward axis expressed
+in world coordinates. With a positive quarter turn about `Up`, the first returns
+`-X` and the second returns `+X`.
+
+```csharp
+FixedQuaternion rotation = FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.HalfPi);
+Vector3d worldForwardInLocalFrame = rotation.GetWorldForwardInLocalFrame();
+Vector3d objectForwardInWorld = rotation.GetForwardDirection();
+```
+
+### Zero quaternions in rotation APIs
+
+Initialize no-rotation poses with `FixedQuaternion.Identity`. The all-zero
+value, including `default(FixedQuaternion)`, is invalid when applying or
+converting a rotation. Checked quaternion rotations, point transforms and
+relative offsets return `false` with a default output. `Rotate` and the
+quaternion direction and matrix conversions throw on zero. Vector rotation
+operators and helpers reject a zero rotation argument.
+
+`FixedTransform` rejects zero when constructing or assigning a local rotation.
+`TrySetWorldPose` returns `false` before changing either pose component. Choose
+a migration policy for serialized zero poses at the owning load boundary before
+applying the rotation. If a legacy value meant an unchanged pose, store identity
+explicitly at that boundary. Reproduce historical replays that depended on raw
+zero using their original build. Explicit quaternion normalization still maps
+zero to identity.
+
+### Geometry And Numeric Results
+
+- `Fixed4x4.CreateLookAt` now maps the eye to the view origin and the target
+  onto positive view Z. Recheck any caller-side transpose or basis workaround.
+  Perspective factories produce corrected coefficients for large valid inputs. A
+  field of view whose rounded half angle is zero or pi/2 is rejected.
+  [Camera and projection conventions](api/guides/coordinate-conventions.md#camera-and-projection-matrices)
+- `FixedBoundBox.ClosestPointOnSurface` returns a nearest face point for an
+  interior point. Ray slab queries reject intersections outside the
+  representable forward interval. Sphere transforms conservatively enclose their
+  affine image and throw for projective inputs or unrepresentable bounds. Plane
+  normalization can throw if the normalized constant term is unrepresentable.
+  [Geometry correction cases](feature-work/done/2026-11-15-geometry-query-reliability.md)
+- `FixedMath.RoundToPrecision` selects the rounded decimal grid point before
+  narrowing to `Fixed64`. `Vector3d.Angle` uses normalized directions when a
+  squared length or their product reaches `Fixed64.MaxValue`.
+  [Decimal rounding](feature-work/done/2026-11-16-decimal-rounding.md) ·
+  [Vector angles](feature-work/done/2026-11-16-vector3d-angle-saturation.md)
+- `Vector4d.Lerp` returns exact endpoints and rounds the final component results
+  to nearest with ties to even. `UnclampedLerp` returns the exact end at one and
+  uses saturating component arithmetic at other factors.
+  [Vector interpolation](feature-work/done/2026-11-16-vector4d-interpolation.md)
+- `Vector4d.AllComponentsGreaterThanEpsilon()` checks that all component
+  magnitudes exceed epsilon, including for negative components. For the old
+  signed test, compare each component directly with `Fixed64.Epsilon`.
+  [Epsilon predicate](feature-work/done/2026-11-16-vector-epsilon-parity.md)
+
 ## Migrating From v7.x To v8.x
 
 v8 expands exact finite-shape geometry and improves contact throughput while

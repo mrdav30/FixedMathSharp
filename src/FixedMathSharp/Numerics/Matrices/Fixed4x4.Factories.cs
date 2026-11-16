@@ -59,9 +59,10 @@ public partial struct Fixed4x4
     /// <summary>
     /// Creates a rotation matrix from a quaternion.
     /// </summary>
-    /// <remarks>Quaternion magnitude does not affect the result; zero represents identity.</remarks>
+    /// <remarks>Quaternion magnitude does not affect the result for a nonzero quaternion.</remarks>
     /// <param name="rotation">The quaternion representing the rotation.</param>
     /// <returns>A 4x4 matrix representing the rotation.</returns>
+    /// <exception cref="InvalidOperationException"><paramref name="rotation"/> is zero.</exception>
     public static Fixed4x4 CreateRotation(FixedQuaternion rotation)
     {
         Fixed3x3 rotationMatrix = rotation.ToMatrix3x3();
@@ -399,13 +400,14 @@ public partial struct Fixed4x4
     /// Builds an affine matrix that applies local scale, then rotation, then translation.
     /// </summary>
     /// <remarks>
-    /// Quaternion magnitude does not affect the rotation matrix. A zero quaternion represents identity.
+    /// Quaternion magnitude does not affect the rotation matrix for a nonzero quaternion.
     /// Use <see cref="TranslateRotateScale"/> to apply the offset before rotation and scaling.
     /// </remarks>
     /// <param name="translation">The offset in the output space.</param>
     /// <param name="rotation">The rotation to apply after scaling.</param>
     /// <param name="scale">The signed scale factors along the input X, Y, and Z axes.</param>
     /// <returns>The composed row-vector affine transform.</returns>
+    /// <exception cref="InvalidOperationException"><paramref name="rotation"/> is zero.</exception>
     public static Fixed4x4 CreateTransform(Vector3d translation, FixedQuaternion rotation, Vector3d scale) =>
         CreateTransform(translation, rotation.ToMatrix3x3(), scale);
 
@@ -459,9 +461,10 @@ public partial struct Fixed4x4
     /// Use <see cref="CreateTransform(Vector3d, FixedQuaternion, Vector3d)"/> to apply the offset last.
     /// </remarks>
     /// <param name="translation">The offset applied before rotation and scale.</param>
-    /// <param name="rotation">The rotation to apply after translation. A zero quaternion represents identity.</param>
+    /// <param name="rotation">The rotation to apply after translation.</param>
     /// <param name="scale">The signed scale factors along the final X, Y, and Z axes.</param>
     /// <returns>A row-vector matrix that applies translation, rotation, then scale.</returns>
+    /// <exception cref="InvalidOperationException"><paramref name="rotation"/> is zero.</exception>
     public static Fixed4x4 TranslateRotateScale(Vector3d translation, FixedQuaternion rotation, Vector3d scale)
     {
         Fixed3x3 rotationMatrix = rotation.ToMatrix3x3();

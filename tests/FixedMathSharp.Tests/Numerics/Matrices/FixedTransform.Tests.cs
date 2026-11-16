@@ -582,7 +582,14 @@ public sealed class FixedTransformTests
         Assert.True(transform.TrySetWorldPosition(new Vector3d((Fixed64)3, (Fixed64)4, (Fixed64)5)));
         Assert.Equal(new Vector3d((Fixed64)3, (Fixed64)4, (Fixed64)5), transform.LocalPosition);
 
-        Assert.True(transform.TrySetWorldPose(new Vector3d((Fixed64)6, (Fixed64)7, (Fixed64)8), FixedQuaternion.Zero));
+        FixedQuaternion originalRotation = transform.LocalRotation;
+        Assert.Throws<ArgumentException>(() => new FixedTransform(Vector3d.Zero, FixedQuaternion.Zero, Vector3d.One));
+        Assert.Throws<ArgumentException>(() => transform.LocalRotation = FixedQuaternion.Zero);
+        Assert.False(transform.TrySetWorldPose(new Vector3d((Fixed64)6, (Fixed64)7, (Fixed64)8), FixedQuaternion.Zero));
+        Assert.Equal(new Vector3d((Fixed64)3, (Fixed64)4, (Fixed64)5), transform.LocalPosition);
+        Assert.Equal(originalRotation, transform.LocalRotation);
+
+        Assert.True(transform.TrySetWorldPose(new Vector3d((Fixed64)6, (Fixed64)7, (Fixed64)8), FixedQuaternion.Identity));
         Assert.Equal(new Vector3d((Fixed64)6, (Fixed64)7, (Fixed64)8), transform.LocalPosition);
         Assert.Equal(FixedQuaternion.Identity, transform.LocalRotation);
         Assert.Equal(scale, transform.LocalScale);

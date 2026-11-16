@@ -1207,8 +1207,10 @@ public partial struct Vector3d
     /// <param name="position">The position around which the vector is rotated.</param>
     /// <param name="rotation">The quaternion representing the rotation.</param>
     /// <returns>The rotated vector.</returns>
+    /// <exception cref="ArgumentException"><paramref name="rotation"/> is zero.</exception>
     public static Vector3d Rotate(Vector3d source, Vector3d position, FixedQuaternion rotation)
     {
+        FixedQuaternion.ValidateRotationArgument(rotation, nameof(rotation));
         source -= position; // Translate the vector by the position
         var normalizedRotation = rotation.Normalized;
         return (normalizedRotation * source) + position;
@@ -1221,8 +1223,10 @@ public partial struct Vector3d
     /// <param name="position">The position around which the vector is rotated.</param>
     /// <param name="rotation">The quaternion representing the inverse rotation.</param>
     /// <returns>The rotated vector.</returns>
+    /// <exception cref="ArgumentException"><paramref name="rotation"/> is zero.</exception>
     public static Vector3d InverseRotate(Vector3d source, Vector3d position, FixedQuaternion rotation)
     {
+        FixedQuaternion.ValidateRotationArgument(rotation, nameof(rotation));
         source -= position; // Translate the vector by the position
         var normalizedRotation = rotation.Normalized;
         // Undo the rotation
