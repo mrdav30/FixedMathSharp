@@ -35,15 +35,13 @@ public static class Fixed64Extensions
         FixedMath.Round(value, mode);
 
     /// <summary>
-    /// Rounds a fixed-point number to a specific number of decimal places.
+    /// Rounds a fixed-point number to the nearest value on a decimal grid.
     /// </summary>
-    /// <param name="value">The value to round. Use a magnitude small enough that scaling by ten to the requested power fits in <see cref="Fixed64"/>.</param>
+    /// <param name="value">The value to round.</param>
     /// <param name="places">The number of decimal places, from zero through nine.</param>
-    /// <param name="mode">The tie rule passed to <see cref="FixedMath.Round(Fixed64, MidpointRounding)"/>. The default is midpoint-to-even.</param>
-    /// <returns>The result of scaling, rounding to an integer, and converting back to the original scale.</returns>
-    /// <remarks>The method adds half the integer scale factor in raw units before the final fixed-point division.
-    /// This adjustment can shift a decimal-grid value by a raw unit. Intermediate saturation or
-    /// raw wraparound can occur near the limits of the Q32.32 range.</remarks>
+    /// <param name="mode">The decimal midpoint rule. <see cref="MidpointRounding.AwayFromZero"/> rounds ties away from zero. All other modes round ties to even.</param>
+    /// <returns>The decimal-grid result encoded in Q32.32, with saturation at the representable limits.</returns>
+    /// <remarks>Decimal rounding uses the exact stored value. Conversion back to Q32.32 rounds to the nearest raw unit, with ties to even.</remarks>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="places"/> is outside the supported range.</exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 RoundToPrecision(this Fixed64 value, int places, MidpointRounding mode = MidpointRounding.ToEven) =>

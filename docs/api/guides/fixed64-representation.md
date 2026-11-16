@@ -119,6 +119,15 @@ That identity does not extend to an already rounded reciprocal. For example,
 `x / 3` can differ from `x * (Fixed64.One / 3)` because the reciprocal itself
 was first quantized to Q32.32.
 
+### Decimal-place rounding
+
+`FixedMath.RoundToPrecision` and its `Fixed64` extension support zero through
+nine decimal places across the full Q32.32 range. They select the nearest
+decimal-grid value from the stored raw value, then encode the result in Q32.32.
+`MidpointRounding.AwayFromZero` changes how decimal ties are resolved. Returning
+to Q32.32 always uses nearest-even rounding and saturates at the representable
+limits.
+
 ## What About Other Shift Amounts?
 
 A different fixed-point layout would choose a different range/precision balance.

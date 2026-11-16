@@ -50,31 +50,6 @@ dotnet add artifacts/issue-repro/issue-repro.csproj reference src/FixedMathSharp
 dotnet run --project artifacts/issue-repro/issue-repro.csproj -c Release -p:UseLocalLsfStack=false
 ```
 
-<a id="fms-issue-041-fixed-point-rounding-and-vector-or-quaternion-edge-behavior"></a>
-
-### FMS-Issue-041: Decimal rounding introduces raw bias and can reverse sign
-
-- **Status:** Confirmed at `2a65963`.
-- **Priority:** High.
-- **Affected area:**
-  [`FixedMath.RoundToPrecision`](../../src/FixedMathSharp/Core/FixedMath.cs) and
-  its
-  [`Fixed64` extension](../../src/FixedMathSharp/Numerics/Scalars/Fixed64Extensions.cs).
-- **Evidence:** `FixedMath.RoundToPrecision(Fixed64.FromDecimal(0.2m), 1)`
-  returns raw `858993460`. Exact rounding to the decimal grid and then to Q32.32
-  gives raw `858993459`. Replacing the input with `new Fixed64(1_000_000_000)`
-  gives raw `-922337203685477580`, even though the correct result is the
-  original value. `Fixed64.MaxValue` gives the same negative result. Its exact
-  rounded value is one raw unit above the positive limit. `Fixed64.MinValue`
-  also gives `-922337203685477580`, though the exact decimal-grid result fits.
-- **Impact:** An already-rounded value can move by a raw unit, and intermediate
-  saturation followed by an unchecked raw addition can change the sign of a
-  valid input whose rounded result fits.
-- **Next action:** Add an exact raw-integer oracle for both midpoint rules, both
-  signs, and the domain limits. Widen decimal scaling, round once at each grid
-  boundary, and define the out-of-range result consistently with the saturation
-  contract of `FixedMath.Round`.
-
 ### FMS-Issue-042: Vector3d.Angle loses scale invariance under saturation
 
 - **Status:** Confirmed at `2a65963`. Split from FMS-Issue-041.
@@ -173,8 +148,12 @@ records. Dates reflect recorded resolution/closure, which can precede the commit
 date. Evidence describes verification at closure; it does not claim a fresh
 rerun or package release.
 
+<a id="fms-issue-041-fixed-point-rounding-and-vector-or-quaternion-edge-behavior"></a>
+<a id="fms-issue-041-decimal-rounding-introduces-raw-bias-and-can-reverse-sign"></a>
+
 | Issue                                                                                                      | Resolved/closed | Outcome                                                                                                                                                                                                   | Evidence                                                                                             |
 | ---------------------------------------------------------------------------------------------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| FMS-Issue-041                                                                                              | 2026-11-16      | Fixed decimal rounding bias and sign wrap with exact scaling and final saturation.                                                                                                                        | [Record](done/2026-11-16-decimal-rounding.md)                                                        |
 | FMS-Issue-039                                                                                              | 2026-11-15      | Verified caller requirements and preserved normalization and comparison contracts with characterization tests and guidance.                                                                               | [Record](done/2026-11-15-matrix-normalization-and-comparison.md)                                     |
 | FMS-Issue-040                                                                                              | 2026-11-15      | Fixed nearest box faces, saturated ray slabs, affine sphere underbounds and plane normalization. Preserved the conservative frustum query and box corner scan.                                            | [Record](done/2026-11-15-geometry-query-reliability.md)                                              |
 | FMS-Issue-038                                                                                              | 2026-11-15      | Corrected rotated camera view mapping, perspective coefficients, and rounded half-angle validation.                                                                                                       | [Record](done/2026-11-15-camera-view-and-perspective.md)                                             |

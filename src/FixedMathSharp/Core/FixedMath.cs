@@ -293,25 +293,38 @@ public static partial class FixedMath
     }
 
     /// <summary>
-    /// Rounds a fixed-point number to a specific number of decimal places.
+    /// Rounds a fixed-point number to the nearest value on a decimal grid.
     /// </summary>
-    /// <param name="value">The value to round. Use a magnitude small enough that scaling by ten to the requested power fits in <see cref="Fixed64"/>.</param>
+    /// <param name="value">The value to round.</param>
     /// <param name="decimalPlaces">The number of decimal places, from zero through nine.</param>
-    /// <param name="mode">The tie rule passed to <see cref="Round(Fixed64, MidpointRounding)"/>. The default is midpoint-to-even.</param>
-    /// <returns>The result of scaling, rounding to an integer, and converting back to the original scale.</returns>
-    /// <remarks>The method adds half the integer scale factor in raw units before the final fixed-point division.
-    /// This adjustment can shift a decimal-grid value by a raw unit. Intermediate saturation or
-    /// raw wraparound can occur near the limits of the Q32.32 range.</remarks>
+    /// <param name="mode">The decimal midpoint rule. <see cref="MidpointRounding.AwayFromZero"/> rounds ties away from zero. All other modes round ties to even.</param>
+    /// <returns>The decimal-grid result encoded in Q32.32, with saturation at the representable limits.</returns>
+    /// <remarks>Decimal rounding uses the exact stored value. Conversion back to Q32.32 rounds to the nearest raw unit, with ties to even.</remarks>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="decimalPlaces"/> is outside the supported range.</exception>
     public static Fixed64 RoundToPrecision(Fixed64 value, int decimalPlaces, MidpointRounding mode = MidpointRounding.ToEven)
     {
         if (decimalPlaces < 0 || decimalPlaces >= Pow10Lookup.Length)
             throw new ArgumentOutOfRangeException(nameof(decimalPlaces), "Decimal places out of range.");
+        if (decimalPlaces == 0)
+            return Round(value, mode);
 
-        int factor = Pow10Lookup[decimalPlaces];
-        Fixed64 scaled = value * factor;
-        long rounded = Round(scaled, mode).m_rawValue;
-        return new Fixed64(rounded + (factor / 2)) / factor;
+        ulong factor = (ulong)Pow10Lookup[decimalPlaces];
+        long raw = value.m_rawValue;
+        ulong magnitude = Fixed64.AbsToUInt64(raw);
+
+        // Scaling the whole and fractional words separately keeps each product within 64 bits.
+        ulong scaledFraction = (magnitude & MAX_SHIFTED_AMOUNT_UI) * factor;
+        ulong decimalUnits = (magnitude >> SHIFT_AMOUNT_I) * factor + (scaledFraction >> SHIFT_AMOUNT_I);
+        ulong fraction = scaledFraction & MAX_SHIFTED_AMOUNT_UI;
+        ulong half = (ulong)Fixed64.Half.m_rawValue;
+        if (fraction > half || (fraction == half && (mode == MidpointRounding.AwayFromZero || (decimalUnits & 1UL) != 0UL)))
+            decimalUnits++;
+
+        // The 2^31 magnitude limit lies on every decimal grid, so the raw quotient is at most 2^63.
+        ulong quotient = Fixed64.Divide128By64(decimalUnits >> (64 - SHIFT_AMOUNT_I),
+            decimalUnits << SHIFT_AMOUNT_I, factor, out ulong remainder);
+        ulong complement = factor - remainder;
+        return Fixed64.RoundAndApplySign(quotient, remainder >= complement, remainder != complement, raw < 0L, out _);
     }
 
     /// <summary>

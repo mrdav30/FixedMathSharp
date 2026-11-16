@@ -255,6 +255,50 @@ public class FixedMathTests
         Assert.Equal(new Fixed64(3), result);
     }
 
+    [Theory]
+    [InlineData(0L)]
+    [InlineData(1L)]
+    [InlineData(-1L)]
+    [InlineData(858993459L)] // Nearest Q32.32 encoding of 0.2.
+    [InlineData(-858993459L)]
+    [InlineData((1L << 30) - 1L)]
+    [InlineData(1L << 30)] // Exactly halfway between 0.2 and 0.3.
+    [InlineData((1L << 30) + 1L)]
+    [InlineData(-(1L << 30))]
+    [InlineData(3L << 30)]
+    [InlineData(-(3L << 30))]
+    [InlineData(1_000_000_000L << 32)]
+    [InlineData(-(1_000_000_000L << 32))]
+    [InlineData(long.MinValue)]
+    [InlineData(long.MaxValue)]
+    public void Round_WithDecimalPlaces_MatchesExactRawOracle(long raw)
+    {
+        BigInteger quantum = BigInteger.One << 32;
+        Fixed64 value = Fixed64.FromRaw(raw);
+        for (int places = 0; places <= 9; places++)
+        {
+            BigInteger factor = BigInteger.Pow(10, places);
+            foreach (MidpointRounding mode in new[] { MidpointRounding.ToEven, MidpointRounding.AwayFromZero })
+            {
+                BigInteger decimalUnits = RoundRatio(raw * factor, quantum, mode == MidpointRounding.AwayFromZero);
+                BigInteger roundedRaw = RoundRatio(decimalUnits * quantum, factor, false);
+                long expected = (long)BigInteger.Clamp(roundedRaw, long.MinValue, long.MaxValue);
+
+                Assert.Equal(expected, FixedMath.RoundToPrecision(value, places, mode).m_rawValue);
+                Assert.Equal(expected, value.RoundToPrecision(places, mode).m_rawValue);
+            }
+        }
+
+        static BigInteger RoundRatio(BigInteger numerator, BigInteger denominator, bool awayFromZero)
+        {
+            BigInteger quotient = BigInteger.DivRem(BigInteger.Abs(numerator), denominator, out BigInteger remainder);
+            int midpoint = (2 * remainder).CompareTo(denominator);
+            if (midpoint > 0 || (midpoint == 0 && (awayFromZero || !quotient.IsEven)))
+                quotient++;
+            return numerator.Sign * quotient;
+        }
+    }
+
     [Fact]
     public void Round_WithDecimalPlaces_ThrowsWhenPrecisionIsOutOfRange()
     {
