@@ -114,6 +114,37 @@ public class FixedPlaneTests
         Assert.Equal(Fixed64.FromRaw(expectedRawOffset), FixedPlane.GetNormalized(plane).D);
     }
 
+    [Theory]
+    [InlineData(3L, 1L)]
+    [InlineData(-3L, -1L)]
+    [InlineData(1L, 0L)]
+    public void Normalize_IrrationalLength_CorrectsRoundedEstimate(long rawOffset, long expectedRawOffset)
+    {
+        var plane = new FixedPlane(new Vector3d(Fixed64.Two, Fixed64.MinIncrement, Fixed64.Zero),
+            Fixed64.FromRaw(rawOffset));
+
+        // The exact length is just above two, so the magnitude falls below the midpoint.
+        Assert.Equal(Fixed64.FromRaw(expectedRawOffset), FixedPlane.GetNormalized(plane).D);
+    }
+
+    [Fact]
+    public void Normalize_IrrationalLength_RoundsTinyComponentToZero()
+    {
+        var plane = new FixedPlane(new Vector3d(new Fixed64(4), Fixed64.MinIncrement, Fixed64.Zero), Fixed64.Zero);
+        Assert.Equal(Vector3d.Right, FixedPlane.GetNormalized(plane).Normal);
+    }
+
+    [Fact]
+    public void Normalize_AxialMinimumAndIntegralDiagonal_RetainExactLength()
+    {
+        var axial = new FixedPlane(new Vector3d(Fixed64.Zero, Fixed64.MinValue, Fixed64.Zero), Fixed64.MaxValue);
+        Assert.Equal(new FixedPlane(Vector3d.Down, Fixed64.One), FixedPlane.GetNormalized(axial));
+
+        var diagonal = new FixedPlane(new Vector3d(3, 4, 0), new Fixed64(5));
+        var unit = new Vector3d(Fixed64.FromFraction(3, 5), Fixed64.FromFraction(4, 5), Fixed64.Zero);
+        Assert.Equal(new FixedPlane(unit, Fixed64.One), FixedPlane.GetNormalized(diagonal));
+    }
+
     [Fact]
     public void Normalize_InstanceScalesPlaneInPlace()
     {

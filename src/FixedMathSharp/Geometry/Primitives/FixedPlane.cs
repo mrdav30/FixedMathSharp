@@ -143,68 +143,100 @@ public partial struct FixedPlane : IEquatable<FixedPlane>
     /// <exception cref="OverflowException">The rounded constant term is outside the <see cref="Fixed64"/> range.</exception>
     public static FixedPlane GetNormalized(FixedPlane value)
     {
-        Signed192 x = Signed192.Raw(value.Normal.X);
-        Signed192 y = Signed192.Raw(value.Normal.Y);
-        Signed192 z = Signed192.Raw(value.Normal.Z);
-        Signed192 d = Signed192.Raw(value.D);
-        Signed320 lengthSquare = WideGeometry.GetSquaredMagnitude(x, y, z,
-            out Signed320 xSquare, out Signed320 ySquare, out Signed320 zSquare);
-
-        if (lengthSquare.IsZero)
+        Vector3d normal = value.Normal;
+        long rawX = normal.X.m_rawValue;
+        long rawY = normal.Y.m_rawValue;
+        long rawZ = normal.Z.m_rawValue;
+        int nonzero = (rawX != 0L ? 1 : 0) + (rawY != 0L ? 1 : 0) + (rawZ != 0L ? 1 : 0);
+        if (nonzero == 0)
             throw new ArithmeticException("Cannot normalize a plane with a zero-length normal.");
 
-        // Unit normals need no coefficient scaling. For other integral raw lengths,
-        // direct division avoids the square-root ratio required for irrational lengths.
-        if (lengthSquare.Equals(new Signed320(0UL, 0UL, 0UL, 1UL, 0UL)))
-            return value;
+        Signed192 d = Signed192.Raw(value.D);
+        if (nonzero == 1)
+        {
+            ulong magnitude = Fixed64.AbsToUInt64(rawX | rawY | rawZ);
+            if (magnitude == (ulong)FixedMath.ONE_L)
+                return value;
 
+            return new FixedPlane(new Vector3d(Fixed64.Sign(normal.X), Fixed64.Sign(normal.Y), Fixed64.Sign(normal.Z)),
+                DivideCoefficient(d, new Signed192(0UL, 0UL, magnitude)));
+        }
+
+        Signed192 x = Signed192.Signed(rawX);
+        Signed192 y = Signed192.Signed(rawY);
+        Signed192 z = Signed192.Signed(rawZ);
+        Signed320 lengthSquare = WideGeometry.GetSquaredMagnitude(x, y, z,
+            out Signed320 xSquare, out Signed320 ySquare, out Signed320 zSquare);
         Signed192 length = WideArithmetic.GetFloorSquareRoot(lengthSquare, out Signed192 remainder);
         if (remainder.IsZero)
-            return new FixedPlane(new Vector3d(DivideCoefficient(x), DivideCoefficient(y), DivideCoefficient(z)), DivideCoefficient(d));
+            return new FixedPlane(new Vector3d(DivideCoefficient(x, length), DivideCoefficient(y, length),
+                DivideCoefficient(z, length)), DivideCoefficient(d, length));
 
-        // Three signed 64-bit squares sum to less than 2^128.
+        // Three signed 64-bit squares sum to less than 2^128, so the length fits in one word.
         Signed192 denominator = Signed192.NarrowValue(lengthSquare);
         return new FixedPlane(
-            new Vector3d(NormalizeCoefficient(x, xSquare, denominator),
-                NormalizeCoefficient(y, ySquare, denominator), NormalizeCoefficient(z, zSquare, denominator)),
-            NormalizeCoefficient(d, WideArithmetic.MultiplySigned192(d, d), denominator));
-
-        Fixed64 DivideCoefficient(Signed192 coefficient)
-        {
-            if (Fixed64.TryGetSignedRawRatio(WideArithmetic.ShiftLeftSigned192By32(coefficient), length, out Fixed64 rounded))
-                return rounded;
-
-            throw new OverflowException("The normalized plane constant term is outside the Fixed64 range.");
-        }
+            new Vector3d(NormalizeCoefficient(normal.X, xSquare, denominator, length.Low),
+                NormalizeCoefficient(normal.Y, ySquare, denominator, length.Low),
+                NormalizeCoefficient(normal.Z, zSquare, denominator, length.Low)),
+            NormalizeCoefficient(value.D, WideArithmetic.MultiplySigned192(d, d), denominator, length.Low));
     }
 
-    private static Fixed64 NormalizeCoefficient(Signed192 coefficient, Signed320 square, Signed192 lengthSquare)
+    private static Fixed64 DivideCoefficient(Signed192 coefficient, Signed192 length)
     {
-        if (coefficient.IsZero)
+        if (Fixed64.TryGetSignedRawRatio(WideArithmetic.ShiftLeftSigned192By32(coefficient), length, out Fixed64 rounded))
+            return rounded;
+
+        throw new OverflowException("The normalized plane constant term is outside the Fixed64 range.");
+    }
+
+    private static Fixed64 NormalizeCoefficient(Fixed64 coefficient, Signed320 square, Signed192 lengthSquare, ulong lengthFloor)
+    {
+        if (coefficient == Fixed64.Zero)
             return Fixed64.Zero;
 
-        // Squaring the raw ratio gives (coefficient^2 << 64) / length^2.
-        // Compare four times its numerator with length^2 * (2 * floor + 1)^2
-        // to round without first rounding the length. This path has an irrational
-        // length, so a nonzero coefficient cannot give an exact midpoint tie.
+        long raw = coefficient.m_rawValue;
+        ulong magnitude = Fixed64.AbsToUInt64(raw);
+        ulong limit = raw < 0L ? 1UL << 63 : (ulong)long.MaxValue;
+        ulong rounded = lengthFloor >= (ulong)FixedMath.ONE_L && magnitude <= lengthFloor
+            ? RoundFromFloorLength(magnitude, square, lengthSquare, lengthFloor)
+            : RoundFromSquareRatio(square, lengthSquare, limit);
+        return Fixed64.FromRaw(unchecked((long)(raw < 0L ? 0UL - rounded : rounded)));
+    }
+
+    private static ulong RoundFromFloorLength(ulong magnitude, Signed320 square, Signed192 lengthSquare, ulong lengthFloor)
+    {
+        // The coefficient magnitude is at most the floor length, and the length is at least one.
+        // Dividing by the floor length therefore overestimates the scaled quotient by less than one raw unit.
+        ulong rounded = Fixed64.Divide128By64(magnitude >> 32, magnitude << 32, lengthFloor, out ulong remainder);
+        if (remainder >= lengthFloor - remainder)
+            rounded++;
+        if (rounded != 0UL && !IsAboveMidpoint(square, lengthSquare, rounded - 1UL))
+            rounded--;
+        return rounded;
+    }
+
+    private static ulong RoundFromSquareRatio(Signed320 square, Signed192 lengthSquare, ulong limit)
+    {
         ReadOnlySpan<ulong> numerator = stackalloc ulong[] { 0UL, square.Word0, square.Word1 };
         ReadOnlySpan<ulong> denominator = stackalloc ulong[] { lengthSquare.Low, lengthSquare.Middle, 0UL };
-        bool negative = coefficient.Sign < 0;
-        ulong limit = negative ? 1UL << 63 : (ulong)long.MaxValue;
         ulong floor = WideArithmetic.GetRatioFloorSquareRoot(numerator, denominator, limit);
-        var doubledMidpoint = new Signed192(0UL, floor >> 63, (floor << 1) | 1UL);
+        if (!IsAboveMidpoint(square, lengthSquare, floor))
+            return floor;
+        if (floor == limit)
+            throw new OverflowException("The normalized plane constant term is outside the Fixed64 range.");
+        return floor + 1UL;
+    }
+
+    private static bool IsAboveMidpoint(Signed320 square, Signed192 lengthSquare, ulong lower)
+    {
+        // Compare 4 * (coefficient^2 << 64) with length^2 * (2 * lower + 1)^2.
+        // The length is irrational here, so a nonzero coefficient cannot give an exact tie.
+        var doubledMidpoint = new Signed192(0UL, lower >> 63, (lower << 1) | 1UL);
         Signed192 midpointSquare = Signed192.NarrowValue(WideArithmetic.MultiplySigned192(doubledMidpoint, doubledMidpoint));
         Signed320 threshold = WideArithmetic.MultiplySigned192(lengthSquare, midpointSquare);
         var fourTimesNumerator = new Signed320(0UL, square.Word1 >> 62,
             (square.Word1 << 2) | (square.Word0 >> 62), square.Word0 << 2, 0UL);
-        if (WideArithmetic.SubtractSigned320(fourTimesNumerator, threshold).Sign > 0)
-        {
-            if (floor == limit)
-                throw new OverflowException("The normalized plane constant term is outside the Fixed64 range.");
-            floor++;
-        }
-
-        return Fixed64.FromRaw(unchecked((long)(negative ? 0UL - floor : floor)));
+        return WideArithmetic.SubtractSigned320(fourTimesNumerator, threshold).Sign > 0;
     }
 
     /// <summary>

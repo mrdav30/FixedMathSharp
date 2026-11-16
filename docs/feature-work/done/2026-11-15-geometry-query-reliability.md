@@ -124,3 +124,38 @@ Release and ReleaseLean solution tests passed. After switching the dot product
 to direct `Math.BigMul` calls, focused coverage exercised all 65 instrumented
 lines and 30 branch outcomes across the eight affected methods in each
 configuration.
+
+## Frustum construction performance follow-up
+
+A split probe of `65a71c6` attributed most of the perspective construction time
+to normalizing its six planes. Axis-aligned normals now derive their length
+directly from the sole nonzero component. For irrational lengths, qualifying
+coefficients reuse the floor of the normal length to estimate the rounded
+magnitude. The estimate is at most one raw unit high. An exact squared midpoint
+comparison corrects it when necessary. Tiny normals and offsets outside the
+bound continue through the exact square-ratio path.
+
+A fixed-seed comparison against `65a71c6` matched raw coefficients and failure
+outcomes for 65,536 plane cases on `net10.0` and `netstandard2.1`. The same
+comparison matched plane and corner outputs for 256 rotated and translated
+view-projection matrices. Regression tests cover estimates on the wrong side of
+a midpoint, rounding to zero, and the minimum signed axial component.
+
+Four out-of-process BenchmarkDotNet runs on Windows x64 and .NET 10.0.10
+alternated baseline, optimized, optimized, baseline. Each used four warmups and
+five measured iterations of `FrustumConstructOnly` over the existing 256
+perspective matrices. The baseline means were 4.218 and 4.217 µs per
+construction. The optimized means were 2.812 and 2.814 µs, about 33% lower. All
+four children completed and reported zero managed allocation.
+
+```bash
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net10.0/FixedMathSharp.Benchmarks.dll \
+  bounds -j Short --launchCount 1 --warmupCount 4 --iterationCount 5 \
+  --filter '*FrustumConstructOnly'
+```
+
+The separate rotated-view probe showed no improvement. Its per-process medians
+were about 7.60 µs before and 7.64–7.66 µs after. Both full solution suites
+passed. Focused coverage exercised all 61 instrumented lines and 30 branch
+outcomes across the six affected plane normalization methods in both
+configurations.
