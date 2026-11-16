@@ -5,11 +5,6 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-using System;
-using System.Runtime.CompilerServices;
-using static FixedMathSharp.Geometry.CylinderContactAlgebra;
-using static FixedMathSharp.Geometry.CircularRimContactAlgebra;
-
 namespace FixedMathSharp.Geometry;
 
 /// <content>Selection declaration for TriangleCylinderEdgeContacts.</content>

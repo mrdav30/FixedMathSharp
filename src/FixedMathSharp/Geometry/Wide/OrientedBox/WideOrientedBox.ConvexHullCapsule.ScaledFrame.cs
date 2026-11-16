@@ -135,71 +135,71 @@ internal static partial class WideOrientedBox
         for (int index = 0; index < geometry.Triangles.Length; index += 3)
         {
             int ia = geometry.Triangles[index], ib = geometry.Triangles[index + 1], ic = geometry.Triangles[index + 2];
-            if (!IsScaledHullCapsuleSupport(geometry, ia, x,y,z,support,projection,term)
-                || !IsScaledHullCapsuleSupport(geometry, ib, x,y,z,support,projection,term)
-                || !IsScaledHullCapsuleSupport(geometry, ic, x,y,z,support,projection,term)) continue;
-            var triangle = new FixedTriangle(geometry.Points[ia],geometry.Points[ib],geometry.Points[ic]);
+            if (!IsScaledHullCapsuleSupport(geometry, ia, x, y, z, support, projection, term)
+                || !IsScaledHullCapsuleSupport(geometry, ib, x, y, z, support, projection, term)
+                || !IsScaledHullCapsuleSupport(geometry, ic, x, y, z, support, projection, term)) continue;
+            var triangle = new FixedTriangle(geometry.Points[ia], geometry.Points[ib], geometry.Points[ic]);
             if (WideTriangleRelations.TryGetProjectedPointAnchor(triangle, geometry.Frame, targetPoint, hullOrigin,
                     out FixedPointAnchor face)) return face;
         }
         Span<ulong> bestValues = stackalloc ulong[WideFiniteAxisIntersection.ScaledAxisTriangleCandidate.StorageWords];
         Span<int> bestSigns = stackalloc int[WideFiniteAxisIntersection.ScaledAxisTriangleCandidate.SignCount];
-        var best = new WideFiniteAxisIntersection.ScaledAxisTriangleCandidate(bestValues,bestSigns);
+        var best = new WideFiniteAxisIntersection.ScaledAxisTriangleCandidate(bestValues, bestSigns);
         RationalPoint3d first = matchCore ? geometry.First : targetPoint, second = matchCore ? geometry.Second : targetPoint;
         // Faces, edges and vertices form the same finite support set as the
         // rigid owner. The shared closest-feature kernel retains both witnesses.
         for (int kind = 0; kind < 3; kind++)
         {
-            int count = kind == 0 ? geometry.Triangles.Length/3 : kind == 1 ? geometry.Edges.Length/2 : geometry.Points.Length;
-            for(int index = 0; index < count; index++)
+            int count = kind == 0 ? geometry.Triangles.Length / 3 : kind == 1 ? geometry.Edges.Length / 2 : geometry.Points.Length;
+            for (int index = 0; index < count; index++)
             {
-                int ia = kind == 0 ? geometry.Triangles[3*index] : kind == 1 ? geometry.Edges[2*index] : index;
-                int ib = kind == 0 ? geometry.Triangles[3*index+1] : kind == 1 ? geometry.Edges[2*index+1] : ia;
-                int ic = kind == 0 ? geometry.Triangles[3*index+2] : ib;
-                if(!IsScaledHullCapsuleSupport(geometry,ia,x,y,z,support,projection,term)
-                    ||!IsScaledHullCapsuleSupport(geometry,ib,x,y,z,support,projection,term)
-                    ||!IsScaledHullCapsuleSupport(geometry,ic,x,y,z,support,projection,term)) continue;
-                var triangle = new FixedTriangle(geometry.Points[ia],geometry.Points[ib],geometry.Points[ic]);
-                WideFiniteAxisIntersection.GetClosestScaledAxisTriangleCandidate(triangle,geometry.Frame,
-                    first,second,center,ref best);
+                int ia = kind == 0 ? geometry.Triangles[3 * index] : kind == 1 ? geometry.Edges[2 * index] : index;
+                int ib = kind == 0 ? geometry.Triangles[3 * index + 1] : kind == 1 ? geometry.Edges[2 * index + 1] : ia;
+                int ic = kind == 0 ? geometry.Triangles[3 * index + 2] : ib;
+                if (!IsScaledHullCapsuleSupport(geometry, ia, x, y, z, support, projection, term)
+                    || !IsScaledHullCapsuleSupport(geometry, ib, x, y, z, support, projection, term)
+                    || !IsScaledHullCapsuleSupport(geometry, ic, x, y, z, support, projection, term)) continue;
+                var triangle = new FixedTriangle(geometry.Points[ia], geometry.Points[ib], geometry.Points[ic]);
+                WideFiniteAxisIntersection.GetClosestScaledAxisTriangleCandidate(triangle, geometry.Frame,
+                    first, second, center, ref best);
             }
         }
         System.Diagnostics.Debug.Assert(best.HasValue);
-        bool represented = QuadraticPointMaterialization.TryGetPointInFrame(center,FixedQuaternion.Identity,
-            best.TriangleCoordinate(0),best.TriangleCoordinate(1),best.TriangleCoordinate(2),best.Denominator,
-            ReadOnlySpan<ulong>.Empty,hullOrigin,out Vector3d hullPoint);
+        bool represented = QuadraticPointMaterialization.TryGetPointInFrame(center, FixedQuaternion.Identity,
+            best.TriangleCoordinate(0), best.TriangleCoordinate(1), best.TriangleCoordinate(2), best.Denominator,
+            ReadOnlySpan<ulong>.Empty, hullOrigin, out Vector3d hullPoint);
         System.Diagnostics.Debug.Assert(represented);
-        if(matchCore)
+        if (matchCore)
         {
             // Add radial support before the only scalar rounding, preserving an
             // odd endpoint or fractional projected core coordinate.
-            int witnessWords=best.Denominator.FieldWords+2;
-            Span<ulong> material=stackalloc ulong[10*witnessWords];Span<int> materialSigns=stackalloc int[10];
-            var a=ContactQuadratic.At(material,materialSigns,0,witnessWords);
-            var b=ContactQuadratic.At(material,materialSigns,1,witnessWords);
-            var c=ContactQuadratic.At(material,materialSigns,2,witnessWords);
-            var d=ContactQuadratic.At(material,materialSigns,3,witnessWords);
-            var radial=ContactQuadratic.At(material,materialSigns,4,witnessWords);
-            ContactQuadratic.Scale(best.Denominator,Signed576.ExtendValue(Signed192.Raw(Fixed64.One)),d);
-            for(int axis=0;axis<3;axis++)
+            int witnessWords = best.Denominator.FieldWords + 2;
+            Span<ulong> material = stackalloc ulong[10 * witnessWords]; Span<int> materialSigns = stackalloc int[10];
+            var a = ContactQuadratic.At(material, materialSigns, 0, witnessWords);
+            var b = ContactQuadratic.At(material, materialSigns, 1, witnessWords);
+            var c = ContactQuadratic.At(material, materialSigns, 2, witnessWords);
+            var d = ContactQuadratic.At(material, materialSigns, 3, witnessWords);
+            var radial = ContactQuadratic.At(material, materialSigns, 4, witnessWords);
+            ContactQuadratic.Scale(best.Denominator, Signed576.ExtendValue(Signed192.Raw(Fixed64.One)), d);
+            for (int axis = 0; axis < 3; axis++)
             {
-                var output=axis==0?a:axis==1?b:c;
-                ContactQuadratic.Scale(best.AxisCoordinate(axis),Signed576.ExtendValue(Signed192.Raw(Fixed64.One)),output);
-                ContactQuadratic.Scale(best.Denominator,Signed576.ExtendValue(Fixed64.GetExactRawProduct(normal[axis],radius)),radial);
-                output.Add(radial,-1);
+                var output = axis == 0 ? a : axis == 1 ? b : c;
+                ContactQuadratic.Scale(best.AxisCoordinate(axis), Signed576.ExtendValue(Signed192.Raw(Fixed64.One)), output);
+                ContactQuadratic.Scale(best.Denominator, Signed576.ExtendValue(Fixed64.GetExactRawProduct(normal[axis], radius)), radial);
+                output.Add(radial, -1);
             }
-            represented=QuadraticPointMaterialization.TryGetPointInFrame(center,FixedQuaternion.Identity,a,b,c,d,
-                ReadOnlySpan<ulong>.Empty,center,out Vector3d capsulePoint);
+            represented = QuadraticPointMaterialization.TryGetPointInFrame(center, FixedQuaternion.Identity, a, b, c, d,
+                ReadOnlySpan<ulong>.Empty, center, out Vector3d capsulePoint);
             System.Diagnostics.Debug.Assert(represented);
-            matchedCapsule=new FixedPointAnchor(center,FixedQuaternion.Identity,capsulePoint);
+            matchedCapsule = new FixedPointAnchor(center, FixedQuaternion.Identity, capsulePoint);
         }
-        return new FixedPointAnchor(hullOrigin,FixedQuaternion.Identity,hullPoint);
+        return new FixedPointAnchor(hullOrigin, FixedQuaternion.Identity, hullPoint);
     }
 
-    private static bool IsScaledHullCapsuleSupport(scoped in ScaledHullCapsuleFrame geometry,int index,
-        scoped ContactQuadratic x,scoped ContactQuadratic y,scoped ContactQuadratic z,
-        scoped ContactQuadratic support,scoped ContactQuadratic projection,scoped ContactQuadratic term)
-    { SetScaledHullAxisDot(x,y,z,geometry.Point(index),projection,term);return CompareScaledHullValues(projection,support)==0; }
+    private static bool IsScaledHullCapsuleSupport(scoped in ScaledHullCapsuleFrame geometry, int index,
+        scoped ContactQuadratic x, scoped ContactQuadratic y, scoped ContactQuadratic z,
+        scoped ContactQuadratic support, scoped ContactQuadratic projection, scoped ContactQuadratic term)
+    { SetScaledHullAxisDot(x, y, z, geometry.Point(index), projection, term); return CompareScaledHullValues(projection, support) == 0; }
 
     private static bool FindScaledHullCapsuleCandidate(scoped in ScaledHullCapsuleFrame geometry, Fixed64 radius,
         bool strict, scoped ContactQuadratic x, scoped ContactQuadratic y, scoped ContactQuadratic z,
@@ -212,21 +212,21 @@ internal static partial class WideOrientedBox
             int count = kind == 0 ? geometry.Triangles.Length / 3
                 : kind == 2 ? geometry.Points.Length : geometry.Edges.Length / 2;
             for (int feature = 0; feature < count; feature++)
-            for (int endpoint = kind == 3 ? -1 : 0; endpoint <= (kind == 3 ? 1 : 0); endpoint += 2)
-            {
-                var candidate = new HullCapsuleCandidate((HullCapsuleCandidateKind)kind,
-                    kind == 0 ? feature * 3 : kind == 2 ? feature : feature * 2, endpoint);
-                int status = EvaluateScaledHullCapsuleCandidate(geometry, candidate, radius,
-                    x, y, z, rational, square, out _);
-                if (status < 0 || strict && status > 0 && GetScaledHullCapsuleOverlapSign(
-                        rational, square, geometry.Denominator, radius) == 0) return false;
-                if (status == 0) continue;
-                if (!found || !strict && WideArithmetic.CompareSignedNormalizedMagnitudes(rational.Rational,
-                    rational.Signs[0], square.Rational, bestRational.Rational, bestRational.Signs[0], bestSquare.Rational) < 0)
+                for (int endpoint = kind == 3 ? -1 : 0; endpoint <= (kind == 3 ? 1 : 0); endpoint += 2)
                 {
-                    found = true; best = candidate; rational.CopyTo(bestRational); square.CopyTo(bestSquare);
+                    var candidate = new HullCapsuleCandidate((HullCapsuleCandidateKind)kind,
+                        kind == 0 ? feature * 3 : kind == 2 ? feature : feature * 2, endpoint);
+                    int status = EvaluateScaledHullCapsuleCandidate(geometry, candidate, radius,
+                        x, y, z, rational, square, out _);
+                    if (status < 0 || strict && status > 0 && GetScaledHullCapsuleOverlapSign(
+                            rational, square, geometry.Denominator, radius) == 0) return false;
+                    if (status == 0) continue;
+                    if (!found || !strict && WideArithmetic.CompareSignedNormalizedMagnitudes(rational.Rational,
+                        rational.Signs[0], square.Rational, bestRational.Rational, bestRational.Signs[0], bestSquare.Rational) < 0)
+                    {
+                        found = true; best = candidate; rational.CopyTo(bestRational); square.CopyTo(bestSquare);
+                    }
                 }
-            }
         }
         return found;
     }
@@ -334,33 +334,33 @@ internal static partial class WideOrientedBox
     }
 
     private static WideDirection3d Subtract(in WideDirection3d a, in WideDirection3d b) => new(
-        WideArithmetic.SubtractSigned576(a.X,b.X), WideArithmetic.SubtractSigned576(a.Y,b.Y), WideArithmetic.SubtractSigned576(a.Z,b.Z));
+        WideArithmetic.SubtractSigned576(a.X, b.X), WideArithmetic.SubtractSigned576(a.Y, b.Y), WideArithmetic.SubtractSigned576(a.Z, b.Z));
     private static int CompareScaledHullValues(scoped ContactQuadratic a, scoped ContactQuadratic b) =>
         CompareHullCapsuleSignedMagnitudes(a.Rational, a.Signs[0], b.Rational, b.Signs[0]);
     private static void SetScaledHullVectorDot(in WideDirection3d a, in WideDirection3d b,
         scoped ContactQuadratic result, scoped ContactQuadratic term)
     {
-        result.Clear(); term.Set(a.X); ContactQuadratic.Scale(term,b.X,result);
-        term.Set(a.Y); Span<ulong> v=stackalloc ulong[2*ScaledHullCapsuleWords]; Span<int> s=stackalloc int[2];
-        var product=ContactQuadratic.At(v,s,0,ScaledHullCapsuleWords); ContactQuadratic.Scale(term,b.Y,product); result.Add(product);
-        term.Set(a.Z); ContactQuadratic.Scale(term,b.Z,product); result.Add(product);
+        result.Clear(); term.Set(a.X); ContactQuadratic.Scale(term, b.X, result);
+        term.Set(a.Y); Span<ulong> v = stackalloc ulong[2 * ScaledHullCapsuleWords]; Span<int> s = stackalloc int[2];
+        var product = ContactQuadratic.At(v, s, 0, ScaledHullCapsuleWords); ContactQuadratic.Scale(term, b.Y, product); result.Add(product);
+        term.Set(a.Z); ContactQuadratic.Scale(term, b.Z, product); result.Add(product);
     }
     private static void SetScaledHullAxisDot(scoped ContactQuadratic x, scoped ContactQuadratic y,
         scoped ContactQuadratic z, in WideDirection3d point, scoped ContactQuadratic result, scoped ContactQuadratic term)
     {
-        ContactQuadratic.Scale(x,point.X,result); ContactQuadratic.Scale(y,point.Y,term); result.Add(term);
-        ContactQuadratic.Scale(z,point.Z,term); result.Add(term);
+        ContactQuadratic.Scale(x, point.X, result); ContactQuadratic.Scale(y, point.Y, term); result.Add(term);
+        ContactQuadratic.Scale(z, point.Z, term); result.Add(term);
     }
     private static Vector3d NormalizeScaledHullAxis(scoped ContactQuadratic x, scoped ContactQuadratic y, scoped ContactQuadratic z)
     {
-        ReadOnlySpan<ulong> maximum = WideArithmetic.CompareMagnitudeEqualLength(x.Rational,y.Rational)>=0?x.Rational:y.Rational;
-        if(WideArithmetic.CompareMagnitudeEqualLength(z.Rational,maximum)>0) maximum=z.Rational;
-        Span<ulong> numerator=stackalloc ulong[ScaledHullCapsuleWords+1]; Vector3d result=default;
-        for(int axis=0;axis<3;axis++)
+        ReadOnlySpan<ulong> maximum = WideArithmetic.CompareMagnitudeEqualLength(x.Rational, y.Rational) >= 0 ? x.Rational : y.Rational;
+        if (WideArithmetic.CompareMagnitudeEqualLength(z.Rational, maximum) > 0) maximum = z.Rational;
+        Span<ulong> numerator = stackalloc ulong[ScaledHullCapsuleWords + 1]; Vector3d result = default;
+        for (int axis = 0; axis < 3; axis++)
         {
-            var value=axis==0?x:axis==1?y:z; numerator.Clear(); int sign=0;
-            WideArithmetic.AddShiftedSignedMagnitude(value.Rational,1,32,numerator,ref sign);
-            _=Fixed64.TryGetSignedRawRatio(numerator,maximum,value.Signs[0]<0,out Fixed64 coordinate); result[axis]=coordinate;
+            var value = axis == 0 ? x : axis == 1 ? y : z; numerator.Clear(); int sign = 0;
+            WideArithmetic.AddShiftedSignedMagnitude(value.Rational, 1, 32, numerator, ref sign);
+            _ = Fixed64.TryGetSignedRawRatio(numerator, maximum, value.Signs[0] < 0, out Fixed64 coordinate); result[axis] = coordinate;
         }
         return Vector3d.GetScaleNormalized(result);
     }

@@ -5,8 +5,6 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-using System;
-
 namespace FixedMathSharp.Geometry;
 
 internal delegate void FiniteSlabRayCandidateVisitor(scoped in FiniteSlabRaySelection candidate);

@@ -7,7 +7,6 @@
 
 using System;
 using System.Runtime.CompilerServices;
-using static FixedMathSharp.Geometry.CylinderContactAlgebra;
 using static FixedMathSharp.Geometry.CircularRimContactAlgebra;
 
 namespace FixedMathSharp.Geometry;

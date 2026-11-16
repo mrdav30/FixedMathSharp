@@ -252,20 +252,20 @@ internal static partial class WideTriangleRelations
         in FixedTriangle second, in ScaledRigidFrame3d secondFrame, Vector3d secondOrigin, out FixedContactAnchors contact)
     {
         if (firstFrame.IsRigid && secondFrame.IsRigid)
-            return TryGetContact(first,firstFrame.RigidOrigin,firstFrame.Rotation,
-                second,secondFrame.RigidOrigin,secondFrame.Rotation,out contact);
-        contact=default;
-        if (GetScaledTriangleLocalNormal(first,firstFrame).IsZero
-            || GetScaledTriangleLocalNormal(second,secondFrame).IsZero) return false;
-        Span<Vector3d> firstPoints=stackalloc Vector3d[3]{first.A,first.B,first.C};
-        Span<Vector3d> secondPoints=stackalloc Vector3d[3]{second.A,second.B,second.C};
-        ReadOnlySpan<int> faces=stackalloc int[3]{0,1,2},edges=stackalloc int[6]{0,1,1,2,2,0};
-        if(!WideOrientedBox.TryGetConvexHullPenetration(firstFrame,firstPoints,faces,edges,
-                secondFrame,secondPoints,faces,edges,out WideScaledHullPenetration penetration,planarPair:true)
-            ||!TryGetClosestPointAnchor(first,firstFrame,secondFrame.GetPoint(second.Centroid),firstOrigin,out FixedPointAnchor a)
-            ||!TryGetClosestPointAnchor(second,secondFrame,RationalPoint3d.FromAnchor(a),secondOrigin,out FixedPointAnchor b))return false;
-        Fixed64 depth=penetration.GetRoundedDepth(out bool clamped);
-        contact=new FixedContactAnchors(a,b,penetration.GetNormal(),depth,clamped);return true;
+            return TryGetContact(first, firstFrame.RigidOrigin, firstFrame.Rotation,
+                second, secondFrame.RigidOrigin, secondFrame.Rotation, out contact);
+        contact = default;
+        if (GetScaledTriangleLocalNormal(first, firstFrame).IsZero
+            || GetScaledTriangleLocalNormal(second, secondFrame).IsZero) return false;
+        Span<Vector3d> firstPoints = stackalloc Vector3d[3] { first.A, first.B, first.C };
+        Span<Vector3d> secondPoints = stackalloc Vector3d[3] { second.A, second.B, second.C };
+        ReadOnlySpan<int> faces = stackalloc int[3] { 0, 1, 2 }, edges = stackalloc int[6] { 0, 1, 1, 2, 2, 0 };
+        if (!WideOrientedBox.TryGetConvexHullPenetration(firstFrame, firstPoints, faces, edges,
+                secondFrame, secondPoints, faces, edges, out WideScaledHullPenetration penetration, planarPair: true)
+            || !TryGetClosestPointAnchor(first, firstFrame, secondFrame.GetPoint(second.Centroid), firstOrigin, out FixedPointAnchor a)
+            || !TryGetClosestPointAnchor(second, secondFrame, RationalPoint3d.FromAnchor(a), secondOrigin, out FixedPointAnchor b)) return false;
+        Fixed64 depth = penetration.GetRoundedDepth(out bool clamped);
+        contact = new FixedContactAnchors(a, b, penetration.GetNormal(), depth, clamped); return true;
     }
 
     /// <summary>Tests the finite orthogonal projection before rounding any vertex or witness.</summary>

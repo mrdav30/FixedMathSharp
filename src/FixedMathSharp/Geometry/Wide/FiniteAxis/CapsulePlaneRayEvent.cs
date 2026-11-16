@@ -5,8 +5,6 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-using System;
-
 namespace FixedMathSharp.Geometry;
 
 /// <summary>A reconstructible exact point in the plane or its finite perimeter.</summary>

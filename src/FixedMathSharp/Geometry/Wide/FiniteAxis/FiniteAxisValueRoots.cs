@@ -62,8 +62,11 @@ internal readonly ref struct FiniteAxisValueRoots
         source[..WideArithmetic.GetActiveMagnitudeLength(source)].CopyTo(cell);
         return new FiniteAxisValueRoot
         {
-            Coefficients = coefficients, Signs = signs, LowerNumerator = cell,
-            DenominatorShift = roots._shifts[ordinal], Ordinal = ordinal,
+            Coefficients = coefficients,
+            Signs = signs,
+            LowerNumerator = cell,
+            DenominatorShift = roots._shifts[ordinal],
+            Ordinal = ordinal,
             IsRational = (roots._rationalMask & (1 << ordinal)) != 0
         };
     }

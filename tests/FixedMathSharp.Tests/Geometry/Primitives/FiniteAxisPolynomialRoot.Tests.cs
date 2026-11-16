@@ -419,39 +419,39 @@ public sealed class FiniteAxisPolynomialRootTests
         var random = new System.Random(236104);
         int sample = 0;
         foreach (int first in new[] { -2, 0, 2, 3, 5 })
-        foreach (int second in new[] { -1, 2, 3, 7 })
-        foreach (int leading in new[] { -1, 1 })
-        {
-            int largestSquared = Math.Max(first, second);
-            if (largestSquared <= 0)
-                continue;
-            BigInteger[] polynomial = Multiply(
-                new BigInteger[] { -first * leading, 0, leading },
-                new BigInteger[] { -second, 0, 1 });
-            Encode(polynomial, out ulong[] coefficients, out sbyte[] signs);
-            var cell = new ulong[WideFiniteAxisIntersection.GetFiniteAxisRootCellWords(coefficients, signs)];
-            Assert.True(WideFiniteAxisIntersection.TryGetLargestPositiveFiniteAxisRoot(coefficients, signs, cell, out var root));
-            for (int degree = 0; degree <= 8; degree++)
-            {
-                var query = new BigInteger[degree + 1];
-                BigInteger rational = 0;
-                BigInteger radical = 0;
-                for (int index = 0; index <= degree; index++)
+            foreach (int second in new[] { -1, 2, 3, 7 })
+                foreach (int leading in new[] { -1, 1 })
                 {
-                    query[index] = random.Next(-4, 5);
-                    BigInteger term = query[index] * BigInteger.Pow(largestSquared, index / 2);
-                    if ((index & 1) == 0)
-                        rational += term;
-                    else
-                        radical += term;
+                    int largestSquared = Math.Max(first, second);
+                    if (largestSquared <= 0)
+                        continue;
+                    BigInteger[] polynomial = Multiply(
+                        new BigInteger[] { -first * leading, 0, leading },
+                        new BigInteger[] { -second, 0, 1 });
+                    Encode(polynomial, out ulong[] coefficients, out sbyte[] signs);
+                    var cell = new ulong[WideFiniteAxisIntersection.GetFiniteAxisRootCellWords(coefficients, signs)];
+                    Assert.True(WideFiniteAxisIntersection.TryGetLargestPositiveFiniteAxisRoot(coefficients, signs, cell, out var root));
+                    for (int degree = 0; degree <= 8; degree++)
+                    {
+                        var query = new BigInteger[degree + 1];
+                        BigInteger rational = 0;
+                        BigInteger radical = 0;
+                        for (int index = 0; index <= degree; index++)
+                        {
+                            query[index] = random.Next(-4, 5);
+                            BigInteger term = query[index] * BigInteger.Pow(largestSquared, index / 2);
+                            if ((index & 1) == 0)
+                                rational += term;
+                            else
+                                radical += term;
+                        }
+                        int expected = GetQuadraticFieldSign(rational, radical, largestSquared);
+                        Encode(query, out ulong[] queryCoefficients, out sbyte[] querySigns);
+                        int actual = WideFiniteAxisIntersection.GetSignAtFiniteAxisRoot(ref root, queryCoefficients, querySigns);
+                        Assert.True(expected == actual,
+                            $"Quadratic-field sample {sample++}, factors {first}/{second}, degree {degree}: expected {expected}, actual {actual}.");
+                    }
                 }
-                int expected = GetQuadraticFieldSign(rational, radical, largestSquared);
-                Encode(query, out ulong[] queryCoefficients, out sbyte[] querySigns);
-                int actual = WideFiniteAxisIntersection.GetSignAtFiniteAxisRoot(ref root, queryCoefficients, querySigns);
-                Assert.True(expected == actual,
-                    $"Quadratic-field sample {sample++}, factors {first}/{second}, degree {degree}: expected {expected}, actual {actual}.");
-            }
-        }
     }
 
     [Theory]
@@ -687,8 +687,8 @@ public sealed class FiniteAxisPolynomialRootTests
     {
         var result = new BigInteger[left.Length + right.Length - 1];
         for (int i = 0; i < left.Length; i++)
-        for (int j = 0; j < right.Length; j++)
-            result[i + j] += left[i] * right[j];
+            for (int j = 0; j < right.Length; j++)
+                result[i + j] += left[i] * right[j];
         return result;
     }
 }

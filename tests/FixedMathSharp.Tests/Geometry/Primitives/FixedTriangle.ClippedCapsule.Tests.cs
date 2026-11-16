@@ -1,5 +1,5 @@
-using FixedMathSharp.Geometry;
 using System.Numerics;
+using FixedMathSharp.Geometry;
 using Xunit;
 
 namespace FixedMathSharp.Tests;
@@ -34,23 +34,23 @@ public sealed class FixedTriangleClippedCapsuleTests
                 narrow ? 3 * scale + 5 : 4, narrow ? 5 * scale : 5)
         };
         foreach (var interval in intervals)
-        foreach (bool reverse in new[] { false, true })
-        {
-            var triangle = new FixedTriangle(reverse ? Vector3d.Up : Vector3d.Zero,
-                reverse ? Vector3d.Zero : Vector3d.Up, reverse ? Vector3d.Zero : Vector3d.Up);
-            var clip = reverse ? Interval(ToBig(interval.UpperDenominator) - ToBig(interval.UpperNumerator),
-                ToBig(interval.UpperDenominator), ToBig(interval.LowerDenominator) - ToBig(interval.LowerNumerator),
-                ToBig(interval.LowerDenominator)) : interval;
-            Assert.True(triangle.TryGetClippedCenteredCapsuleContact(Vector3d.Zero, FixedQuaternion.Identity,
-                Vector3d.Zero, FixedQuaternion.Identity, Fixed64.Two, Fixed64.Half, Vector3d.Right,
-                clip, out var contact, out var feature, out int endpoint));
-            Assert.Equal(Fixed64.FromFraction(narrow ? 3 : 7, narrow ? 5 : 10), contact.FirstAnchor.LocalPoint.Y);
-            Assert.Equal(contact.FirstAnchor.LocalPoint.Y, contact.SecondAnchor.LocalPoint.Y);
-            Assert.Equal(Vector3d.Right, contact.Normal);
-            Assert.Equal(Fixed64.Half, contact.Depth);
-            Assert.True(feature.IsZeroSeparation);
-            Assert.Equal(0, endpoint);
-        }
+            foreach (bool reverse in new[] { false, true })
+            {
+                var triangle = new FixedTriangle(reverse ? Vector3d.Up : Vector3d.Zero,
+                    reverse ? Vector3d.Zero : Vector3d.Up, reverse ? Vector3d.Zero : Vector3d.Up);
+                var clip = reverse ? Interval(ToBig(interval.UpperDenominator) - ToBig(interval.UpperNumerator),
+                    ToBig(interval.UpperDenominator), ToBig(interval.LowerDenominator) - ToBig(interval.LowerNumerator),
+                    ToBig(interval.LowerDenominator)) : interval;
+                Assert.True(triangle.TryGetClippedCenteredCapsuleContact(Vector3d.Zero, FixedQuaternion.Identity,
+                    Vector3d.Zero, FixedQuaternion.Identity, Fixed64.Two, Fixed64.Half, Vector3d.Right,
+                    clip, out var contact, out var feature, out int endpoint));
+                Assert.Equal(Fixed64.FromFraction(narrow ? 3 : 7, narrow ? 5 : 10), contact.FirstAnchor.LocalPoint.Y);
+                Assert.Equal(contact.FirstAnchor.LocalPoint.Y, contact.SecondAnchor.LocalPoint.Y);
+                Assert.Equal(Vector3d.Right, contact.Normal);
+                Assert.Equal(Fixed64.Half, contact.Depth);
+                Assert.True(feature.IsZeroSeparation);
+                Assert.Equal(0, endpoint);
+            }
     }
 
     [Fact]
@@ -99,12 +99,12 @@ public sealed class FixedTriangleClippedCapsuleTests
         var segment = new FixedSegment(-axis * (Fixed64)4, axis * (Fixed64)4);
         Assert.True(frame.IntersectsSegment(segment, default));
         for (int lo = 0; lo < 8; lo++)
-        for (int hi = lo; hi <= 8; hi++)
-        {
-            var interval = Interval(lo, 8, hi, 8);
-            bool expected = lo <= (capsule && vertical ? 6 : 5) && hi >= (capsule && vertical ? 2 : 3);
-            Assert.Equal(expected, frame.IntersectsSegment(segment, interval));
-        }
+            for (int hi = lo; hi <= 8; hi++)
+            {
+                var interval = Interval(lo, 8, hi, 8);
+                bool expected = lo <= (capsule && vertical ? 6 : 5) && hi >= (capsule && vertical ? 2 : 3);
+                Assert.Equal(expected, frame.IntersectsSegment(segment, interval));
+            }
     }
 
     private static Signed320 Signed(BigInteger n)

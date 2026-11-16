@@ -73,16 +73,16 @@ internal readonly ref partial struct ContactQuadratic
         // Cross multiplication has four coefficients A+B*sqrt(K)+C*sqrt(L)+D*sqrt(KL).
         // Each is a difference of two complete products; one extra limb covers its carry.
         for (int left = 0; left < 2; left++)
-        for (int right = 0; right < 2; right++)
-        {
-            int index = left + 2 * right;
-            Span<ulong> coefficient = coefficients.Slice(index * words, words);
-            WideArithmetic.MultiplyMagnitudes(Part(firstNumerator, left), Part(secondDenominator, right), coefficient);
-            int sign = IsZero(coefficient) ? 0 : firstNumerator.Signs[left] * secondDenominator.Signs[right];
-            WideArithmetic.MultiplyMagnitudes(Part(firstDenominator, left), Part(secondNumerator, right), product);
-            CylinderContactAlgebra.Add(product, -firstDenominator.Signs[left] * secondNumerator.Signs[right], coefficient, ref sign);
-            signs[index] = sign;
-        }
+            for (int right = 0; right < 2; right++)
+            {
+                int index = left + 2 * right;
+                Span<ulong> coefficient = coefficients.Slice(index * words, words);
+                WideArithmetic.MultiplyMagnitudes(Part(firstNumerator, left), Part(secondDenominator, right), coefficient);
+                int sign = IsZero(coefficient) ? 0 : firstNumerator.Signs[left] * secondDenominator.Signs[right];
+                WideArithmetic.MultiplyMagnitudes(Part(firstDenominator, left), Part(secondNumerator, right), product);
+                CylinderContactAlgebra.Add(product, -firstDenominator.Signs[left] * secondNumerator.Signs[right], coefficient, ref sign);
+                signs[index] = sign;
+            }
         return firstSign * secondSign * FourTermSign(coefficients, signs, words, firstRoot, secondRoot);
     }
 

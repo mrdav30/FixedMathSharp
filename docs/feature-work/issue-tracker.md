@@ -35,9 +35,146 @@ Work that requires staged implementation belongs in a focused feature-work plan.
 
 ## Active Issues
 
-No active issues.
+**Next issue ID:** `FMS-Issue-042`
 
-**Next issue ID:** `FMS-Issue-038`
+The four entries below capture runtime behavior observed during the API
+documentation pass at revision `1a9a270db3a6c79d4f501fc849883ef6ffd6ea12`. Use
+.NET 10 and the Release package dependency graph. To run the examples from the
+repository root, create a disposable console project, add the core project
+reference, and replace its `Program.cs` with the case under investigation.
+Include `using FixedMathSharp;` and `using FixedMathSharp.Geometry;` as needed.
+
+```bash
+dotnet new console --framework net10.0 --output artifacts/issue-repro
+dotnet add artifacts/issue-repro/issue-repro.csproj reference src/FixedMathSharp/FixedMathSharp.csproj
+dotnet run --project artifacts/issue-repro/issue-repro.csproj -c Release -p:UseLocalLsfStack=false
+```
+
+### FMS-Issue-038: Camera view mapping and perspective depth
+
+- **Status:** Confirmed
+- **Priority:** High for the view transform, Medium for projection range
+- **Affected area:**
+  [Fixed4x4 camera and projection factories](../../src/FixedMathSharp/Numerics/Matrices/Fixed4x4.Factories.cs)
+- **Impact:** A rotated camera can misplace all view-space points. Large valid
+  clip distances can move the near and far planes outside the expected depth
+  range, and a tiny positive field of view can reach division by zero.
+- **Next action:** Add a rotated-camera regression that maps the eye to zero and
+  the target to positive view Z. Verify perspective coefficients and range
+  behavior independently across all three factories.
+
+```csharp
+Vector3d eye = new(1, 2, 3);
+Vector3d target = new(2, 2, 3);
+Fixed4x4 view = Fixed4x4.CreateLookAt(eye, target, Vector3d.Up);
+Console.WriteLine(Fixed4x4.TransformPoint(view, eye));    // (6, 0, -2)
+Console.WriteLine(Fixed4x4.TransformPoint(view, target)); // (6, 0, -3)
+
+Fixed64 near = new(100000);
+Fixed64 far = new(200000);
+Fixed4x4 projection = Fixed4x4.CreatePerspective(new(2), new(2), near, far);
+Console.WriteLine(projection.TransformPoint(new(Fixed64.Zero, Fixed64.Zero, near)).Z);
+Console.WriteLine(projection.TransformPoint(new(Fixed64.Zero, Fixed64.Zero, far)).Z);
+// Approximately 1.7852516351 and 1.8926258176. The near * far term saturates.
+
+// Throws DivideByZeroException after the half-angle rounds to zero.
+Fixed4x4.CreatePerspectiveFieldOfView(Fixed64.FromRaw(1), Fixed64.One, Fixed64.One, new(10));
+```
+
+### FMS-Issue-039: Matrix normalization and comparison contracts
+
+- **Status:** Confirmed behavior. Compatibility decision pending.
+- **Priority:** Medium
+- **Affected area:**
+  [Fixed3x3](../../src/FixedMathSharp/Numerics/Matrices/Fixed3x3.cs),
+  [Fixed4x4 decomposition](../../src/FixedMathSharp/Numerics/Matrices/Fixed4x4.Decomposition.cs)
+  and the matrix extensions.
+- **Evidence:** Set `M21 = Fixed64.One` on `Fixed4x4.Identity` and pass it to
+  `NormalizeRotationMatrix`. The first two basis rows still have a dot product
+  of approximately `0.7071`. For `Fixed3x3.GetNormalized`, use the rows `Right`,
+  `(1, 1, 0)`, and `Forward`. The first two rows retain the same nonzero dot
+  product while the third is rebuilt from their cross product. For either size,
+  increment identity's `M11` by `Fixed64.FromDecimal(0.001m)`.
+  `identity.FuzzyEqual(changed)` returns false, while an explicit
+  `Fixed64.FromDecimal(0.01m)` returns true.
+- **Impact:** Callers that used the older orthogonality or 1% descriptions can
+  get a skewed basis or a failed approximate comparison.
+- **Next action:** Check callers that need an orthonormal basis and decide
+  whether they need a distinct operation. Preserve the confirmed row-vector
+  conventions in regression tests. `M41 = 1` on identity remains affine,
+  `M14 = 1` makes it projective, and index 1 reads `M21`. An identity pose with
+  scale `(1, 0, 1)` has a valid X/Z inverse even though its 3D inverse fails.
+
+### FMS-Issue-040: Geometry query ties, shear bounds, and representability
+
+- **Status:** Confirmed behavior. The frustum plane test is a conservative
+  classification, and the listed protocols need individual acceptance checks.
+- **Priority:** High for conservative bounds and invalid hit points, Medium for
+  closest features and extreme plane normals
+- **Affected area:**
+  [Box](../../src/FixedMathSharp/Geometry/Bounds/FixedBoundBox.cs),
+  [sphere](../../src/FixedMathSharp/Geometry/Bounds/FixedBoundSphere.cs),
+  [frustum](../../src/FixedMathSharp/Geometry/Bounds/FixedBoundFrustum.cs),
+  [ray](../../src/FixedMathSharp/Geometry/Primitives/Rays/FixedRay.cs), and
+  [plane](../../src/FixedMathSharp/Geometry/Primitives/FixedPlane.cs) queries.
+- **Evidence:**
+  - For `FixedBoundBox.FromMinMax(new(-2, -2, -2), new(2, 2, 2))`,
+    `ClosestPointOnSurface(Vector3d.Zero)` returns `(-2, -2, -2)`. Squared
+    distance is 12, versus 4 for a face point. For the same box and B with min
+    `(3, -1, -1)` and max `(4, 1, 1)`, `FindClosestPointsBetweenBoxes(A, B)`
+    searches B's corners and returns the single point `(2, -1, -1)` on A.
+  - Start with a unit sphere at zero and set `M12 = Fixed64.One` on
+    `Fixed4x4.Identity`. `sphere.Transform(matrix)` returns radius about 1.4142.
+    The source point `(0.75, 0.625, 0)` is inside, but `TransformPoint` maps it
+    to `(0.75, 1.375, 0)`, outside the result.
+  - Construct a `FixedBoundFrustum` from six planes with normals
+    `-Z, +Z, -X, +X, +Y, -Y` in constructor order and `D = -1` for each. This is
+    the cube `[-1, 1]³`. A sphere at `(2, 2, 0)` with radius 1.25 passes the
+    plane test. Its squared distance to the cube is 2, versus squared radius
+    1.5625.
+  - A ray from zero with direction `(Fixed64.FromRaw(1), 0, 0)` reports
+    `Fixed64.MaxValue` against a box from `(1, -1, -1)` to `(2, 1, 1)`.
+    `GetPoint(MaxValue)` is approximately `(0.5, 0, 0)`, outside the box.
+  - Call `FixedPlane.GetNormalized` with normal `(Fixed64.FromRaw(1), 0, 0)` and
+    `D = 0`. The output normal is `(0.5, 0, 0)` because the reciprocal
+    saturates.
+- **Impact:** These results matter when callers require minimum distance, a
+  conservative transformed bound, a usable hit witness, or unit plane normals.
+- **Next action:** Add exact face, shear, slab, and tiny-normal regression
+  oracles in the respective owners. Check broad-phase callers before changing
+  the conservative frustum test.
+
+### FMS-Issue-041: Fixed-point rounding and vector or quaternion edge behavior
+
+- **Status:** Confirmed behavior. Compatibility decision pending.
+- **Priority:** High for rounding wraparound, Medium for the other numeric cases
+- **Affected area:** [FixedMath](../../src/FixedMathSharp/Core/FixedMath.cs),
+  [Fixed64 conversions](../../src/FixedMathSharp/Numerics/Scalars/Fixed64.Conversions.cs),
+  vector operations, and
+  [FixedQuaternion rotation](../../src/FixedMathSharp/Numerics/Rotations/FixedQuaternion.cs).
+- **Evidence:**
+  - `RoundToPrecision(Fixed64.FromDecimal(0.2m), 1)` returns raw `858993460`,
+    one unit above the input. With `Fixed64.MaxValue` instead, the returned raw
+    value is `-922337203685477580`. `ToInt(-Fixed64.Half)` returns `-1`, while
+    `(int)(-Fixed64.Half)` returns `0`.
+  - `Vector3d.Angle(new(1000000, 0, 0), new(1, 1000000, 0))` returns zero under
+    saturation. `Vector3d.Reflect(Vector3d.Right, new(2, 0, 0))` returns
+    `(-7, 0, 0)`, demonstrating the unit-normal requirement. The scalar cross
+    products of `Vector2d.Forward, Vector2d.Right` and
+    `Vector3d.Up, Vector3d.Right` both return `-1`.
+  - `FixedQuaternion.Zero.Rotate(Vector3d.Forward)` returns the input.
+    `FixedQuaternion.Zero.TryRotate(Vector3d.Forward, out var result)` succeeds
+    with a zero result. For a positive quarter turn about Up, `ToDirection().X`
+    is negative and `Rotate(Vector3d.Forward).X` is positive.
+  - `Vector4d.Lerp(new Vector4d(Fixed64.MinValue), new Vector4d(Fixed64.MaxValue), Fixed64.One)`
+    misses the end value because subtraction saturates. For all components equal
+    to `-1`, `AllComponentsGreaterThanEpsilon` is true in 2D and 3D and false in
+    4D.
+- **Impact:** Rounding can change sign at the representable endpoint. The other
+  cases affect conversions and agreement between related math APIs.
+- **Next action:** Start with an exact raw-integer rounding oracle for
+  `RoundToPrecision`. Review caller expectations before aligning overloads or
+  dimensional variants. Confirm which of the observed differences are intended.
 
 ## Resolved Issues
 

@@ -7,8 +7,8 @@
 
 using System;
 using System.Runtime.CompilerServices;
-using static FixedMathSharp.Geometry.CylinderContactAlgebra;
 using static FixedMathSharp.Geometry.ContactQuadratic;
+using static FixedMathSharp.Geometry.CylinderContactAlgebra;
 
 namespace FixedMathSharp.Geometry;
 
@@ -118,7 +118,7 @@ internal static partial class CurvedPrismContact
         Span<int> copySigns = stackalloc int[ConvexContactCandidate.Slots];
         values.CopyTo(copy); signs.CopyTo(copySigns);
         var candidate = new CurvedPrismContactSelection(copy, copySigns)
-            { HasValue = true, GapSign = gap, Vertex = vertex, Feature = feature };
+        { HasValue = true, GapSign = gap, Vertex = vertex, Feature = feature };
         for (int index = 0; index < domain.Edges.Length; index++)
         {
             var edge = domain.Edges[index];

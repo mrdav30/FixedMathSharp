@@ -5,8 +5,6 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-using System;
-
 namespace FixedMathSharp.Geometry;
 
 /// <summary>Admits a finite native face point before evaluating its spherical ray.</summary>

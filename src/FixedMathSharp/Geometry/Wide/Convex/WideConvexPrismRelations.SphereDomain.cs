@@ -78,34 +78,34 @@ internal static partial class WideConvexPrismRelations
         Span<Signed192> a = stackalloc Signed192[3], b = stackalloc Signed192[3], edge = stackalloc Signed192[3];
         Span<Signed320> normal = stackalloc Signed320[3];
         for (int index = 0; index < offsets.Length; index++)
-          for (int kind = 0; kind < 3; kind++)
-          {
-            GetPrismEdgeVertex(frame, offsets[index], kind == 1 ? halfThickness : -halfThickness, Signed192.Signed(1), a);
-            GetPrismEdgeVertex(frame, kind == 2 ? offsets[index] : offsets[(index + 1) % offsets.Length],
-                kind == 0 ? -halfThickness : halfThickness, Signed192.Signed(1), b);
-            for (int coordinate = 0; coordinate < 3; coordinate++)
+            for (int kind = 0; kind < 3; kind++)
             {
-                edge[coordinate] = WideArithmetic.SubtractSigned192(b[coordinate], a[coordinate]);
-                a[coordinate] = WideArithmetic.AddSigned192(a[coordinate], Signed192.NarrowProven(
-                    WideArithmetic.MultiplySigned192(WideArithmetic.Difference(origin[coordinate], center[coordinate]), Scale)));
+                GetPrismEdgeVertex(frame, offsets[index], kind == 1 ? halfThickness : -halfThickness, Signed192.Signed(1), a);
+                GetPrismEdgeVertex(frame, kind == 2 ? offsets[index] : offsets[(index + 1) % offsets.Length],
+                    kind == 0 ? -halfThickness : halfThickness, Signed192.Signed(1), b);
+                for (int coordinate = 0; coordinate < 3; coordinate++)
+                {
+                    edge[coordinate] = WideArithmetic.SubtractSigned192(b[coordinate], a[coordinate]);
+                    a[coordinate] = WideArithmetic.AddSigned192(a[coordinate], Signed192.NarrowProven(
+                        WideArithmetic.MultiplySigned192(WideArithmetic.Difference(origin[coordinate], center[coordinate]), Scale)));
+                }
+                Signed320 denominator = Signed320.NarrowValue(PrismEdgeDot(edge, edge));
+                if (denominator.IsZero) continue;
+                Signed320 numerator = WideArithmetic.Negate(Signed320.NarrowValue(PrismEdgeDot(a, edge)));
+                if (numerator.Sign < 0) numerator = default;
+                else if (WideArithmetic.SubtractSigned320(numerator, denominator).Sign > 0) numerator = denominator;
+                for (int coordinate = 0; coordinate < 3; coordinate++)
+                    normal[coordinate] = Signed320.NarrowValue(WideArithmetic.AddSigned576(
+                        WideArithmetic.MultiplySigned320(denominator, a[coordinate]),
+                        WideArithmetic.MultiplySigned320(numerator, edge[coordinate])));
+                // This internal domain entry is for admitted 4,096-reach shapes
+                // with overlapping bounds. Native coordinates need <80 bits, Gram
+                // terms <162 and directions <244; their squares fit Signed576.
+                // The zero core fixes t=1/2 in the shared witness projection, so
+                // its <740-bit half-planes fit Signed832 without the free-core bank.
+                if (!TryKeepAxis(new(normal[0], normal[1], normal[2]), shapeAxis, center, Fixed64.Zero, radius,
+                    origin, yaw, offsets, halfThickness, ref best, admission, null, FixedQuaternion.Identity)) return false;
             }
-            Signed320 denominator = Signed320.NarrowValue(PrismEdgeDot(edge, edge));
-            if (denominator.IsZero) continue;
-            Signed320 numerator = WideArithmetic.Negate(Signed320.NarrowValue(PrismEdgeDot(a, edge)));
-            if (numerator.Sign < 0) numerator = default;
-            else if (WideArithmetic.SubtractSigned320(numerator, denominator).Sign > 0) numerator = denominator;
-            for (int coordinate = 0; coordinate < 3; coordinate++)
-                normal[coordinate] = Signed320.NarrowValue(WideArithmetic.AddSigned576(
-                    WideArithmetic.MultiplySigned320(denominator, a[coordinate]),
-                    WideArithmetic.MultiplySigned320(numerator, edge[coordinate])));
-            // This internal domain entry is for admitted 4,096-reach shapes
-            // with overlapping bounds. Native coordinates need <80 bits, Gram
-            // terms <162 and directions <244; their squares fit Signed576.
-            // The zero core fixes t=1/2 in the shared witness projection, so
-            // its <740-bit half-planes fit Signed832 without the free-core bank.
-            if (!TryKeepAxis(new(normal[0], normal[1], normal[2]), shapeAxis, center, Fixed64.Zero, radius,
-                origin, yaw, offsets, halfThickness, ref best, admission, null, FixedQuaternion.Identity)) return false;
-          }
         return true;
     }
 }

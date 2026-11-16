@@ -150,7 +150,9 @@ internal static partial class WideFiniteAxisIntersection
             int lowerCount = lowerCounts[ordinal];
             var root = new FiniteAxisValueRoot
             {
-                Coefficients = coefficients, Signs = signs, Ordinal = ordinal,
+                Coefficients = coefficients,
+                Signs = signs,
+                Ordinal = ordinal,
                 LowerNumerator = cells.Slice(ordinal * cellWords, cellWords),
                 DenominatorShift = shifts[ordinal]
             };

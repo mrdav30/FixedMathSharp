@@ -57,9 +57,15 @@ internal ref partial struct FiniteSlabRaySelection
         if (_hasCompactCell)
         {
             RetainedCell.CopyTo(cell); cell[RetainedCellWords..].Clear();
-            return new() { Coefficients = Polynomial.Values[..(_coefficientCount * Words)],
-                Signs = Polynomial.Signs[.._coefficientCount], LowerNumerator = cell,
-                DenominatorShift = _denominatorShift, Ordinal = _ordinal, IsRational = _isRational };
+            return new()
+            {
+                Coefficients = Polynomial.Values[..(_coefficientCount * Words)],
+                Signs = Polynomial.Signs[.._coefficientCount],
+                LowerNumerator = cell,
+                DenominatorShift = _denominatorShift,
+                Ordinal = _ordinal,
+                IsRational = _isRational
+            };
         }
         return WideFiniteAxisIntersection.GetKnownFiniteValueRoot(
             Polynomial.Values[..(_coefficientCount * Words)],

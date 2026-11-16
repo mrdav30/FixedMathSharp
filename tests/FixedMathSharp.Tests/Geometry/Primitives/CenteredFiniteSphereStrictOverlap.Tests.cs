@@ -138,21 +138,21 @@ public sealed class CenteredFiniteSphereStrictOverlapTests
         FixedQuaternion rotation = FixedQuaternion.FromAxisAngle(
             new Vector3d(2, 3, 5).Normalized, Fixed64.Pi / (Fixed64)7);
         for (int x = -9; x <= 9; x += 3)
-        for (int y = -9; y <= 9; y += 3)
-        {
-            AssertOracle(Vector3d.Zero, rotation, Raw(9), Raw(4),
-                Point(x, y, 2), Raw(3));
-        }
+            for (int y = -9; y <= 9; y += 3)
+            {
+                AssertOracle(Vector3d.Zero, rotation, Raw(9), Raw(4),
+                    Point(x, y, 2), Raw(3));
+            }
 
         // The differences must remain 65-bit, including the antipodal pair.
         long[] coordinates = { long.MinValue, -1L, 0L, 1L, long.MaxValue };
         foreach (long x in coordinates)
-        foreach (long y in coordinates)
-        {
-            AssertOracle(Point(long.MinValue, y, long.MaxValue), rotation,
-                Fixed64.MaxValue, Fixed64.MaxValue,
-                Point(x, long.MaxValue, long.MinValue), Fixed64.MaxValue);
-        }
+            foreach (long y in coordinates)
+            {
+                AssertOracle(Point(long.MinValue, y, long.MaxValue), rotation,
+                    Fixed64.MaxValue, Fixed64.MaxValue,
+                    Point(x, long.MaxValue, long.MinValue), Fixed64.MaxValue);
+            }
     }
 
     [Fact]
@@ -244,10 +244,10 @@ public sealed class CenteredFiniteSphereStrictOverlapTests
         BigInteger dx = (BigInteger)point.X.m_rawValue - center.X.m_rawValue;
         BigInteger dy = (BigInteger)point.Y.m_rawValue - center.Y.m_rawValue;
         BigInteger dz = (BigInteger)point.Z.m_rawValue - center.Z.m_rawValue;
-        denominator = x*x + y*y + z*z + w*w;
-        localX = dx*(x*x-y*y-z*z+w*w) + dy*2*(x*y+z*w) + dz*2*(x*z-y*w);
-        localY = dx*2*(x*y-z*w) + dy*(y*y-x*x-z*z+w*w) + dz*2*(y*z+x*w);
-        localZ = dx*2*(x*z+y*w) + dy*2*(y*z-x*w) + dz*(z*z-x*x-y*y+w*w);
+        denominator = x * x + y * y + z * z + w * w;
+        localX = dx * (x * x - y * y - z * z + w * w) + dy * 2 * (x * y + z * w) + dz * 2 * (x * z - y * w);
+        localY = dx * 2 * (x * y - z * w) + dy * (y * y - x * x - z * z + w * w) + dz * 2 * (y * z + x * w);
+        localZ = dx * 2 * (x * z + y * w) + dy * 2 * (y * z - x * w) + dz * (z * z - x * x - y * y + w * w);
     }
 
     private static bool Cylinder(Vector3d center, FixedQuaternion rotation,

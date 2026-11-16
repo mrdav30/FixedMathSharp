@@ -64,16 +64,16 @@ internal static partial class SegmentConeSurfaceCandidates
                 // A nonzero polyhedral cone has a coordinate direction, a
                 // one-plane lineality direction, or a two-plane extreme ray.
                 for (int axis = 0; axis < 3; axis++)
-                for (int branch = -1; branch <= 1; branch += 2)
-                    AddFamilyEvent(candidate, geometry, fan, new(ConeSurfaceFamilyEventKind.Axis, axis, -1, branch, parameter, location), ref selection, clip);
+                    for (int branch = -1; branch <= 1; branch += 2)
+                        AddFamilyEvent(candidate, geometry, fan, new(ConeSurfaceFamilyEventKind.Axis, axis, -1, branch, parameter, location), ref selection, clip);
                 for (int a = 0; a < constraints; a++)
                 {
                     for (int axis = 0; axis < 3; axis++)
-                    for (int branch = -1; branch <= 1; branch += 2)
-                        AddFamilyEvent(candidate, geometry, fan, new(ConeSurfaceFamilyEventKind.AxisPlane, a, axis, branch, parameter, location), ref selection, clip);
+                        for (int branch = -1; branch <= 1; branch += 2)
+                            AddFamilyEvent(candidate, geometry, fan, new(ConeSurfaceFamilyEventKind.AxisPlane, a, axis, branch, parameter, location), ref selection, clip);
                     for (int b = a + 1; b < constraints; b++)
-                    for (int branch = -1; branch <= 1; branch += 2)
-                        AddFamilyEvent(candidate, geometry, fan, new(ConeSurfaceFamilyEventKind.AxisPair, a, b, branch, parameter, location), ref selection, clip);
+                        for (int branch = -1; branch <= 1; branch += 2)
+                            AddFamilyEvent(candidate, geometry, fan, new(ConeSurfaceFamilyEventKind.AxisPair, a, b, branch, parameter, location), ref selection, clip);
                 }
             }
             else if (candidate.Family == ConeSurfaceFamily.SegmentInterval)
@@ -92,8 +92,8 @@ internal static partial class SegmentConeSurfaceCandidates
                 for (int seam = 0; seam < 4; seam++)
                     AddFamilyEvent(candidate, geometry, fan, new(ConeSurfaceFamilyEventKind.CircleSeam, seam, 0, 0, parameter, location), ref selection, clip);
                 for (int line = 0; line < constraints; line++)
-                for (int branch = -1; branch <= 1; branch += 2)
-                    AddFamilyEvent(candidate, geometry, fan, new(ConeSurfaceFamilyEventKind.CircleBoundary, line, 0, branch, parameter, location), ref selection, clip);
+                    for (int branch = -1; branch <= 1; branch += 2)
+                        AddFamilyEvent(candidate, geometry, fan, new(ConeSurfaceFamilyEventKind.CircleBoundary, line, 0, branch, parameter, location), ref selection, clip);
                 if (candidate.Family == ConeSurfaceFamily.NormalCone)
                 {
                     // A clipped disk also needs the center and polygon
@@ -101,8 +101,8 @@ internal static partial class SegmentConeSurfaceCandidates
                     // the circle, with no admissible circle boundary point.
                     AddFamilyEvent(candidate, geometry, fan, new(ConeSurfaceFamilyEventKind.DiskCenter, 0, 0, 0, parameter, location), ref selection, clip);
                     for (int a = 0; a < constraints; a++)
-                    for (int b = a + 1; b < constraints; b++)
-                        AddFamilyEvent(candidate, geometry, fan, new(ConeSurfaceFamilyEventKind.DiskPair, a, b, 0, parameter, location), ref selection, clip);
+                        for (int b = a + 1; b < constraints; b++)
+                            AddFamilyEvent(candidate, geometry, fan, new(ConeSurfaceFamilyEventKind.DiskPair, a, b, 0, parameter, location), ref selection, clip);
                 }
             }
         }

@@ -5,8 +5,6 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-using System;
-
 namespace FixedMathSharp.Geometry;
 
 /// <summary>An unbounded plane or one authored finite perimeter segment.</summary>

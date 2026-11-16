@@ -200,8 +200,11 @@ public sealed class ConvexContactValueRootNormalTests
         Write(lower, cell, out _);
         return new FiniteAxisValueRoot
         {
-            Coefficients = coefficients, Signs = signs, LowerNumerator = cell,
-            DenominatorShift = shift, IsRational = singleton
+            Coefficients = coefficients,
+            Signs = signs,
+            LowerNumerator = cell,
+            DenominatorShift = shift,
+            IsRational = singleton
         };
     }
 

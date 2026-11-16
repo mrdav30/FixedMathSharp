@@ -6,7 +6,6 @@
 //=======================================================================
 
 using System;
-using static FixedMathSharp.Geometry.ContactQuadratic;
 
 namespace FixedMathSharp.Geometry;
 

@@ -1,5 +1,5 @@
-using FixedMathSharp.Geometry;
 using System;
+using FixedMathSharp.Geometry;
 using Xunit;
 
 namespace FixedMathSharp.Tests.Bounds;
@@ -112,7 +112,8 @@ public sealed class FixedConvex2dBoundaryFaceTests
     }
 
     [Theory]
-    [InlineData(false)] [InlineData(true)]
+    [InlineData(false)]
+    [InlineData(true)]
     public void AdmittedPlane_ShouldStillRejectMissingFiniteSuppliers(bool collapsed)
     {
         Vector2d[] polygon = { new(-1, -1), new(1, -1), new(1, 1), new(-1, 1) };
@@ -123,7 +124,8 @@ public sealed class FixedConvex2dBoundaryFaceTests
     }
 
     [Theory]
-    [InlineData(false)] [InlineData(true)]
+    [InlineData(false)]
+    [InlineData(true)]
     public void FullFiniteEdgeCoverage_ShouldAgreeWithClippedOrUnclippedAdmission(bool clipped)
     {
         Vector2d[] polygon = { new(-2, -1), new(2, -1), new(2, 1), new(-2, 1) };

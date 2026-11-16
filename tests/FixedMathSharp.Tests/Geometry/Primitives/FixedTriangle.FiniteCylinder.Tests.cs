@@ -1,4 +1,3 @@
-using System;
 using FixedMathSharp.Geometry;
 using Xunit;
 

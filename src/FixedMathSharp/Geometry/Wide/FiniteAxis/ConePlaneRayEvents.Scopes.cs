@@ -106,35 +106,35 @@ internal static partial class ConePlaneRayEvents
             return count;
         }
         for (int upper = 0; upper < 2; upper++)
-        for (int quadrant = 0; quadrant < 4; quadrant++)
-        {
-            ConePlaneRayEventKind kind = upper == 0 ? ConePlaneRayEventKind.LowerCircle : ConePlaneRayEventKind.UpperRim;
-            for (int endpoint = 0; endpoint < 2; endpoint++)
+            for (int quadrant = 0; quadrant < 4; quadrant++)
             {
-                if (endpoint == 0 && (quadrant & 2) != 0 || endpoint == 1 && (quadrant & 1) != 0) continue;
-                events[count++] = new ConePlaneRayEvent(kind, 8, quadrant, endpoint, endpoint);
-                if (upper == 0)
-                    for (int bound = 0; bound < 2; bound++)
-                        events[count++] = new ConePlaneRayEvent(ConePlaneRayEventKind.Generator, 8, quadrant, endpoint, bound);
-            }
-            for (int line = 0; line < (upper == 0 ? 6 : 8); line++)
-            {
-                // Keep canonical base intersections once. A nonzero plane
-                // constant admits lower line 1's identical upper-line-3 point;
-                // radial line 6 reflects onto those same base intersections.
-                // Degenerate frames retain the general diagnostic inventory.
-                if (upper == 0 ? line >= 2 && line <= 4 : line < 3
-                    || line == 3 && !frame.PlaneConstant.IsZero
-                    || line == 6 && frame.Normal.Y.IsZero && !frame.NormalSquared.IsZero) continue;
-                for (int branch = -1; branch <= 1; branch += 2)
+                ConePlaneRayEventKind kind = upper == 0 ? ConePlaneRayEventKind.LowerCircle : ConePlaneRayEventKind.UpperRim;
+                for (int endpoint = 0; endpoint < 2; endpoint++)
                 {
-                    events[count++] = new ConePlaneRayEvent(kind, line, quadrant, branch);
-                    if (upper == 0 && line == 0)
+                    if (endpoint == 0 && (quadrant & 2) != 0 || endpoint == 1 && (quadrant & 1) != 0) continue;
+                    events[count++] = new ConePlaneRayEvent(kind, 8, quadrant, endpoint, endpoint);
+                    if (upper == 0)
                         for (int bound = 0; bound < 2; bound++)
-                            events[count++] = new ConePlaneRayEvent(ConePlaneRayEventKind.Generator, line, quadrant, branch, bound);
+                            events[count++] = new ConePlaneRayEvent(ConePlaneRayEventKind.Generator, 8, quadrant, endpoint, bound);
+                }
+                for (int line = 0; line < (upper == 0 ? 6 : 8); line++)
+                {
+                    // Keep canonical base intersections once. A nonzero plane
+                    // constant admits lower line 1's identical upper-line-3 point;
+                    // radial line 6 reflects onto those same base intersections.
+                    // Degenerate frames retain the general diagnostic inventory.
+                    if (upper == 0 ? line >= 2 && line <= 4 : line < 3
+                        || line == 3 && !frame.PlaneConstant.IsZero
+                        || line == 6 && frame.Normal.Y.IsZero && !frame.NormalSquared.IsZero) continue;
+                    for (int branch = -1; branch <= 1; branch += 2)
+                    {
+                        events[count++] = new ConePlaneRayEvent(kind, line, quadrant, branch);
+                        if (upper == 0 && line == 0)
+                            for (int bound = 0; bound < 2; bound++)
+                                events[count++] = new ConePlaneRayEvent(ConePlaneRayEventKind.Generator, line, quadrant, branch, bound);
+                    }
                 }
             }
-        }
         for (int endpoint = -1; endpoint < 2; endpoint++)
             events[count++] = new ConePlaneRayEvent(ConePlaneRayEventKind.Axis, endpoint: endpoint);
         events[count++] = new ConePlaneRayEvent(ConePlaneRayEventKind.Apex);
@@ -158,8 +158,8 @@ internal static partial class ConePlaneRayEvents
             events[count++] = new ConePlaneRayEvent(ConePlaneRayEventKind.EdgeStationary, branch: branch);
         }
         for (int quadrant = 0; quadrant < 4; quadrant++)
-        for (int branch = -1; branch <= 1; branch += 2)
-            events[count++] = new ConePlaneRayEvent(ConePlaneRayEventKind.UpperRim, quadrant: quadrant, branch: branch);
+            for (int branch = -1; branch <= 1; branch += 2)
+                events[count++] = new ConePlaneRayEvent(ConePlaneRayEventKind.UpperRim, quadrant: quadrant, branch: branch);
         // Lower-circle wall, generator-wall and finite-axis intersections are
         // already the segment's side roots, or endpoints when F is identically
         // zero on that segment. Only the upper-rim projection adds the switch

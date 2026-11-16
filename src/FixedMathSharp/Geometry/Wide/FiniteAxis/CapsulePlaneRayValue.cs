@@ -403,8 +403,15 @@ internal ref struct CapsulePlaneRayValue
         if (!metadata.HasCompactCell)
             return WideFiniteAxisIntersection.GetKnownFiniteValueRoot(coefficients, signs, metadata.Ordinal, metadata.RootCount, cell);
         retainedCell.CopyTo(cell);
-        return new FiniteAxisValueRoot { Coefficients = coefficients, Signs = signs, LowerNumerator = cell,
-            DenominatorShift = metadata.DenominatorShift, Ordinal = metadata.Ordinal, IsRational = metadata.IsRational };
+        return new FiniteAxisValueRoot
+        {
+            Coefficients = coefficients,
+            Signs = signs,
+            LowerNumerator = cell,
+            DenominatorShift = metadata.DenominatorShift,
+            Ordinal = metadata.Ordinal,
+            IsRational = metadata.IsRational
+        };
     }
 
     private static void SetCoefficient(scoped ContactQuadratic value, Span<ulong> rational, Span<sbyte> rationalSigns,

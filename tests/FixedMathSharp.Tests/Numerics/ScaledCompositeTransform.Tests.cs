@@ -131,17 +131,17 @@ public sealed class ScaledCompositeTransformTests
         // A forward transform does not require invertible or positive scale.
         // Both overloads must preserve the origin's exact raw coordinate bits.
         foreach (Vector2d origin in origins)
-        foreach (Vector2d scale in scales)
-        foreach (Fixed64 angle in angles)
-        {
-            Assert.True(Vector2d.TryTransformScaledPoint(
-                origin, Vector2d.Zero, scale, angle, out Vector2d point));
-            Assert.Equal(origin, point);
-            Assert.True(Vector2d.TryTransformScaledPoint(
-                origin, Vector2d.Zero, scale, Vector2d.Zero, angle,
-                out Vector2d composite));
-            Assert.Equal(origin, composite);
-        }
+            foreach (Vector2d scale in scales)
+                foreach (Fixed64 angle in angles)
+                {
+                    Assert.True(Vector2d.TryTransformScaledPoint(
+                        origin, Vector2d.Zero, scale, angle, out Vector2d point));
+                    Assert.Equal(origin, point);
+                    Assert.True(Vector2d.TryTransformScaledPoint(
+                        origin, Vector2d.Zero, scale, Vector2d.Zero, angle,
+                        out Vector2d composite));
+                    Assert.Equal(origin, composite);
+                }
     }
 
     [Fact]

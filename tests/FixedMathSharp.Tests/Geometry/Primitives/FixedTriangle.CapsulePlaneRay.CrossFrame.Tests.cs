@@ -33,26 +33,26 @@ public sealed class FixedTriangleCapsulePlaneRayCrossFrameTests
                     events.Add(new Snapshot(candidate, current))));
             reference ??= events;
             foreach (Snapshot first in reference)
-            foreach (Snapshot second in events)
-            {
-                var a = first.Borrow(); var b = second.Borrow();
-                int comparison = a.CompareCoplanarDepth(b, first.Frame, second.Frame);
-                Assert.Equal(-comparison, b.CompareCoplanarDepth(a, second.Frame, first.Frame));
-                if (SamePhysicalPoint(a, first.Frame, b, second.Frame))
+                foreach (Snapshot second in events)
                 {
-                    Assert.Equal(0, comparison);
-                    exactTies++;
-                    if (a.CompareDepth(b) != 0) originalDisagreements++;
+                    var a = first.Borrow(); var b = second.Borrow();
+                    int comparison = a.CompareCoplanarDepth(b, first.Frame, second.Frame);
+                    Assert.Equal(-comparison, b.CompareCoplanarDepth(a, second.Frame, first.Frame));
+                    if (SamePhysicalPoint(a, first.Frame, b, second.Frame))
+                    {
+                        Assert.Equal(0, comparison);
+                        exactTies++;
+                        if (a.CompareDepth(b) != 0) originalDisagreements++;
+                    }
+                    else
+                    {
+                        Assert.True(a.TryGetDepth(first.Frame, out Fixed64 da));
+                        Assert.True(b.TryGetDepth(second.Frame, out Fixed64 db));
+                        // Distinct rounded values certify the same strict order of
+                        // exact depths; equal rounded values do not certify a tie.
+                        if (da != db) { Assert.Equal(da.CompareTo(db), comparison); separated++; }
+                    }
                 }
-                else
-                {
-                    Assert.True(a.TryGetDepth(first.Frame, out Fixed64 da));
-                    Assert.True(b.TryGetDepth(second.Frame, out Fixed64 db));
-                    // Distinct rounded values certify the same strict order of
-                    // exact depths; equal rounded values do not certify a tie.
-                    if (da != db) { Assert.Equal(da.CompareTo(db), comparison); separated++; }
-                }
-            }
         }
         Assert.True(exactTies > 0);
         Assert.True(separated > 0);

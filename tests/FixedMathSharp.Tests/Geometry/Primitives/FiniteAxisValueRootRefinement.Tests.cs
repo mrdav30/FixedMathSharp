@@ -19,8 +19,11 @@ public sealed class FiniteAxisValueRootRefinementTests
         cell[0] = ulong.MaxValue;
         var root = new FiniteAxisValueRoot
         {
-            Coefficients = coefficients, Signs = signs, LowerNumerator = cell,
-            DenominatorShift = 64, Ordinal = 0
+            Coefficients = coefficients,
+            Signs = signs,
+            LowerNumerator = cell,
+            DenominatorShift = 64,
+            Ordinal = 0
         };
 
         WideFiniteAxisIntersection.RefineFiniteValueRoot(ref root, 128);
@@ -50,8 +53,11 @@ public sealed class FiniteAxisValueRootRefinementTests
         cell[0] = 1;
         var root = new FiniteAxisValueRoot
         {
-            Coefficients = coefficients, Signs = signs, LowerNumerator = cell,
-            DenominatorShift = 1, Ordinal = zeroUpper ? 0 : 1
+            Coefficients = coefficients,
+            Signs = signs,
+            LowerNumerator = cell,
+            DenominatorShift = 1,
+            Ordinal = zeroUpper ? 0 : 1
         };
         WideFiniteAxisIntersection.RefineFiniteValueRoot(ref root, 96);
         Assert.False(root.IsRational);

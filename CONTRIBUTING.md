@@ -120,8 +120,10 @@ Put public and protected API contracts in the owning source comments. Review the
 generated reference for parameter names, return and property-value text,
 exceptions, and links. Use `<inheritdoc/>` for a shared contract when DocFX
 resolves it with the correct parameter names and applicable exceptions. Check
-target-specific APIs in their emitted XML and account for synthesized members
-when auditing the generated member list.
+target-specific APIs in their emitted XML. Count implicit value-type
+constructors and generated MemoryPack serialization methods separately from
+authored API coverage. Document the usable default state on the owning type when
+it affects callers.
 
 Run cleanup explicitly before review, using the SDK from `global.json` and
 Node.js/npm for Prettier:

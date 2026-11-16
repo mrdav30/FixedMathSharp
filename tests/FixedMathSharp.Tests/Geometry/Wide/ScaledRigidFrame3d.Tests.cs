@@ -70,18 +70,18 @@ public sealed class ScaledRigidFrame3dTests
         Vector3d source = Raw(3865470566, 0, -4 * Q);
         Vector3d[] centers = { Raw(-6657199309, 0, 0), Raw(10522669875, 0, 0), Raw(12670153523, 0, 0) };
         foreach (FixedQuaternion rotation in new[] { FixedQuaternion.Identity, Rotation })
-        foreach (Vector3d owner in new[] { Vector3d.One, Raw(2863311531, Q, 2576980378) })
-        {
-            RationalPoint3d[] points = centers.Select(center => Check(source, center, center, Vector3d.Zero,
-                rotation, rotation, owner, Vector3d.One)).ToArray();
-            for (int index = 1; index < points.Length; index++)
+            foreach (Vector3d owner in new[] { Vector3d.One, Raw(2863311531, Q, 2576980378) })
             {
-                Assert.Equal(points[0].X, points[index].X);
-                Assert.Equal(points[0].Y, points[index].Y);
-                Assert.Equal(points[0].Z, points[index].Z);
-                Assert.Equal(points[0].Denominator, points[index].Denominator);
+                RationalPoint3d[] points = centers.Select(center => Check(source, center, center, Vector3d.Zero,
+                    rotation, rotation, owner, Vector3d.One)).ToArray();
+                for (int index = 1; index < points.Length; index++)
+                {
+                    Assert.Equal(points[0].X, points[index].X);
+                    Assert.Equal(points[0].Y, points[index].Y);
+                    Assert.Equal(points[0].Z, points[index].Z);
+                    Assert.Equal(points[0].Denominator, points[index].Denominator);
+                }
             }
-        }
     }
 
     [Fact]
@@ -110,9 +110,9 @@ public sealed class ScaledRigidFrame3dTests
         Vector3d source = Raw(3 * Q + 1, -2 * Q + 3, Q / 3), reference = Raw(Q, -Q, 0);
         Vector3d owner = Raw(2863311531, 2576980378, Q / 2), part = Raw(3 * Q, Q / 3, 2 * Q);
         foreach (FixedQuaternion placement in new[] { FixedQuaternion.Identity, Rotation })
-        foreach (FixedQuaternion geometry in new[] { FixedQuaternion.Identity, Rotation, OtherRotation })
-            Check(source, reference, Raw(-Q, 2 * Q, Q / 5), Raw(5 * Q, -3 * Q, Q),
-                placement, geometry, owner, part);
+            foreach (FixedQuaternion geometry in new[] { FixedQuaternion.Identity, Rotation, OtherRotation })
+                Check(source, reference, Raw(-Q, 2 * Q, Q / 5), Raw(5 * Q, -3 * Q, Q),
+                    placement, geometry, owner, part);
 
         // At the source reference the part scale disappears, while the scaled offset remains.
         RationalPoint3d first = Check(reference, reference, source, Vector3d.Zero, Rotation, OtherRotation, owner, part);
@@ -138,22 +138,22 @@ public sealed class ScaledRigidFrame3dTests
     public void FullDomainOriginsAndFactors_ShouldMatchIndependentArithmeticWithoutIntermediateRejection()
     {
         foreach (long source in new[] { long.MinValue, long.MaxValue })
-        foreach (long reference in new[] { long.MinValue, long.MaxValue })
-        foreach (FixedQuaternion geometry in new[] { FixedQuaternion.Identity, Rotation, OtherRotation })
-            Check(Raw(source, reference, source), Raw(reference, source, reference), Raw(source, source, reference),
-                Raw(long.MaxValue, long.MinValue, 0), Rotation, geometry,
-                Raw(long.MaxValue, long.MinValue, long.MaxValue), Raw(long.MinValue, long.MaxValue, long.MinValue));
+            foreach (long reference in new[] { long.MinValue, long.MaxValue })
+                foreach (FixedQuaternion geometry in new[] { FixedQuaternion.Identity, Rotation, OtherRotation })
+                    Check(Raw(source, reference, source), Raw(reference, source, reference), Raw(source, source, reference),
+                        Raw(long.MaxValue, long.MinValue, 0), Rotation, geometry,
+                        Raw(long.MaxValue, long.MinValue, long.MaxValue), Raw(long.MinValue, long.MaxValue, long.MinValue));
 
         foreach (int axis in new[] { 0, 1, 2 })
-        foreach (long origin in new[] { long.MinValue, long.MaxValue })
-        foreach (long displacement in new[] { -Q, 0, Q })
-        {
-            Vector3d placement = Vector3d.Zero, local = Vector3d.Zero;
-            placement[axis] = Fixed64.FromRaw(origin);
-            local[axis] = Fixed64.FromRaw(displacement);
-            Check(local, Vector3d.Zero, Vector3d.Zero, placement,
-                FixedQuaternion.Identity, FixedQuaternion.Identity, Vector3d.One, Vector3d.One);
-        }
+            foreach (long origin in new[] { long.MinValue, long.MaxValue })
+                foreach (long displacement in new[] { -Q, 0, Q })
+                {
+                    Vector3d placement = Vector3d.Zero, local = Vector3d.Zero;
+                    placement[axis] = Fixed64.FromRaw(origin);
+                    local[axis] = Fixed64.FromRaw(displacement);
+                    Check(local, Vector3d.Zero, Vector3d.Zero, placement,
+                        FixedQuaternion.Identity, FixedQuaternion.Identity, Vector3d.One, Vector3d.One);
+                }
         Check(Raw(Q, -Q, 2 * Q), Raw(-Q, Q, 0), Raw(Q, Q, Q), Vector3d.Zero,
             Rotation, OtherRotation, Vector3d.Zero, Raw(-Q, 2 * Q, 0));
         Assert.False(default(RationalPoint3d).TryGetPoint(out Vector3d absent));
@@ -197,92 +197,92 @@ public sealed class ScaledRigidFrame3dTests
         Vector3d reference = Raw(3865470566, -Q / 3, Q / 7), offset = Raw(-Q / 5, Q / 3, Q / 11);
         Vector3d owner = Raw(2863311531, 2576980378, Q / 2), part = Raw(Q / 3, 3 * Q, 2 * Q);
         foreach (FixedQuaternion placement in new[] { FixedQuaternion.Identity, Rotation })
-        foreach (FixedQuaternion geometry in new[] { FixedQuaternion.Identity, OtherRotation })
-        foreach (bool negative in new[] { false, true })
-        {
-            Vector3d actualOwner = owner;
-            if (negative) actualOwner.X = -actualOwner.X;
-            Vector3d translation = Raw(Q / 9, -2 * Q, 3 * Q);
-            var frame = new ScaledRigidFrame3d(translation, placement, offset, actualOwner, geometry, reference, part);
-            (BigInteger[] center, BigInteger d) = OraclePoint(reference, reference, offset, translation,
-                placement, geometry, actualOwner, part);
-            (BigInteger[,] matrix, BigInteger rotationD) = Basis(geometry);
-            (BigInteger[], BigInteger[]) SourceOracle(Vector3d world)
-            {
-                BigInteger[] n = new BigInteger[3], denominators = new BigInteger[3];
-                for (int axis = 0; axis < 3; axis++)
+            foreach (FixedQuaternion geometry in new[] { FixedQuaternion.Identity, OtherRotation })
+                foreach (bool negative in new[] { false, true })
                 {
-                    BigInteger scale = (BigInteger)actualOwner[axis].m_rawValue * part[axis].m_rawValue;
-                    denominators[axis] = d * rotationD * scale;
-                    n[axis] = reference[axis].m_rawValue * denominators[axis];
-                    for (int worldAxis = 0; worldAxis < 3; worldAxis++)
-                        n[axis] += Q2 * matrix[worldAxis, axis] * (world[worldAxis].m_rawValue * d - center[worldAxis]);
+                    Vector3d actualOwner = owner;
+                    if (negative) actualOwner.X = -actualOwner.X;
+                    Vector3d translation = Raw(Q / 9, -2 * Q, 3 * Q);
+                    var frame = new ScaledRigidFrame3d(translation, placement, offset, actualOwner, geometry, reference, part);
+                    (BigInteger[] center, BigInteger d) = OraclePoint(reference, reference, offset, translation,
+                        placement, geometry, actualOwner, part);
+                    (BigInteger[,] matrix, BigInteger rotationD) = Basis(geometry);
+                    (BigInteger[], BigInteger[]) SourceOracle(Vector3d world)
+                    {
+                        BigInteger[] n = new BigInteger[3], denominators = new BigInteger[3];
+                        for (int axis = 0; axis < 3; axis++)
+                        {
+                            BigInteger scale = (BigInteger)actualOwner[axis].m_rawValue * part[axis].m_rawValue;
+                            denominators[axis] = d * rotationD * scale;
+                            n[axis] = reference[axis].m_rawValue * denominators[axis];
+                            for (int worldAxis = 0; worldAxis < 3; worldAxis++)
+                                n[axis] += Q2 * matrix[worldAxis, axis] * (world[worldAxis].m_rawValue * d - center[worldAxis]);
+                        }
+                        return (n, denominators);
+                    }
+                    Vector3d worldPoint = Raw(2 * Q, -Q / 3, Q / 5);
+                    (BigInteger[] expected, BigInteger[] denominators) = SourceOracle(worldPoint);
+                    frame.GetSourcePointNumerators(worldPoint, out Signed576 sx, out Signed576 sy, out Signed576 sz,
+                        out Signed576 dx, out Signed576 dy, out Signed576 dz);
+                    Assert.Equal(expected, new[] { Big(sx), Big(sy), Big(sz) });
+                    Assert.Equal(denominators, new[] { Big(dx), Big(dy), Big(dz) });
+                    for (int axis = 0; axis < 3; axis++)
+                    {
+                        frame.GetSourceCoordinateTransform(axis, out Signed576 cx, out Signed576 cy, out Signed576 cz,
+                            out Signed576 co, out Signed576 cd);
+                        BigInteger transformed = Big(cx) * worldPoint.X.m_rawValue + Big(cy) * worldPoint.Y.m_rawValue
+                            + Big(cz) * worldPoint.Z.m_rawValue + Big(co);
+                        Assert.Equal(expected[axis] / Q2, transformed);
+                        Assert.Equal(denominators[axis] / Q2, Big(cd));
+                    }
+
+                    Vector3d local = Raw(Q / 2, -Q, Q / 3);
+                    RationalPoint3d localWorld = frame.GetScaledLocalPoint(local);
+                    BigInteger[] worldExpected = (BigInteger[])center.Clone();
+                    for (int axis = 0; axis < 3; axis++)
+                        for (int localAxis = 0; localAxis < 3; localAxis++)
+                            worldExpected[axis] += matrix[axis, localAxis] * local[localAxis].m_rawValue * (d / rotationD);
+                    Assert.Equal(worldExpected, Coordinates(localWorld));
+                    Assert.Equal(d, Big(localWorld.Denominator));
+                    Assert.True(frame.TryGetSourceBoundsFromScaledLocal(local, local, out FixedBoundBox localSourceBounds));
+                    Assert.True(frame.TryGetScaledLocalPointIn(worldPoint, out Vector3d scaledPoint));
+                    for (int axis = 0; axis < 3; axis++)
+                    {
+                        BigInteger scale = (BigInteger)actualOwner[axis].m_rawValue * part[axis].m_rawValue;
+                        BigInteger sourceN = reference[axis].m_rawValue * scale + local[axis].m_rawValue * Q2;
+                        BigInteger sourceD = scale;
+                        if (sourceD.Sign < 0) { sourceN = -sourceN; sourceD = -sourceD; }
+                        Assert.Equal((long)Floor(sourceN, sourceD), localSourceBounds.Min[axis].m_rawValue);
+                        Assert.Equal((long)-Floor(-sourceN, sourceD), localSourceBounds.Max[axis].m_rawValue);
+                        BigInteger localN = 0;
+                        for (int worldAxis = 0; worldAxis < 3; worldAxis++)
+                            localN += matrix[worldAxis, axis] * (worldPoint[worldAxis].m_rawValue * d - center[worldAxis]);
+                        Assert.Equal((long)Round(localN, d * rotationD), scaledPoint[axis].m_rawValue);
+                    }
+
+                    Vector3d direction = Raw(3 * Q, -2 * Q, Q);
+                    WideAxis3 projected = frame.GetSourceDirectionNumerators(direction);
+                    Signed320[] coefficients = { projected.X, projected.Y, projected.Z };
+                    for (int axis = 0; axis < 3; axis++)
+                    {
+                        BigInteger coefficient = 0;
+                        for (int worldAxis = 0; worldAxis < 3; worldAxis++)
+                            coefficient += matrix[worldAxis, axis] * direction[worldAxis].m_rawValue;
+                        coefficient *= (BigInteger)actualOwner[axis].m_rawValue * part[axis].m_rawValue;
+                        Assert.Equal(coefficient, Big(coefficients[axis]));
+                    }
+
+                    Vector3d min = Raw(-Q, -2 * Q, -Q / 2), max = Raw(2 * Q, Q, Q / 3);
+                    FixedBoundBox bounds = frame.GetWorldBounds(min, max);
+                    AssertBounds(bounds, min, max, source =>
+                    {
+                        (BigInteger[] n, BigInteger denominator) = OraclePoint(source, reference, offset, translation,
+                            placement, geometry, actualOwner, part);
+                        return (n, new[] { denominator, denominator, denominator });
+                    });
+                    Assert.True(frame.TryGetSourceBounds(min, max, out FixedBoundBox sourceBounds));
+                    AssertBounds(sourceBounds, min, max, SourceOracle);
                 }
-                return (n, denominators);
-            }
-            Vector3d worldPoint = Raw(2 * Q, -Q / 3, Q / 5);
-            (BigInteger[] expected, BigInteger[] denominators) = SourceOracle(worldPoint);
-            frame.GetSourcePointNumerators(worldPoint, out Signed576 sx, out Signed576 sy, out Signed576 sz,
-                out Signed576 dx, out Signed576 dy, out Signed576 dz);
-            Assert.Equal(expected, new[] { Big(sx), Big(sy), Big(sz) });
-            Assert.Equal(denominators, new[] { Big(dx), Big(dy), Big(dz) });
-            for (int axis = 0; axis < 3; axis++)
-            {
-                frame.GetSourceCoordinateTransform(axis, out Signed576 cx, out Signed576 cy, out Signed576 cz,
-                    out Signed576 co, out Signed576 cd);
-                BigInteger transformed = Big(cx) * worldPoint.X.m_rawValue + Big(cy) * worldPoint.Y.m_rawValue
-                    + Big(cz) * worldPoint.Z.m_rawValue + Big(co);
-                Assert.Equal(expected[axis] / Q2, transformed);
-                Assert.Equal(denominators[axis] / Q2, Big(cd));
-            }
-
-            Vector3d local = Raw(Q / 2, -Q, Q / 3);
-            RationalPoint3d localWorld = frame.GetScaledLocalPoint(local);
-            BigInteger[] worldExpected = (BigInteger[])center.Clone();
-            for (int axis = 0; axis < 3; axis++)
-                for (int localAxis = 0; localAxis < 3; localAxis++)
-                    worldExpected[axis] += matrix[axis, localAxis] * local[localAxis].m_rawValue * (d / rotationD);
-            Assert.Equal(worldExpected, Coordinates(localWorld));
-            Assert.Equal(d, Big(localWorld.Denominator));
-            Assert.True(frame.TryGetSourceBoundsFromScaledLocal(local, local, out FixedBoundBox localSourceBounds));
-            Assert.True(frame.TryGetScaledLocalPointIn(worldPoint, out Vector3d scaledPoint));
-            for (int axis = 0; axis < 3; axis++)
-            {
-                BigInteger scale = (BigInteger)actualOwner[axis].m_rawValue * part[axis].m_rawValue;
-                BigInteger sourceN = reference[axis].m_rawValue * scale + local[axis].m_rawValue * Q2;
-                BigInteger sourceD = scale;
-                if (sourceD.Sign < 0) { sourceN = -sourceN; sourceD = -sourceD; }
-                Assert.Equal((long)Floor(sourceN, sourceD), localSourceBounds.Min[axis].m_rawValue);
-                Assert.Equal((long)-Floor(-sourceN, sourceD), localSourceBounds.Max[axis].m_rawValue);
-                BigInteger localN = 0;
-                for (int worldAxis = 0; worldAxis < 3; worldAxis++)
-                    localN += matrix[worldAxis, axis] * (worldPoint[worldAxis].m_rawValue * d - center[worldAxis]);
-                Assert.Equal((long)Round(localN, d * rotationD), scaledPoint[axis].m_rawValue);
-            }
-
-            Vector3d direction = Raw(3 * Q, -2 * Q, Q);
-            WideAxis3 projected = frame.GetSourceDirectionNumerators(direction);
-            Signed320[] coefficients = { projected.X, projected.Y, projected.Z };
-            for (int axis = 0; axis < 3; axis++)
-            {
-                BigInteger coefficient = 0;
-                for (int worldAxis = 0; worldAxis < 3; worldAxis++)
-                    coefficient += matrix[worldAxis, axis] * direction[worldAxis].m_rawValue;
-                coefficient *= (BigInteger)actualOwner[axis].m_rawValue * part[axis].m_rawValue;
-                Assert.Equal(coefficient, Big(coefficients[axis]));
-            }
-
-            Vector3d min = Raw(-Q, -2 * Q, -Q / 2), max = Raw(2 * Q, Q, Q / 3);
-            FixedBoundBox bounds = frame.GetWorldBounds(min, max);
-            AssertBounds(bounds, min, max, source =>
-            {
-                (BigInteger[] n, BigInteger denominator) = OraclePoint(source, reference, offset, translation,
-                    placement, geometry, actualOwner, part);
-                return (n, new[] { denominator, denominator, denominator });
-            });
-            Assert.True(frame.TryGetSourceBounds(min, max, out FixedBoundBox sourceBounds));
-            AssertBounds(sourceBounds, min, max, SourceOracle);
-        }
     }
 
     [Fact]
@@ -546,14 +546,14 @@ public sealed class ScaledRigidFrame3dTests
         BigInteger x = q.X.m_rawValue, y = q.Y.m_rawValue, z = q.Z.m_rawValue, w = q.W.m_rawValue;
         return (new[,] { { x*x-y*y-z*z+w*w, 2*(x*y-z*w), 2*(x*z+y*w) },
             { 2*(x*y+z*w), y*y-x*x-z*z+w*w, 2*(y*z-x*w) },
-            { 2*(x*z-y*w), 2*(y*z+x*w), z*z-x*x-y*y+w*w } }, x*x+y*y+z*z+w*w);
+            { 2*(x*z-y*w), 2*(y*z+x*w), z*z-x*x-y*y+w*w } }, x * x + y * y + z * z + w * w);
     }
 
     private static Vector3d Raw(long x, long y, long z) => new(Fixed64.FromRaw(x), Fixed64.FromRaw(y), Fixed64.FromRaw(z));
     private static BigInteger[] Coordinates(RationalPoint3d point) => new[] { Big(point.X), Big(point.Y), Big(point.Z) };
     private static BigInteger[] Subtract(BigInteger[] a, BigInteger[] b) => a.Zip(b, (x, y) => x - y).ToArray();
-    private static BigInteger[] Cross(BigInteger[] a, BigInteger[] b) => new[] { a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0] };
-    private static BigInteger Dot(BigInteger[] a, BigInteger[] b) => a.Zip(b, (x, y) => x*y).Aggregate(BigInteger.Zero, (x, y) => x+y);
+    private static BigInteger[] Cross(BigInteger[] a, BigInteger[] b) => new[] { a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0] };
+    private static BigInteger Dot(BigInteger[] a, BigInteger[] b) => a.Zip(b, (x, y) => x * y).Aggregate(BigInteger.Zero, (x, y) => x + y);
     private static BigInteger Floor(BigInteger n, BigInteger d)
     {
         BigInteger q = BigInteger.DivRem(n, d, out BigInteger r);
@@ -563,7 +563,7 @@ public sealed class ScaledRigidFrame3dTests
     {
         if (d.Sign < 0) { n = -n; d = -d; }
         BigInteger q = BigInteger.DivRem(BigInteger.Abs(n), d, out BigInteger r);
-        if (2*r > d || (2*r == d && !q.IsEven)) q++;
+        if (2 * r > d || (2 * r == d && !q.IsEven)) q++;
         return n.Sign < 0 ? -q : q;
     }
     private static BigInteger Big(Signed192 v) => Words(v.Low, v.Middle, v.High);
@@ -573,7 +573,7 @@ public sealed class ScaledRigidFrame3dTests
     {
         BigInteger value = 0;
         for (int i = words.Length - 1; i >= 0; i--) value = (value << 64) + words[i];
-        return (words[^1] & (1UL << 63)) == 0 ? value : value - (BigInteger.One << (64*words.Length));
+        return (words[^1] & (1UL << 63)) == 0 ? value : value - (BigInteger.One << (64 * words.Length));
     }
 }
 

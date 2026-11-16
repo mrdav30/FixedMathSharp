@@ -1,8 +1,8 @@
-using FixedMathSharp.Geometry;
-using Xunit;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using FixedMathSharp.Geometry;
+using Xunit;
 
 namespace FixedMathSharp.Tests.Geometry.Primitives;
 
@@ -97,13 +97,31 @@ public sealed class WideOrientedBoxScaledHullTests
             new(right, -Fixed64.Quarter, Fixed64.One), new(left, Fixed64.Quarter, Fixed64.One));
         RationalSegmentInterval clip = window switch
         {
-            1 => Range(0, 1, 1, 2), 2 => Range(1, 2, 1, 1), 3 => Range(1, 4, 3, 4),
-            4 => Range(0, 1, 0, 1), 5 => Range(1, 1, 1, 1), 8 => Range(1, 2, 1, 1), _ => default
+            1 => Range(0, 1, 1, 2),
+            2 => Range(1, 2, 1, 1),
+            3 => Range(1, 4, 3, 4),
+            4 => Range(0, 1, 0, 1),
+            5 => Range(1, 1, 1, 1),
+            8 => Range(1, 2, 1, 1),
+            _ => default
         };
-        Fixed64 minimum = window switch { 2 => Fixed64.Zero, 3 => -Fixed64.Quarter,
-            5 => Fixed64.Half, 6 => -Fixed64.One, 8 => 3 * Fixed64.Quarter, _ => left };
-        Fixed64 maximum = window switch { 1 => Fixed64.Zero, 3 => Fixed64.Quarter,
-            4 => -Fixed64.Half, 6 or 7 or 8 => Fixed64.One, _ => right };
+        Fixed64 minimum = window switch
+        {
+            2 => Fixed64.Zero,
+            3 => -Fixed64.Quarter,
+            5 => Fixed64.Half,
+            6 => -Fixed64.One,
+            8 => 3 * Fixed64.Quarter,
+            _ => left
+        };
+        Fixed64 maximum = window switch
+        {
+            1 => Fixed64.Zero,
+            3 => Fixed64.Quarter,
+            4 => -Fixed64.Half,
+            6 or 7 or 8 => Fixed64.One,
+            _ => right
+        };
         HashSet<(Vector3d Moving, Vector3d Wall)>? expected = null;
         foreach (bool reverse in new[] { false, true })
         {
@@ -401,111 +419,111 @@ public sealed class WideOrientedBoxScaledHullTests
     [InlineData(true)]
     public void ExactHullFiniteManifold_ShouldRetainFiniteFaceVerticesOrCrossedEdgeFeet(bool crossed)
     {
-        Vector3d[] first=Array.ConvertAll(Cube,p=>new Vector3d(p.X,p.Y*(crossed?2:1),p.Z*(crossed?Fixed64.Quarter:Fixed64.One))*4);
-        Vector3d[] second=Array.ConvertAll(Cube,p=>new Vector3d(p.X,p.Y*(crossed?Fixed64.Quarter:Fixed64.Two),p.Z*2)*4);
-        Vector3d offset=Vector3d.Right*((Fixed64)3/2);
-        ScaledRigidFrame3d a=ScaledFrame(Vector3d.Zero),b=ScaledFrame(offset);
-        Assert.True(WideOrientedBox.TryGetConvexHullPenetration(a,first,Faces,Edges,b,second,Faces,Edges,out var penetration));
-        var contacts=new List<FixedContactAnchors>();
-        Assert.True(WideOrientedBox.VisitConvexHullContacts(a,Vector3d.Zero,first,Faces,Edges,b,offset,second,Faces,Edges,
-            penetration,contacts,static(pool,contact)=>pool.Add(contact))>0);
-        foreach(var contact in contacts)
+        Vector3d[] first = Array.ConvertAll(Cube, p => new Vector3d(p.X, p.Y * (crossed ? 2 : 1), p.Z * (crossed ? Fixed64.Quarter : Fixed64.One)) * 4);
+        Vector3d[] second = Array.ConvertAll(Cube, p => new Vector3d(p.X, p.Y * (crossed ? Fixed64.Quarter : Fixed64.Two), p.Z * 2) * 4);
+        Vector3d offset = Vector3d.Right * ((Fixed64)3 / 2);
+        ScaledRigidFrame3d a = ScaledFrame(Vector3d.Zero), b = ScaledFrame(offset);
+        Assert.True(WideOrientedBox.TryGetConvexHullPenetration(a, first, Faces, Edges, b, second, Faces, Edges, out var penetration));
+        var contacts = new List<FixedContactAnchors>();
+        Assert.True(WideOrientedBox.VisitConvexHullContacts(a, Vector3d.Zero, first, Faces, Edges, b, offset, second, Faces, Edges,
+            penetration, contacts, static (pool, contact) => pool.Add(contact)) > 0);
+        foreach (var contact in contacts)
         {
-            Assert.Equal(Vector3d.Right,contact.Normal);Assert.Equal(Fixed64.Half,contact.Depth);
-            Assert.True(contact.FirstAnchor.TryGetPoint(out Vector3d point));Assert.Equal(Fixed64.One,point.X);
-            Assert.Equal(crossed?Fixed64.Quarter:Fixed64.One,point.Y.Abs());
-            Assert.Equal(crossed?Fixed64.Quarter:Fixed64.One,point.Z.Abs());
+            Assert.Equal(Vector3d.Right, contact.Normal); Assert.Equal(Fixed64.Half, contact.Depth);
+            Assert.True(contact.FirstAnchor.TryGetPoint(out Vector3d point)); Assert.Equal(Fixed64.One, point.X);
+            Assert.Equal(crossed ? Fixed64.Quarter : Fixed64.One, point.Y.Abs());
+            Assert.Equal(crossed ? Fixed64.Quarter : Fixed64.One, point.Z.Abs());
         }
-        Assert.Equal(1,WideOrientedBox.VisitConvexHullContacts(a,Vector3d.Zero,first,Faces,Edges,b,offset,second,Faces,Edges,
-            penetration,0,static(_,_)=>throw new InvalidOperationException("Admission must retain the witness without materializing it."),admissionOnly:true));
-        if(!crossed)
+        Assert.Equal(1, WideOrientedBox.VisitConvexHullContacts(a, Vector3d.Zero, first, Faces, Edges, b, offset, second, Faces, Edges,
+            penetration, 0, static (_, _) => throw new InvalidOperationException("Admission must retain the witness without materializing it."), admissionOnly: true));
+        if (!crossed)
         {
-            Assert.True(WideOrientedBox.TryGetConvexHullPenetration(b,second,Faces,Edges,a,first,Faces,Edges,out var reversed));
+            Assert.True(WideOrientedBox.TryGetConvexHullPenetration(b, second, Faces, Edges, a, first, Faces, Edges, out var reversed));
             contacts.Clear();
-            Assert.True(WideOrientedBox.VisitConvexHullContacts(b,offset,second,Faces,Edges,a,Vector3d.Zero,first,Faces,Edges,
-                reversed,contacts,static(pool,contact)=>pool.Add(contact))>0);
-            foreach(var contact in contacts)
+            Assert.True(WideOrientedBox.VisitConvexHullContacts(b, offset, second, Faces, Edges, a, Vector3d.Zero, first, Faces, Edges,
+                reversed, contacts, static (pool, contact) => pool.Add(contact)) > 0);
+            foreach (var contact in contacts)
             {
-                Assert.Equal(Vector3d.Left,contact.Normal);Assert.Equal(Fixed64.Half,contact.Depth);
-                Assert.True(contact.FirstAnchor.TryGetPoint(out var point));Assert.Equal(Fixed64.Half,point.X);
-                Assert.True(contact.SecondAnchor.TryGetPoint(out point));Assert.Equal(Fixed64.One,point.X);
+                Assert.Equal(Vector3d.Left, contact.Normal); Assert.Equal(Fixed64.Half, contact.Depth);
+                Assert.True(contact.FirstAnchor.TryGetPoint(out var point)); Assert.Equal(Fixed64.Half, point.X);
+                Assert.True(contact.SecondAnchor.TryGetPoint(out point)); Assert.Equal(Fixed64.One, point.X);
             }
         }
-        foreach(bool empty in new[]{false,true})
-        foreach(bool admissionOnly in new[]{false,true})
-        {
-            var domain=new RetainedSupportDomain(empty,false);
-            Assert.Equal(0,WideOrientedBox.VisitConvexHullContacts(a,Vector3d.Zero,first,Faces,Edges,b,offset,second,Faces,Edges,
-                penetration,0,static(_,_)=>throw new InvalidOperationException("An excluded support cannot emit a contact."),domain,admissionOnly));
-        }
+        foreach (bool empty in new[] { false, true })
+            foreach (bool admissionOnly in new[] { false, true })
+            {
+                var domain = new RetainedSupportDomain(empty, false);
+                Assert.Equal(0, WideOrientedBox.VisitConvexHullContacts(a, Vector3d.Zero, first, Faces, Edges, b, offset, second, Faces, Edges,
+                    penetration, 0, static (_, _) => throw new InvalidOperationException("An excluded support cannot emit a contact."), domain, admissionOnly));
+            }
     }
 
     [Fact]
     public void ExactHullRetainedEdges_ShouldMaterializeTheirAdmittedInteriorCuts()
     {
-        Vector3d[] first=Array.ConvertAll(Cube,p=>p*4),second=Array.ConvertAll(Cube,p=>new Vector3d(p.X,p.Y*2,p.Z*2)*4);
-        Vector3d offset=Vector3d.Right*((Fixed64)3/2);ScaledRigidFrame3d a=ScaledFrame(Vector3d.Zero),b=ScaledFrame(offset);
-        Assert.True(WideOrientedBox.TryGetConvexHullPenetration(a,first,Faces,Edges,b,second,Faces,Edges,out var penetration));
-        var contacts=new List<FixedContactAnchors>();var domain=new RetainedSupportDomain(false,true);
-        Assert.True(WideOrientedBox.VisitConvexHullContacts(a,Vector3d.Zero,first,Faces,Edges,b,offset,second,Faces,Edges,
-            penetration,contacts,static(pool,contact)=>pool.Add(contact),domain)>=2);
-        foreach(var contact in contacts)
+        Vector3d[] first = Array.ConvertAll(Cube, p => p * 4), second = Array.ConvertAll(Cube, p => new Vector3d(p.X, p.Y * 2, p.Z * 2) * 4);
+        Vector3d offset = Vector3d.Right * ((Fixed64)3 / 2); ScaledRigidFrame3d a = ScaledFrame(Vector3d.Zero), b = ScaledFrame(offset);
+        Assert.True(WideOrientedBox.TryGetConvexHullPenetration(a, first, Faces, Edges, b, second, Faces, Edges, out var penetration));
+        var contacts = new List<FixedContactAnchors>(); var domain = new RetainedSupportDomain(false, true);
+        Assert.True(WideOrientedBox.VisitConvexHullContacts(a, Vector3d.Zero, first, Faces, Edges, b, offset, second, Faces, Edges,
+            penetration, contacts, static (pool, contact) => pool.Add(contact), domain) >= 2);
+        foreach (var contact in contacts)
         {
-            Assert.Equal(Fixed64.Half,contact.Depth);Assert.Equal(Vector3d.Right,contact.Normal);
+            Assert.Equal(Fixed64.Half, contact.Depth); Assert.Equal(Vector3d.Right, contact.Normal);
             Assert.True(contact.FirstAnchor.TryGetPoint(out Vector3d firstPoint));
             Assert.True(contact.SecondAnchor.TryGetPoint(out Vector3d secondPoint));
-            Assert.Equal(Fixed64.One,firstPoint.X);Assert.Equal(Fixed64.Half,secondPoint.X);
-            Assert.Equal(firstPoint.Y,secondPoint.Y);Assert.Equal(firstPoint.Z,secondPoint.Z);
-            Assert.True(firstPoint.Y.Abs()==Fixed64.Half||firstPoint.Z.Abs()==Fixed64.Half);
+            Assert.Equal(Fixed64.One, firstPoint.X); Assert.Equal(Fixed64.Half, secondPoint.X);
+            Assert.Equal(firstPoint.Y, secondPoint.Y); Assert.Equal(firstPoint.Z, secondPoint.Z);
+            Assert.True(firstPoint.Y.Abs() == Fixed64.Half || firstPoint.Z.Abs() == Fixed64.Half);
         }
     }
 
     [Fact]
     public void ExactNonparallelSupportEdges_ShouldRetainOrDeclineTheirRationalIntersection()
     {
-        Vector3d[] first={new(-4,0,0),new(4,0,0),new(0,4,-4)};
-        Vector3d[] second={new(0,-4,0),new(0,4,0),new(4,0,4)};
-        int[] faces={0,1,2},edges={0,1,1,2,2,0};var frame=ScaledFrame(Vector3d.Zero);
-        Assert.True(WideOrientedBox.TryGetConvexHullPenetration(frame,first,faces,edges,frame,second,faces,edges,
-            out var penetration,admission:static(in WideScaledHullPenetration value)=>
+        Vector3d[] first = { new(-4, 0, 0), new(4, 0, 0), new(0, 4, -4) };
+        Vector3d[] second = { new(0, -4, 0), new(0, 4, 0), new(4, 0, 4) };
+        int[] faces = { 0, 1, 2 }, edges = { 0, 1, 1, 2, 2, 0 }; var frame = ScaledFrame(Vector3d.Zero);
+        Assert.True(WideOrientedBox.TryGetConvexHullPenetration(frame, first, faces, edges, frame, second, faces, edges,
+            out var penetration, admission: static (in WideScaledHullPenetration value) =>
             {
-                WideDirection3d normal=value.Negate?-value.Axis:value.Axis;
-                return normal.X.IsZero&&normal.Y.IsZero&&normal.Z.Sign>0;
+                WideDirection3d normal = value.Negate ? -value.Axis : value.Axis;
+                return normal.X.IsZero && normal.Y.IsZero && normal.Z.Sign > 0;
             }));
-        var contacts=new List<FixedContactAnchors>();
-        Assert.Equal(1,WideOrientedBox.VisitConvexHullContacts(frame,Vector3d.Zero,first,faces,edges,frame,Vector3d.Zero,
-            second,faces,edges,penetration,contacts,static(pool,contact)=>pool.Add(contact)));
-        var contact=Assert.Single(contacts);Assert.Equal(Fixed64.Zero,contact.Depth);Assert.Equal(Vector3d.Forward,contact.Normal);
-        Assert.True(contact.FirstAnchor.TryGetPoint(out var a));Assert.Equal(Vector3d.Zero,a);
-        Assert.True(contact.SecondAnchor.TryGetPoint(out var b));Assert.Equal(a,b);
-        foreach(bool admissionOnly in new[]{false,true})
-        foreach(bool acceptFirst in new[]{false,true})
-            Assert.Equal(0,WideOrientedBox.VisitConvexHullContacts(frame,Vector3d.Zero,first,faces,edges,frame,Vector3d.Zero,
-                second,faces,edges,penetration,0,static(_,_)=>throw new InvalidOperationException("Excluded edge feet cannot emit."),
-                new RetainedSupportDomain(false,false,acceptFirst),admissionOnly));
-        Assert.Equal(1,WideOrientedBox.VisitConvexHullContacts(frame,Vector3d.Zero,first,faces,edges,frame,Vector3d.Zero,
-            second,faces,edges,penetration,0,static(_,_)=>throw new InvalidOperationException("Admission must not materialize."),admissionOnly:true));
-        Vector3d far=new(Fixed64.MinValue,Fixed64.Zero,Fixed64.Zero);
-        Assert.Equal(0,WideOrientedBox.VisitConvexHullContacts(frame,far,first,faces,edges,frame,Vector3d.Zero,
-            second,faces,edges,penetration,0,static(_,_)=>throw new InvalidOperationException("Unrepresentable source feet cannot emit.")));
-        Assert.Equal(0,WideOrientedBox.VisitConvexHullContacts(frame,Vector3d.Zero,first,faces,edges,frame,far,
-            second,faces,edges,penetration,0,static(_,_)=>throw new InvalidOperationException("Unrepresentable target feet cannot emit.")));
+        var contacts = new List<FixedContactAnchors>();
+        Assert.Equal(1, WideOrientedBox.VisitConvexHullContacts(frame, Vector3d.Zero, first, faces, edges, frame, Vector3d.Zero,
+            second, faces, edges, penetration, contacts, static (pool, contact) => pool.Add(contact)));
+        var contact = Assert.Single(contacts); Assert.Equal(Fixed64.Zero, contact.Depth); Assert.Equal(Vector3d.Forward, contact.Normal);
+        Assert.True(contact.FirstAnchor.TryGetPoint(out var a)); Assert.Equal(Vector3d.Zero, a);
+        Assert.True(contact.SecondAnchor.TryGetPoint(out var b)); Assert.Equal(a, b);
+        foreach (bool admissionOnly in new[] { false, true })
+            foreach (bool acceptFirst in new[] { false, true })
+                Assert.Equal(0, WideOrientedBox.VisitConvexHullContacts(frame, Vector3d.Zero, first, faces, edges, frame, Vector3d.Zero,
+                    second, faces, edges, penetration, 0, static (_, _) => throw new InvalidOperationException("Excluded edge feet cannot emit."),
+                    new RetainedSupportDomain(false, false, acceptFirst), admissionOnly));
+        Assert.Equal(1, WideOrientedBox.VisitConvexHullContacts(frame, Vector3d.Zero, first, faces, edges, frame, Vector3d.Zero,
+            second, faces, edges, penetration, 0, static (_, _) => throw new InvalidOperationException("Admission must not materialize."), admissionOnly: true));
+        Vector3d far = new(Fixed64.MinValue, Fixed64.Zero, Fixed64.Zero);
+        Assert.Equal(0, WideOrientedBox.VisitConvexHullContacts(frame, far, first, faces, edges, frame, Vector3d.Zero,
+            second, faces, edges, penetration, 0, static (_, _) => throw new InvalidOperationException("Unrepresentable source feet cannot emit.")));
+        Assert.Equal(0, WideOrientedBox.VisitConvexHullContacts(frame, Vector3d.Zero, first, faces, edges, frame, far,
+            second, faces, edges, penetration, 0, static (_, _) => throw new InvalidOperationException("Unrepresentable target feet cannot emit.")));
     }
 
     [Fact]
     public void ScaledBoxHullContact_ShouldRetainSupportVerticesSeparationAndRigidFastPath()
     {
-        Vector3d[] authored=Array.ConvertAll(Cube,p=>p*4);var frame=ScaledFrame(Vector3d.Zero);
-        Assert.True(WideOrientedBox.TryGetConvexHullContact(Vector3d.Right*((Fixed64)3/2),FixedQuaternion.Identity,
-            Vector3d.One,frame,Vector3d.Zero,authored,Faces,Edges,out var contact));
-        Assert.Equal(Vector3d.Left,contact.Normal);Assert.Equal(Fixed64.Half,contact.Depth);
-        Assert.False(WideOrientedBox.TryGetConvexHullContact(Vector3d.Right*4,FixedQuaternion.Identity,
-            Vector3d.One,frame,Vector3d.Zero,authored,Faces,Edges,out _));
-        var rigid=Frame(Vector3d.Zero,FixedQuaternion.Identity);
-        Assert.True(WideOrientedBox.TryGetConvexHullContact(Vector3d.Right,FixedQuaternion.Identity,Vector3d.One,
-            rigid,Vector3d.Zero,Cube,Faces,Edges,out _));
-        Vector3d[] collapsed=new Vector3d[Cube.Length];
-        Assert.False(WideOrientedBox.TryGetConvexHullPenetration(frame,collapsed,Faces,Edges,frame,collapsed,Faces,Edges,out _));
+        Vector3d[] authored = Array.ConvertAll(Cube, p => p * 4); var frame = ScaledFrame(Vector3d.Zero);
+        Assert.True(WideOrientedBox.TryGetConvexHullContact(Vector3d.Right * ((Fixed64)3 / 2), FixedQuaternion.Identity,
+            Vector3d.One, frame, Vector3d.Zero, authored, Faces, Edges, out var contact));
+        Assert.Equal(Vector3d.Left, contact.Normal); Assert.Equal(Fixed64.Half, contact.Depth);
+        Assert.False(WideOrientedBox.TryGetConvexHullContact(Vector3d.Right * 4, FixedQuaternion.Identity,
+            Vector3d.One, frame, Vector3d.Zero, authored, Faces, Edges, out _));
+        var rigid = Frame(Vector3d.Zero, FixedQuaternion.Identity);
+        Assert.True(WideOrientedBox.TryGetConvexHullContact(Vector3d.Right, FixedQuaternion.Identity, Vector3d.One,
+            rigid, Vector3d.Zero, Cube, Faces, Edges, out _));
+        Vector3d[] collapsed = new Vector3d[Cube.Length];
+        Assert.False(WideOrientedBox.TryGetConvexHullPenetration(frame, collapsed, Faces, Edges, frame, collapsed, Faces, Edges, out _));
     }
 
     [Theory]
@@ -514,56 +532,56 @@ public sealed class WideOrientedBoxScaledHullTests
     [InlineData(2)]
     public void ScaledHullCapsule_ParallelCoreBeyondFaceMidpoint_ShouldMatchTheFiniteSupportSet(int axis)
     {
-        Vector3d[] authored=Array.ConvertAll(Cube,p=>p*4),physical=Array.ConvertAll(Cube,p=>p*3);
-        Vector3d normal=axis==0?Vector3d.Right:axis==1?Vector3d.Up:Vector3d.Forward;
-        Vector3d coreAxis=axis==0?Vector3d.Up:axis==1?Vector3d.Forward:Vector3d.Right;
-        Vector3d center=normal*((Fixed64)7/2)+coreAxis*4;
-        var frame=new ScaledRigidFrame3d(Vector3d.Zero,FixedQuaternion.Identity,Vector3d.Zero,
-            Vector3d.One*((Fixed64)3/4),FixedQuaternion.Identity,Vector3d.Zero,Vector3d.One);
-        Assert.True(WideOrientedBox.TryGetConvexHullCenteredCapsuleContact(frame,Vector3d.Zero,authored,Faces,Edges,
-            center,FixedQuaternion.Identity,coreAxis,(Fixed64)6,Fixed64.One,out var contact));
-        Assert.True(WideOrientedBox.TryGetConvexHullCenteredCapsuleContact(Vector3d.Zero,FixedQuaternion.Identity,
-            physical,Faces,Edges,center,FixedQuaternion.Identity,coreAxis,(Fixed64)6,Fixed64.One,out var reference));
-        Assert.Equal(reference.Normal,contact.Normal);Assert.Equal(reference.Depth,contact.Depth);
-        Assert.Equal(normal,contact.Normal);Assert.Equal(Fixed64.Half,contact.Depth);
-        Assert.True(contact.FirstAnchor.TryGetPoint(out var hull));Assert.True(contact.SecondAnchor.TryGetPoint(out var capsule));
-        Assert.Equal((Fixed64)3,Vector3d.Dot(hull,normal));
-        Assert.Equal((Fixed64)5/2,Vector3d.Dot(capsule,normal));
-        Fixed64 coordinate=Vector3d.Dot(hull,coreAxis);
-        Assert.InRange(coordinate.m_rawValue,Fixed64.One.m_rawValue,((Fixed64)3).m_rawValue);
-        Assert.Equal(coordinate,Vector3d.Dot(capsule,coreAxis));
-        var rigid=Frame(Vector3d.Zero,FixedQuaternion.Identity);
-        Assert.True(WideOrientedBox.TryGetConvexHullCenteredCapsuleContact(rigid,Vector3d.Zero,physical,Faces,Edges,
-            center,FixedQuaternion.Identity,coreAxis,(Fixed64)6,Fixed64.One,out _));
-        Assert.True(WideOrientedBox.DoesConvexHullCenteredCapsuleStrictlyOverlap(rigid,physical,Faces,Edges,
-            center,FixedQuaternion.Identity,coreAxis,(Fixed64)6,Fixed64.One));
+        Vector3d[] authored = Array.ConvertAll(Cube, p => p * 4), physical = Array.ConvertAll(Cube, p => p * 3);
+        Vector3d normal = axis == 0 ? Vector3d.Right : axis == 1 ? Vector3d.Up : Vector3d.Forward;
+        Vector3d coreAxis = axis == 0 ? Vector3d.Up : axis == 1 ? Vector3d.Forward : Vector3d.Right;
+        Vector3d center = normal * ((Fixed64)7 / 2) + coreAxis * 4;
+        var frame = new ScaledRigidFrame3d(Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Zero,
+            Vector3d.One * ((Fixed64)3 / 4), FixedQuaternion.Identity, Vector3d.Zero, Vector3d.One);
+        Assert.True(WideOrientedBox.TryGetConvexHullCenteredCapsuleContact(frame, Vector3d.Zero, authored, Faces, Edges,
+            center, FixedQuaternion.Identity, coreAxis, (Fixed64)6, Fixed64.One, out var contact));
+        Assert.True(WideOrientedBox.TryGetConvexHullCenteredCapsuleContact(Vector3d.Zero, FixedQuaternion.Identity,
+            physical, Faces, Edges, center, FixedQuaternion.Identity, coreAxis, (Fixed64)6, Fixed64.One, out var reference));
+        Assert.Equal(reference.Normal, contact.Normal); Assert.Equal(reference.Depth, contact.Depth);
+        Assert.Equal(normal, contact.Normal); Assert.Equal(Fixed64.Half, contact.Depth);
+        Assert.True(contact.FirstAnchor.TryGetPoint(out var hull)); Assert.True(contact.SecondAnchor.TryGetPoint(out var capsule));
+        Assert.Equal((Fixed64)3, Vector3d.Dot(hull, normal));
+        Assert.Equal((Fixed64)5 / 2, Vector3d.Dot(capsule, normal));
+        Fixed64 coordinate = Vector3d.Dot(hull, coreAxis);
+        Assert.InRange(coordinate.m_rawValue, Fixed64.One.m_rawValue, ((Fixed64)3).m_rawValue);
+        Assert.Equal(coordinate, Vector3d.Dot(capsule, coreAxis));
+        var rigid = Frame(Vector3d.Zero, FixedQuaternion.Identity);
+        Assert.True(WideOrientedBox.TryGetConvexHullCenteredCapsuleContact(rigid, Vector3d.Zero, physical, Faces, Edges,
+            center, FixedQuaternion.Identity, coreAxis, (Fixed64)6, Fixed64.One, out _));
+        Assert.True(WideOrientedBox.DoesConvexHullCenteredCapsuleStrictlyOverlap(rigid, physical, Faces, Edges,
+            center, FixedQuaternion.Identity, coreAxis, (Fixed64)6, Fixed64.One));
     }
 
     [Fact]
     public void ScaledHullRepresentative_ShouldRetainBothSignedExitsAndRejectUnrepresentableTranslatedWitnesses()
     {
-        Vector3d[] authored=Array.ConvertAll(Cube,p=>p*4);
-        var first=ScaledFrame(Vector3d.Zero);var second=ScaledFrame(Vector3d.Right*((Fixed64)3/2));
-        Assert.True(WideOrientedBox.TryGetConvexHullContact(first,Vector3d.Zero,authored,Faces,Edges,
-            second,Vector3d.Zero,authored,Faces,Edges,out var contact));
-        Assert.Equal(Vector3d.Right,contact.Normal);Assert.Equal(Fixed64.Half,contact.Depth);
-        Assert.Equal(Fixed64.One,contact.FirstAnchor.LocalPoint.X);
-        Assert.Equal(Fixed64.Half,contact.SecondAnchor.LocalPoint.X);
-        Vector3d outside=new(Fixed64.MinValue,Fixed64.Zero,Fixed64.Zero);
-        Assert.False(WideOrientedBox.TryGetConvexHullContact(first,outside,authored,Faces,Edges,
-            second,Vector3d.Zero,authored,Faces,Edges,out _));
-        Assert.False(WideOrientedBox.TryGetConvexHullContact(first,Vector3d.Zero,authored,Faces,Edges,
-            second,outside,authored,Faces,Edges,out _));
+        Vector3d[] authored = Array.ConvertAll(Cube, p => p * 4);
+        var first = ScaledFrame(Vector3d.Zero); var second = ScaledFrame(Vector3d.Right * ((Fixed64)3 / 2));
+        Assert.True(WideOrientedBox.TryGetConvexHullContact(first, Vector3d.Zero, authored, Faces, Edges,
+            second, Vector3d.Zero, authored, Faces, Edges, out var contact));
+        Assert.Equal(Vector3d.Right, contact.Normal); Assert.Equal(Fixed64.Half, contact.Depth);
+        Assert.Equal(Fixed64.One, contact.FirstAnchor.LocalPoint.X);
+        Assert.Equal(Fixed64.Half, contact.SecondAnchor.LocalPoint.X);
+        Vector3d outside = new(Fixed64.MinValue, Fixed64.Zero, Fixed64.Zero);
+        Assert.False(WideOrientedBox.TryGetConvexHullContact(first, outside, authored, Faces, Edges,
+            second, Vector3d.Zero, authored, Faces, Edges, out _));
+        Assert.False(WideOrientedBox.TryGetConvexHullContact(first, Vector3d.Zero, authored, Faces, Edges,
+            second, outside, authored, Faces, Edges, out _));
     }
 
     [Fact]
     public void ScaledTriangleHulls_ShouldRetainAnEdgeCrossSeparatingAxis()
     {
-        Vector3d[] first={new(4,-8,8),new(0,12,4),new(-8,8,4)};
-        Vector3d[] second={new(8,8,-8),new(-8,0,-12),new(-8,-4,8)};
-        int[] faces={0,1,2},edges={0,1,1,2,2,0};var frame=ScaledFrame(Vector3d.Zero);
-        Assert.False(WideOrientedBox.TryGetConvexHullPenetration(frame,first,faces,edges,
-            frame,second,faces,edges,out _));
+        Vector3d[] first = { new(4, -8, 8), new(0, 12, 4), new(-8, 8, 4) };
+        Vector3d[] second = { new(8, 8, -8), new(-8, 0, -12), new(-8, -4, 8) };
+        int[] faces = { 0, 1, 2 }, edges = { 0, 1, 1, 2, 2, 0 }; var frame = ScaledFrame(Vector3d.Zero);
+        Assert.False(WideOrientedBox.TryGetConvexHullPenetration(frame, first, faces, edges,
+            frame, second, faces, edges, out _));
     }
 
     [Theory]
@@ -571,46 +589,46 @@ public sealed class WideOrientedBoxScaledHullTests
     [InlineData(true)]
     public void ScaledHullRoundedCorner_ShouldRetainTheFiniteEdgeOrVertexSupport(bool vertex)
     {
-        Vector3d[] authored=Array.ConvertAll(Cube,p=>p*4),physical=Array.ConvertAll(Cube,p=>p*3);
-        var frame=new ScaledRigidFrame3d(Vector3d.Zero,FixedQuaternion.Identity,Vector3d.Zero,
-            Vector3d.One*((Fixed64)3/4),FixedQuaternion.Identity,Vector3d.Zero,Vector3d.One);
-        Vector3d center=new((Fixed64)7/2,(Fixed64)7/2,vertex?(Fixed64)7/2:Fixed64.Zero);
-        Assert.True(WideOrientedBox.TryGetConvexHullCenteredCapsuleContact(frame,Vector3d.Zero,authored,Faces,Edges,
-            center,FixedQuaternion.Identity,Vector3d.Up,Fixed64.Zero,Fixed64.One,out var contact));
-        var cycledFaces=new int[Faces.Length];
-        for(int index=0;index<Faces.Length;index+=3)
-        {cycledFaces[index]=Faces[index+1];cycledFaces[index+1]=Faces[index+2];cycledFaces[index+2]=Faces[index];}
-        Assert.True(WideOrientedBox.TryGetConvexHullCenteredCapsuleContact(frame,Vector3d.Zero,authored,cycledFaces,Edges,
-            center,FixedQuaternion.Identity,Vector3d.Up,Fixed64.Zero,Fixed64.One,out var cycled));
-        Assert.Equal(contact.Normal,cycled.Normal);Assert.Equal(contact.Depth,cycled.Depth);
-        Assert.True(WideOrientedBox.TryGetConvexHullCenteredCapsuleContact(Vector3d.Zero,FixedQuaternion.Identity,
-            physical,Faces,Edges,center,FixedQuaternion.Identity,Vector3d.Up,Fixed64.Zero,Fixed64.One,out var reference));
-        Assert.Equal(reference.Normal,contact.Normal);Assert.Equal(reference.Depth,contact.Depth);
+        Vector3d[] authored = Array.ConvertAll(Cube, p => p * 4), physical = Array.ConvertAll(Cube, p => p * 3);
+        var frame = new ScaledRigidFrame3d(Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Zero,
+            Vector3d.One * ((Fixed64)3 / 4), FixedQuaternion.Identity, Vector3d.Zero, Vector3d.One);
+        Vector3d center = new((Fixed64)7 / 2, (Fixed64)7 / 2, vertex ? (Fixed64)7 / 2 : Fixed64.Zero);
+        Assert.True(WideOrientedBox.TryGetConvexHullCenteredCapsuleContact(frame, Vector3d.Zero, authored, Faces, Edges,
+            center, FixedQuaternion.Identity, Vector3d.Up, Fixed64.Zero, Fixed64.One, out var contact));
+        var cycledFaces = new int[Faces.Length];
+        for (int index = 0; index < Faces.Length; index += 3)
+        { cycledFaces[index] = Faces[index + 1]; cycledFaces[index + 1] = Faces[index + 2]; cycledFaces[index + 2] = Faces[index]; }
+        Assert.True(WideOrientedBox.TryGetConvexHullCenteredCapsuleContact(frame, Vector3d.Zero, authored, cycledFaces, Edges,
+            center, FixedQuaternion.Identity, Vector3d.Up, Fixed64.Zero, Fixed64.One, out var cycled));
+        Assert.Equal(contact.Normal, cycled.Normal); Assert.Equal(contact.Depth, cycled.Depth);
+        Assert.True(WideOrientedBox.TryGetConvexHullCenteredCapsuleContact(Vector3d.Zero, FixedQuaternion.Identity,
+            physical, Faces, Edges, center, FixedQuaternion.Identity, Vector3d.Up, Fixed64.Zero, Fixed64.One, out var reference));
+        Assert.Equal(reference.Normal, contact.Normal); Assert.Equal(reference.Depth, contact.Depth);
         Assert.True(contact.FirstAnchor.TryGetPoint(out Vector3d hull));
-        Assert.Equal(new Vector3d((Fixed64)3,(Fixed64)3,vertex?(Fixed64)3:Fixed64.Zero),hull);
+        Assert.Equal(new Vector3d((Fixed64)3, (Fixed64)3, vertex ? (Fixed64)3 : Fixed64.Zero), hull);
         Assert.True(contact.SecondAnchor.TryGetPoint(out Vector3d round));
-        Assert.True(Vector3d.Dot(round-hull,contact.Normal)<=Fixed64.Zero);
+        Assert.True(Vector3d.Dot(round - hull, contact.Normal) <= Fixed64.Zero);
     }
 
-    private sealed class RetainedSupportDomain:IScaledConvexHullContactDomain
+    private sealed class RetainedSupportDomain : IScaledConvexHullContactDomain
     {
-        private static readonly RationalSegmentInterval[] Full={default};
-        private static readonly RationalSegmentInterval[] Middle={new(Signed320.ExtendValue(Signed192.Signed(1)),
+        private static readonly RationalSegmentInterval[] Full = { default };
+        private static readonly RationalSegmentInterval[] Middle ={new(Signed320.ExtendValue(Signed192.Signed(1)),
             Signed320.ExtendValue(Signed192.Signed(4)),Signed320.ExtendValue(Signed192.Signed(3)),Signed320.ExtendValue(Signed192.Signed(4)))};
-        private readonly bool empty,retainMiddle,acceptFirst;
-        internal RetainedSupportDomain(bool empty,bool retainMiddle,bool acceptFirst=false)
-        {this.empty=empty;this.retainMiddle=retainMiddle;this.acceptFirst=acceptFirst;}
-        public ReadOnlySpan<RationalSegmentInterval> GetEdgeIntervals(bool first,int start,int end,in WideDirection3d normal)=>
-            empty?ReadOnlySpan<RationalSegmentInterval>.Empty:retainMiddle?Middle:Full;
-        public bool ContainsPoint(bool first,int start,int end,in Signed832 n,in Signed832 d,in WideDirection3d normal)=>
-            acceptFirst&&first||retainMiddle&&start!=end&&RationalSegmentInterval.CompareParameters(n,d,Middle[0].WideLowerNumerator,Middle[0].WideLowerDenominator)>=0
-                &&RationalSegmentInterval.CompareParameters(n,d,Middle[0].WideUpperNumerator,Middle[0].WideUpperDenominator)<=0;
-        public bool ContainsPoint(bool first,int start,int end,scoped ContactQuadratic n,scoped ContactQuadratic d,in WideDirection3d normal)=>
-            acceptFirst&&first||retainMiddle&&start!=end&&Middle[0].Contains(n,d,ReadOnlySpan<ulong>.Empty);
+        private readonly bool empty, retainMiddle, acceptFirst;
+        internal RetainedSupportDomain(bool empty, bool retainMiddle, bool acceptFirst = false)
+        { this.empty = empty; this.retainMiddle = retainMiddle; this.acceptFirst = acceptFirst; }
+        public ReadOnlySpan<RationalSegmentInterval> GetEdgeIntervals(bool first, int start, int end, in WideDirection3d normal) =>
+            empty ? ReadOnlySpan<RationalSegmentInterval>.Empty : retainMiddle ? Middle : Full;
+        public bool ContainsPoint(bool first, int start, int end, in Signed832 n, in Signed832 d, in WideDirection3d normal) =>
+            acceptFirst && first || retainMiddle && start != end && RationalSegmentInterval.CompareParameters(n, d, Middle[0].WideLowerNumerator, Middle[0].WideLowerDenominator) >= 0
+                && RationalSegmentInterval.CompareParameters(n, d, Middle[0].WideUpperNumerator, Middle[0].WideUpperDenominator) <= 0;
+        public bool ContainsPoint(bool first, int start, int end, scoped ContactQuadratic n, scoped ContactQuadratic d, in WideDirection3d normal) =>
+            acceptFirst && first || retainMiddle && start != end && Middle[0].Contains(n, d, ReadOnlySpan<ulong>.Empty);
     }
 
-    private static ScaledRigidFrame3d ScaledFrame(Vector3d translation)=>new(translation,FixedQuaternion.Identity,
-        Vector3d.Zero,Vector3d.One/4,FixedQuaternion.Identity,Vector3d.Zero,Vector3d.One);
+    private static ScaledRigidFrame3d ScaledFrame(Vector3d translation) => new(translation, FixedQuaternion.Identity,
+        Vector3d.Zero, Vector3d.One / 4, FixedQuaternion.Identity, Vector3d.Zero, Vector3d.One);
 
     private static ScaledRigidFrame3d Frame(Vector3d origin, FixedQuaternion rotation) =>
         new(origin, rotation, Vector3d.Zero, Vector3d.One, rotation, Vector3d.Zero, Vector3d.One);

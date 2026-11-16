@@ -32,65 +32,65 @@ public sealed class FixedTriangleCapsulePlaneRayConsumerTests
         Span<sbyte> expectedValueSigns = stackalloc sbyte[CapsulePlaneRaySelection.ValueSignCount];
         foreach (CapsulePlaneRayEventSource source in new[]
             { CapsulePlaneRayEventSource.Plane, new CapsulePlaneRayEventSource(edge) })
-        foreach (int orientation in new[] { -1, 1 })
-        {
-            ulong[] maximumValues = new ulong[CapsulePlaneRaySelection.StorageWords];
-            int[] maximumSigns = new int[CapsulePlaneRaySelection.SignCount];
-            sbyte[] maximumValueSigns = new sbyte[CapsulePlaneRaySelection.ValueSignCount];
-            CapsulePlaneRaySelectionMetadata maximumMetadata = default;
-            int count = 0;
-            bool found = CapsulePlaneRayEvents.VisitEvents(source, frame, orientation,
-                (in CapsulePlaneRayEventSource currentSource, in CapsulePlaneRayFrame current,
-                    CapsulePlaneRayEvent descriptor, int direction, scoped in CapsulePlaneRaySelection candidate) =>
-                {
-                    Span<ulong> pointValues = stackalloc ulong[CapsulePlaneRaySelection.StorageWords];
-                    Span<int> pointSigns = stackalloc int[CapsulePlaneRaySelection.SignCount];
-                    Span<sbyte> pointValueSigns = stackalloc sbyte[CapsulePlaneRaySelection.ValueSignCount];
-                    var replay = new CapsulePlaneRaySelection(pointValues, pointSigns, pointValueSigns);
-                    Assert.True(CapsulePlaneRayEvents.Reconstruct(currentSource, current, descriptor, direction, ref replay));
-                    Assert.Equal(0, replay.ComparePoint(candidate, current));
-                    Assert.Equal(candidate.ContainsTrianglePoint(current, triangle), replay.ContainsTrianglePoint(current, triangle));
-                    Assert.True(replay.TryGetAuthoredPoint(current, origin, meshRotation, center, rotation, out Vector3d authored));
-                    Assert.True(candidate.TryGetAuthoredPoint(current, origin, meshRotation, center, rotation, out Vector3d original));
-                    Assert.Equal(original, authored);
+            foreach (int orientation in new[] { -1, 1 })
+            {
+                ulong[] maximumValues = new ulong[CapsulePlaneRaySelection.StorageWords];
+                int[] maximumSigns = new int[CapsulePlaneRaySelection.SignCount];
+                sbyte[] maximumValueSigns = new sbyte[CapsulePlaneRaySelection.ValueSignCount];
+                CapsulePlaneRaySelectionMetadata maximumMetadata = default;
+                int count = 0;
+                bool found = CapsulePlaneRayEvents.VisitEvents(source, frame, orientation,
+                    (in CapsulePlaneRayEventSource currentSource, in CapsulePlaneRayFrame current,
+                        CapsulePlaneRayEvent descriptor, int direction, scoped in CapsulePlaneRaySelection candidate) =>
+                    {
+                        Span<ulong> pointValues = stackalloc ulong[CapsulePlaneRaySelection.StorageWords];
+                        Span<int> pointSigns = stackalloc int[CapsulePlaneRaySelection.SignCount];
+                        Span<sbyte> pointValueSigns = stackalloc sbyte[CapsulePlaneRaySelection.ValueSignCount];
+                        var replay = new CapsulePlaneRaySelection(pointValues, pointSigns, pointValueSigns);
+                        Assert.True(CapsulePlaneRayEvents.Reconstruct(currentSource, current, descriptor, direction, ref replay));
+                        Assert.Equal(0, replay.ComparePoint(candidate, current));
+                        Assert.Equal(candidate.ContainsTrianglePoint(current, triangle), replay.ContainsTrianglePoint(current, triangle));
+                        Assert.True(replay.TryGetAuthoredPoint(current, origin, meshRotation, center, rotation, out Vector3d authored));
+                        Assert.True(candidate.TryGetAuthoredPoint(current, origin, meshRotation, center, rotation, out Vector3d original));
+                        Assert.Equal(original, authored);
 
-                    // A pool retains coefficient banks and restores their copied
-                    // metadata; neither operation should resample or reselect q.
-                    var maximum = new CapsulePlaneRaySelection(maximumValues, maximumSigns, maximumValueSigns);
-                    maximum.Restore(maximumMetadata);
-                    maximum.KeepEvaluated(candidate, current);
-                    maximumMetadata = maximum.Metadata;
+                        // A pool retains coefficient banks and restores their copied
+                        // metadata; neither operation should resample or reselect q.
+                        var maximum = new CapsulePlaneRaySelection(maximumValues, maximumSigns, maximumValueSigns);
+                        maximum.Restore(maximumMetadata);
+                        maximum.KeepEvaluated(candidate, current);
+                        maximumMetadata = maximum.Metadata;
 
-                    Assert.Equal(0, replay.CompareDepth(candidate));
-                    Assert.True(replay.TryGetExitAnchor(current, direction, center, rotation,
-                        out FixedPointAnchor exitAnchor, out Fixed64 depth, out bool clamped));
-                    Assert.False(clamped);
-                    Assert.True(exitAnchor.TryGetPoint(out Vector3d exit));
-                    Vector3d expected = origin + meshRotation.Rotate(authored)
-                        + current.GetWorldNormal(meshRotation) * depth * direction;
-                    // The two published pose operations and normal/depth product
-                    // round independently; these small fixtures bound their sum.
-                    for (int axis = 0; axis < 3; axis++)
-                        Assert.InRange(FixedMath.Abs(exit[axis] - expected[axis]).m_rawValue, 0L, 64L);
+                        Assert.Equal(0, replay.CompareDepth(candidate));
+                        Assert.True(replay.TryGetExitAnchor(current, direction, center, rotation,
+                            out FixedPointAnchor exitAnchor, out Fixed64 depth, out bool clamped));
+                        Assert.False(clamped);
+                        Assert.True(exitAnchor.TryGetPoint(out Vector3d exit));
+                        Vector3d expected = origin + meshRotation.Rotate(authored)
+                            + current.GetWorldNormal(meshRotation) * depth * direction;
+                        // The two published pose operations and normal/depth product
+                        // round independently; these small fixtures bound their sum.
+                        for (int axis = 0; axis < 3; axis++)
+                            Assert.InRange(FixedMath.Abs(exit[axis] - expected[axis]).m_rawValue, 0L, 64L);
 
-                    Span<ulong> oppositeValues = stackalloc ulong[CapsulePlaneRaySelection.StorageWords];
-                    Span<int> oppositeSigns = stackalloc int[CapsulePlaneRaySelection.SignCount];
-                    Span<sbyte> oppositeValueSigns = stackalloc sbyte[CapsulePlaneRaySelection.ValueSignCount];
-                    var opposite = new CapsulePlaneRaySelection(oppositeValues, oppositeSigns, oppositeValueSigns);
-                    Assert.True(CapsulePlaneRayEvents.Reconstruct(currentSource, current, descriptor, -direction, ref opposite));
-                    Assert.Equal(0, opposite.ComparePoint(candidate, current));
-                    Assert.Equal(-candidate.CompareDepth(opposite), opposite.CompareDepth(candidate));
-                    count++;
-                });
-            Assert.Equal(count > 0, found);
-            Assert.True(found);
-            var expectedMaximum = new CapsulePlaneRaySelection(expectedValues, expectedSigns, expectedValueSigns);
-            Assert.True(CapsulePlaneRayEvents.Accumulate(source, frame, orientation, ref expectedMaximum));
-            var retainedMaximum = new CapsulePlaneRaySelection(maximumValues, maximumSigns, maximumValueSigns);
-            retainedMaximum.Restore(maximumMetadata);
-            Assert.Equal(0, retainedMaximum.CompareDepth(expectedMaximum));
-            Assert.Equal(0, retainedMaximum.ComparePoint(expectedMaximum, frame));
-        }
+                        Span<ulong> oppositeValues = stackalloc ulong[CapsulePlaneRaySelection.StorageWords];
+                        Span<int> oppositeSigns = stackalloc int[CapsulePlaneRaySelection.SignCount];
+                        Span<sbyte> oppositeValueSigns = stackalloc sbyte[CapsulePlaneRaySelection.ValueSignCount];
+                        var opposite = new CapsulePlaneRaySelection(oppositeValues, oppositeSigns, oppositeValueSigns);
+                        Assert.True(CapsulePlaneRayEvents.Reconstruct(currentSource, current, descriptor, -direction, ref opposite));
+                        Assert.Equal(0, opposite.ComparePoint(candidate, current));
+                        Assert.Equal(-candidate.CompareDepth(opposite), opposite.CompareDepth(candidate));
+                        count++;
+                    });
+                Assert.Equal(count > 0, found);
+                Assert.True(found);
+                var expectedMaximum = new CapsulePlaneRaySelection(expectedValues, expectedSigns, expectedValueSigns);
+                Assert.True(CapsulePlaneRayEvents.Accumulate(source, frame, orientation, ref expectedMaximum));
+                var retainedMaximum = new CapsulePlaneRaySelection(maximumValues, maximumSigns, maximumValueSigns);
+                retainedMaximum.Restore(maximumMetadata);
+                Assert.Equal(0, retainedMaximum.CompareDepth(expectedMaximum));
+                Assert.Equal(0, retainedMaximum.ComparePoint(expectedMaximum, frame));
+            }
     }
 
     [Theory]

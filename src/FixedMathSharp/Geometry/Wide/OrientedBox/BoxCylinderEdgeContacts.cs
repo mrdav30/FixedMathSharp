@@ -184,18 +184,27 @@ internal static class BoxCylinderEdgeContacts
 
     private static Selection CreateSelection(int edge, int first, int second,
         int firstSign, int secondSign, int capSign, int ordinal) => new()
-    {
-        HasValue = true, Edge = edge, First = first, Second = second,
-        FirstSign = firstSign, SecondSign = secondSign, CapSign = capSign, ParameterOrdinal = ordinal
-    };
+        {
+            HasValue = true,
+            Edge = edge,
+            First = first,
+            Second = second,
+            FirstSign = firstSign,
+            SecondSign = secondSign,
+            CapSign = capSign,
+            ParameterOrdinal = ordinal
+        };
 
     private static FiniteAxisValueRoot RestoreValueRoot(ReadOnlySpan<ulong> values,
         ReadOnlySpan<sbyte> signs, Span<ulong> cell, Selection selection) => new()
-    {
-        Coefficients = values, Signs = signs, LowerNumerator = cell,
-        DenominatorShift = selection.ValueShift, Ordinal = selection.ValueOrdinal,
-        IsRational = selection.IsRational
-    };
+        {
+            Coefficients = values,
+            Signs = signs,
+            LowerNumerator = cell,
+            DenominatorShift = selection.ValueShift,
+            Ordinal = selection.ValueOrdinal,
+            IsRational = selection.IsRational
+        };
 
     /// <summary>
     /// W=L²-K²Q, with P=p+qt, Q=A+2Bt+Ct², K=q-pt and

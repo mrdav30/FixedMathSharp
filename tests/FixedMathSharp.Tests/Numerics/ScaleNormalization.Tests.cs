@@ -1,5 +1,5 @@
-using FixedMathSharp.Random;
 using System.Numerics;
+using FixedMathSharp.Random;
 using Xunit;
 
 namespace FixedMathSharp.Tests;
@@ -14,9 +14,9 @@ public sealed class ScaleNormalizationTests
             -(1L << 62), 1L << 62, -2 * unit, 2 * unit,
             -unit - 1, -unit, -unit + 1, unit - 1, unit, unit + 1, -1, 0, 1 };
         foreach (long x in edges)
-        foreach (long y in edges)
-        foreach (long z in edges)
-            AssertPreviousRounding(x, y, z);
+            foreach (long y in edges)
+                foreach (long z in edges)
+                    AssertPreviousRounding(x, y, z);
     }
 
     [Fact]

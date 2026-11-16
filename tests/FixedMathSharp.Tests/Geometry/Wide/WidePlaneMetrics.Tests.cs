@@ -93,19 +93,19 @@ public sealed class WidePlaneMetricsTests
         BigInteger m = Dot(normal, normal);
         Vector3d[] points = Points();
         for (int i = 0; i < points.Length; i++)
-        for (int j = 0; j < points.Length; j++)
-        {
-            Vector3d a = points[i], b = points[(i + 1) % points.Length];
-            Vector3d c = points[(i + 2) % points.Length], p = points[j];
-            var expected = Distance(Project(p, normal, m), Project(a, normal, m),
-                Project(b, normal, m), Project(c, normal, m));
-            metrics.GetTriangleDistanceSquared(p, a, b, c, out Signed832 n, out Signed832 d);
-            Assert.True(d.Sign > 0);
-            Assert.True(n.Sign >= 0);
-            Assert.Equal(expected.N * Integer(d), Integer(n) * expected.D * m * m);
-            metrics.GetTriangleDistanceSquared(p, c, b, a, out Signed832 rn, out Signed832 rd);
-            Assert.Equal(0, WidePlaneMetrics.CompareRatios(n, d, rn, rd));
-        }
+            for (int j = 0; j < points.Length; j++)
+            {
+                Vector3d a = points[i], b = points[(i + 1) % points.Length];
+                Vector3d c = points[(i + 2) % points.Length], p = points[j];
+                var expected = Distance(Project(p, normal, m), Project(a, normal, m),
+                    Project(b, normal, m), Project(c, normal, m));
+                metrics.GetTriangleDistanceSquared(p, a, b, c, out Signed832 n, out Signed832 d);
+                Assert.True(d.Sign > 0);
+                Assert.True(n.Sign >= 0);
+                Assert.Equal(expected.N * Integer(d), Integer(n) * expected.D * m * m);
+                metrics.GetTriangleDistanceSquared(p, c, b, a, out Signed832 rn, out Signed832 rd);
+                Assert.Equal(0, WidePlaneMetrics.CompareRatios(n, d, rn, rd));
+            }
     }
 
     [Theory]
@@ -196,12 +196,12 @@ public sealed class WidePlaneMetricsTests
         }
         Vector3d a = Raw(-7, 11, -13), b = Raw(17, -19, 23), c = Raw(29, 31, -37);
         BigInteger[] edge = Sub(V(b), V(a));
-        Assert.Equal(Dot(normal, normal)*Dot(edge, edge)-BigInteger.Pow(Dot(normal, edge), 2), Integer(metrics.GetSpanSquared(a,b)));
+        Assert.Equal(Dot(normal, normal) * Dot(edge, edge) - BigInteger.Pow(Dot(normal, edge), 2), Integer(metrics.GetSpanSquared(a, b)));
         BigInteger area = Dot(normal, Cross(edge, Sub(V(c), V(a))));
-        Assert.Equal(area*area, Integer(metrics.GetAreaSquared(a,b,c)));
+        Assert.Equal(area * area, Integer(metrics.GetAreaSquared(a, b, c)));
         Assert.Throws<ArgumentException>(() => new WidePlaneMetrics(default(FixedTriangle), frame));
         var rigid = new WidePlaneMetrics(plane, ScaledRigidFrame3d.Rigid(Vector3d.One, rotation));
-        Assert.Equal(Integer(new WidePlaneMetrics(plane, rotation).GetSpanSquared(a,b)), Integer(rigid.GetSpanSquared(a,b)));
+        Assert.Equal(Integer(new WidePlaneMetrics(plane, rotation).GetSpanSquared(a, b)), Integer(rigid.GetSpanSquared(a, b)));
     }
 
     private static void GetFrame(int index, out FixedTriangle plane, out FixedQuaternion rotation)
@@ -247,20 +247,20 @@ public sealed class WidePlaneMetricsTests
     {
         BigInteger[] p = V(point);
         BigInteger along = Dot(p, normal);
-        return new[] { m*p[0]-along*normal[0], m*p[1]-along*normal[1], m*p[2]-along*normal[2] };
+        return new[] { m * p[0] - along * normal[0], m * p[1] - along * normal[1], m * p[2] - along * normal[2] };
     }
 
     private static (BigInteger N, BigInteger D) Distance(BigInteger[] p, BigInteger[] a, BigInteger[] b, BigInteger[] c)
     {
         BigInteger[] u = Sub(b, a), v = Sub(c, a), w = Sub(p, a);
         BigInteger uu = Dot(u, u), uv = Dot(u, v), vv = Dot(v, v), wu = Dot(w, u), wv = Dot(w, v);
-        BigInteger determinant = uu*vv-uv*uv, s = wu*vv-wv*uv, t = wv*uu-wu*uv;
-        if (determinant > 0 && s >= 0 && t >= 0 && s+t <= determinant) return (0, 1);
+        BigInteger determinant = uu * vv - uv * uv, s = wu * vv - wv * uv, t = wv * uu - wu * uv;
+        if (determinant > 0 && s >= 0 && t >= 0 && s + t <= determinant) return (0, 1);
         var best = Segment(p, a, b);
         var next = Segment(p, b, c);
-        if (next.N*best.D < best.N*next.D) best = next;
+        if (next.N * best.D < best.N * next.D) best = next;
         next = Segment(p, c, a);
-        return next.N*best.D < best.N*next.D ? next : best;
+        return next.N * best.D < best.N * next.D ? next : best;
     }
 
     private static (BigInteger N, BigInteger D) Segment(BigInteger[] p, BigInteger[] a, BigInteger[] b)
@@ -269,7 +269,7 @@ public sealed class WidePlaneMetricsTests
         BigInteger vv = Dot(v, v), ee = Dot(e, e), ve = Dot(v, e);
         if (ee == 0 || ve <= 0) return (vv, 1);
         if (ve >= ee) { v = Sub(p, b); return (Dot(v, v), 1); }
-        return (vv*ee-ve*ve, ee);
+        return (vv * ee - ve * ve, ee);
     }
 
     private static BigInteger Integer(Signed832 value)

@@ -5,8 +5,6 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-using System;
-
 namespace FixedMathSharp.Geometry;
 
 /// <summary>Streams a line's finite contact and exact depth order relative to the native exit.</summary>

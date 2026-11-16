@@ -703,12 +703,12 @@ public sealed class FixedTriangleFiniteConePlaneSectionScopesTests
         Span<int> positiveSigns = stackalloc int[ConePlaneRaySelection.SignCount], negativeSigns = stackalloc int[ConePlaneRaySelection.SignCount];
         var positive = new ConePlaneRaySelection(positiveValues, positiveSigns); var negativeExit = new ConePlaneRaySelection(negativeValues, negativeSigns);
         for (int quadrant = 0; quadrant < 4; quadrant++)
-        for (int branch = -1; branch <= 1; branch += 2)
-        {
-            var descriptor = new ConePlaneRayEvent(ConePlaneRayEventKind.UpperRim, line, quadrant, branch);
-            if (ConePlaneRayEvents.TryEvaluateEvent(ConePlaneRayEventSource.Plane, frame, descriptor, point, rootValues, ref positive, ref negativeExit))
-                Check(ConePlaneRayEventSource.Plane, frame, descriptor, point, rootValues, positive, negativeExit);
-        }
+            for (int branch = -1; branch <= 1; branch += 2)
+            {
+                var descriptor = new ConePlaneRayEvent(ConePlaneRayEventKind.UpperRim, line, quadrant, branch);
+                if (ConePlaneRayEvents.TryEvaluateEvent(ConePlaneRayEventSource.Plane, frame, descriptor, point, rootValues, ref positive, ref negativeExit))
+                    Check(ConePlaneRayEventSource.Plane, frame, descriptor, point, rootValues, positive, negativeExit);
+            }
         Assert.Equal(line == 3 ? 3 : 9, roots);
     }
 
@@ -753,39 +753,39 @@ public sealed class FixedTriangleFiniteConePlaneSectionScopesTests
         var cn = new ConePlaneRaySelection(values.Slice(3 * ConePlaneRaySelection.StorageWords, ConePlaneRaySelection.StorageWords), selectionSigns.Slice(3 * ConePlaneRaySelection.SignCount, ConePlaneRaySelection.SignCount));
         int admitted = 0;
         for (int line = 3; line <= 9; line += 3)
-        for (int quadrant = 0; quadrant < 4; quadrant++)
-        for (int branch = -1; branch <= 1; branch += 2)
-        {
-            if (line == 3 && frame.PlaneConstant.IsZero || line >= 6 && !frame.Normal.Y.IsZero || line == 9 && quadrant != 0) continue;
-            var omitted = line == 9 ? new ConePlaneRayEvent(ConePlaneRayEventKind.BaseStationary, branch: branch)
-                : new ConePlaneRayEvent(ConePlaneRayEventKind.UpperRim, line, quadrant, branch);
-            if (!ConePlaneRayEvents.TryEvaluateEvent(ConePlaneRayEventSource.Plane, frame, omitted, original, originalRoot, ref op, ref on)) continue;
-            admitted++;
-            int needed = (op.HasValue ? 1 : 0) | (on.HasValue ? 2 : 0), covered = 0;
-            Assert.NotEqual(0, needed);
-            foreach (ConePlaneRayEvent descriptor in retained[..count])
-            {
-                if (!ConePlaneRayEvents.TryEvaluateEvent(ConePlaneRayEventSource.Plane, frame, descriptor, candidate, candidateRoot, ref cp, ref cn)
-                    || original.CompareTo(candidate, originalRoot, candidateRoot) != 0) continue;
-                if (ConePlaneRayEvents.CompareCoincidentProvenance(ConePlaneRayEventSource.Plane, descriptor,
-                    ConePlaneRayEventSource.Plane, omitted) >= 0) continue;
-                for (int orientation = -1; orientation <= 1; orientation += 2)
+            for (int quadrant = 0; quadrant < 4; quadrant++)
+                for (int branch = -1; branch <= 1; branch += 2)
                 {
-                    var before = orientation > 0 ? op : on; var after = orientation > 0 ? cp : cn;
-                    if (!before.HasValue || !after.HasValue) continue;
-                    Assert.Equal(0, ContactQuadratic.CompareRatios(ContactQuadratic.At(before.Values, before.Signs, 0, ConePlaneRaySelection.FieldWords),
-                        ContactQuadratic.At(before.Values, before.Signs, 1, ConePlaneRaySelection.FieldWords), before.Root,
-                        ContactQuadratic.At(after.Values, after.Signs, 0, ConePlaneRaySelection.FieldWords),
-                        ContactQuadratic.At(after.Values, after.Signs, 1, ConePlaneRaySelection.FieldWords), after.Root));
-                    Assert.True(before.TryMaterialize(frame, orientation, out Vector3d p, out Vector3d q, out Fixed64 depth));
-                    Assert.True(after.TryMaterialize(frame, orientation, out Vector3d actualP, out Vector3d actualQ, out Fixed64 actualDepth));
-                    Assert.Equal(p, actualP); Assert.Equal(q, actualQ); Assert.Equal(depth, actualDepth);
-                    covered |= orientation > 0 ? 1 : 2;
+                    if (line == 3 && frame.PlaneConstant.IsZero || line >= 6 && !frame.Normal.Y.IsZero || line == 9 && quadrant != 0) continue;
+                    var omitted = line == 9 ? new ConePlaneRayEvent(ConePlaneRayEventKind.BaseStationary, branch: branch)
+                        : new ConePlaneRayEvent(ConePlaneRayEventKind.UpperRim, line, quadrant, branch);
+                    if (!ConePlaneRayEvents.TryEvaluateEvent(ConePlaneRayEventSource.Plane, frame, omitted, original, originalRoot, ref op, ref on)) continue;
+                    admitted++;
+                    int needed = (op.HasValue ? 1 : 0) | (on.HasValue ? 2 : 0), covered = 0;
+                    Assert.NotEqual(0, needed);
+                    foreach (ConePlaneRayEvent descriptor in retained[..count])
+                    {
+                        if (!ConePlaneRayEvents.TryEvaluateEvent(ConePlaneRayEventSource.Plane, frame, descriptor, candidate, candidateRoot, ref cp, ref cn)
+                            || original.CompareTo(candidate, originalRoot, candidateRoot) != 0) continue;
+                        if (ConePlaneRayEvents.CompareCoincidentProvenance(ConePlaneRayEventSource.Plane, descriptor,
+                            ConePlaneRayEventSource.Plane, omitted) >= 0) continue;
+                        for (int orientation = -1; orientation <= 1; orientation += 2)
+                        {
+                            var before = orientation > 0 ? op : on; var after = orientation > 0 ? cp : cn;
+                            if (!before.HasValue || !after.HasValue) continue;
+                            Assert.Equal(0, ContactQuadratic.CompareRatios(ContactQuadratic.At(before.Values, before.Signs, 0, ConePlaneRaySelection.FieldWords),
+                                ContactQuadratic.At(before.Values, before.Signs, 1, ConePlaneRaySelection.FieldWords), before.Root,
+                                ContactQuadratic.At(after.Values, after.Signs, 0, ConePlaneRaySelection.FieldWords),
+                                ContactQuadratic.At(after.Values, after.Signs, 1, ConePlaneRaySelection.FieldWords), after.Root));
+                            Assert.True(before.TryMaterialize(frame, orientation, out Vector3d p, out Vector3d q, out Fixed64 depth));
+                            Assert.True(after.TryMaterialize(frame, orientation, out Vector3d actualP, out Vector3d actualQ, out Fixed64 actualDepth));
+                            Assert.Equal(p, actualP); Assert.Equal(q, actualQ); Assert.Equal(depth, actualDepth);
+                            covered |= orientation > 0 ? 1 : 2;
+                        }
+                        if (covered == needed) break;
+                    }
+                    Assert.Equal(needed, covered);
                 }
-                if (covered == needed) break;
-            }
-            Assert.Equal(needed, covered);
-        }
         Assert.True(admitted > 0);
     }
 

@@ -6,9 +6,6 @@
 //=======================================================================
 
 using System;
-using System.Buffers;
-using System.Globalization;
-using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp;
 

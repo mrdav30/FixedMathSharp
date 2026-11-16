@@ -589,8 +589,15 @@ internal static partial class FiniteSlabRayExtrema
         Span<ulong> values = stackalloc ulong[2 * words]; Span<sbyte> signs = stackalloc sbyte[2];
         FiniteSlabPolynomial equation = new(values, signs); equation.Clear(); equation.Set(-1); equation.Set(2, 1);
         Span<ulong> cell = stackalloc ulong[1]; cell[0] = 1;
-        FiniteAxisValueRoot root = new() { Coefficients = values, Signs = signs,
-            LowerNumerator = cell, DenominatorShift = 1, IsRational = true, Ordinal = 0 };
+        FiniteAxisValueRoot root = new()
+        {
+            Coefficients = values,
+            Signs = signs,
+            LowerNumerator = cell,
+            DenominatorShift = 1,
+            IsRational = true,
+            Ordinal = 0
+        };
         if (!Admitted(problem, ref root, l, m, t, d)) return;
         maximum.Keep(root, 1, l, m, t, d, false, depthN, depthD,
             problem.Triangle, problem.Orientation, problem.DomainEdgeMask);

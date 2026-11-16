@@ -14,147 +14,147 @@ public sealed class ConvexHullCylinderContactTests
     [InlineData(true)]
     public void WholeHullRootContact_PreservesDirtyCallerHeadroomOnOneMiBStack(bool affine)
     {
-        Vector3d extents=new((Fixed64)10,Fixed64.Half,Fixed64.Half);
-        Vector3d[] points=Cube(affine?extents*Fixed64.Half:extents);
-        var frame=new ScaledRigidFrame3d(Vector3d.Zero,FixedQuaternion.Identity,Vector3d.Zero,
-            affine?Vector3d.One*Fixed64.Two:Vector3d.One,FixedQuaternion.Identity,Vector3d.Zero,Vector3d.One);
-        const long q=1920767767;
-        FixedQuaternion rotation=new(Fixed64.Zero,Fixed64.Zero,Fixed64.FromRaw(-q),Fixed64.FromRaw(2*q));
-        Vector3d center=new((Fixed64)(-5),(Fixed64)15.5m-Fixed64.FromFraction(15,1024),(Fixed64)20.5m-Fixed64.FromFraction(16,1024));
-        var contacts=new FixedContactAnchors[2];var hits=new bool[2];Exception? failure=null;
-        var worker=new Thread(()=>
+        Vector3d extents = new((Fixed64)10, Fixed64.Half, Fixed64.Half);
+        Vector3d[] points = Cube(affine ? extents * Fixed64.Half : extents);
+        var frame = new ScaledRigidFrame3d(Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Zero,
+            affine ? Vector3d.One * Fixed64.Two : Vector3d.One, FixedQuaternion.Identity, Vector3d.Zero, Vector3d.One);
+        const long q = 1920767767;
+        FixedQuaternion rotation = new(Fixed64.Zero, Fixed64.Zero, Fixed64.FromRaw(-q), Fixed64.FromRaw(2 * q));
+        Vector3d center = new((Fixed64)(-5), (Fixed64)15.5m - Fixed64.FromFraction(15, 1024), (Fixed64)20.5m - Fixed64.FromFraction(16, 1024));
+        var contacts = new FixedContactAnchors[2]; var hits = new bool[2]; Exception? failure = null;
+        var worker = new Thread(() =>
         {
             try
             {
-                for(int i=0;i<2;i++)hits[i]=HullContactWithDirtyCaller(frame,points,center,rotation,
-                    i==0?0xA55A0FF012345678UL:0x5AA5F00FFEDCBA98UL,out contacts[i]);
+                for (int i = 0; i < 2; i++) hits[i] = HullContactWithDirtyCaller(frame, points, center, rotation,
+                    i == 0 ? 0xA55A0FF012345678UL : 0x5AA5F00FFEDCBA98UL, out contacts[i]);
             }
-            catch(Exception exception){failure=exception;}
-        },1024*1024);
-        worker.Start();worker.Join();
-        Assert.Null(failure);Assert.True(hits[0]);Assert.True(hits[1]);
-        Assert.Equal(Fixed64.FromRaw(91988268),contacts[0].Depth);
-        Assert.Equal(contacts[0],contacts[1]);
+            catch (Exception exception) { failure = exception; }
+        }, 1024 * 1024);
+        worker.Start(); worker.Join();
+        Assert.Null(failure); Assert.True(hits[0]); Assert.True(hits[1]);
+        Assert.Equal(Fixed64.FromRaw(91988268), contacts[0].Depth);
+        Assert.Equal(contacts[0], contacts[1]);
     }
 
     [Fact]
     public void ContainedCenterAdmission_IncludesBoundaryAndDeclinesExteriorOverlap()
     {
-        var frame=ScaledRigidFrame3d.Rigid(Vector3d.Zero,FixedQuaternion.Identity);
-        Vector3d[] points=Cube(Vector3d.One);
-        foreach(Fixed64 x in new[]{Fixed64.Zero,Fixed64.One,(Fixed64)1.125m})
+        var frame = ScaledRigidFrame3d.Rigid(Vector3d.Zero, FixedQuaternion.Identity);
+        Vector3d[] points = Cube(Vector3d.One);
+        foreach (Fixed64 x in new[] { Fixed64.Zero, Fixed64.One, (Fixed64)1.125m })
         {
-            bool found=ConvexHullCylinderContact.TryGetContactWithContainedCenter(frame,points,WideOrientedBox.BoxHullTriangles,
-                Vector3d.Right*x,FixedQuaternion.Identity,Fixed64.Half,Fixed64.Quarter,out var contact);
-            Assert.Equal(x<=Fixed64.One,found);
-            if(found)Assert.True(contact.Depth>Fixed64.Zero);
-            else Assert.True(Contact(frame,points,Vector3d.Right*x,FixedQuaternion.Identity,Fixed64.Half,Fixed64.Quarter,out _));
+            bool found = ConvexHullCylinderContact.TryGetContactWithContainedCenter(frame, points, WideOrientedBox.BoxHullTriangles,
+                Vector3d.Right * x, FixedQuaternion.Identity, Fixed64.Half, Fixed64.Quarter, out var contact);
+            Assert.Equal(x <= Fixed64.One, found);
+            if (found) Assert.True(contact.Depth > Fixed64.Zero);
+            else Assert.True(Contact(frame, points, Vector3d.Right * x, FixedQuaternion.Identity, Fixed64.Half, Fixed64.Quarter, out _));
         }
     }
 
     [Fact]
     public void DegenerateRadiusAndReversedBoundaryFaces_PreserveFiniteContacts()
     {
-        var frame=ScaledRigidFrame3d.Rigid(Vector3d.Zero,FixedQuaternion.Identity);
-        Vector3d[] points=Cube(Vector3d.One);
-        FixedQuaternion rotation=new FixedQuaternion((Fixed64)1,(Fixed64)2,(Fixed64)3,(Fixed64)4).Normalized;
-        Assert.True(Contact(frame,points,Vector3d.Zero,rotation,Fixed64.One,Fixed64.Zero,out var line));
-        Assert.True(line.Depth>=Fixed64.One);
-        int[] reversed=WideOrientedBox.BoxHullTriangles.ToArray();Array.Reverse(reversed);
-        Assert.True(ConvexHullCylinderContact.TryGetContact(frame,points,reversed,Vector3d.Right,FixedQuaternion.Identity,
-            Fixed64.Half,Fixed64.Quarter,out var boundary));
-        Assert.Equal(Fixed64.Quarter,boundary.Depth);
-        int[] rotated=new int[reversed.Length];
-        for(int i=0;i<rotated.Length;i++)rotated[i]=WideOrientedBox.BoxHullTriangles[(i+12)%rotated.Length];
-        Assert.True(ConvexHullCylinderContact.TryGetContact(frame,points,rotated,new Vector3d((Fixed64)1.25m,(Fixed64)1.25m,Fixed64.Zero),
-            FixedQuaternion.Identity,Fixed64.Half,Fixed64.Quarter,out var corner));
-        Assert.Equal(Vector3d.Right,corner.Normal);Assert.Equal(Fixed64.Zero,corner.Depth);
-        Assert.True(corner.FirstAnchor.TryGetPoint(out Vector3d a));Assert.Equal(new Vector3d(1,1,0),a);
+        var frame = ScaledRigidFrame3d.Rigid(Vector3d.Zero, FixedQuaternion.Identity);
+        Vector3d[] points = Cube(Vector3d.One);
+        FixedQuaternion rotation = new FixedQuaternion((Fixed64)1, (Fixed64)2, (Fixed64)3, (Fixed64)4).Normalized;
+        Assert.True(Contact(frame, points, Vector3d.Zero, rotation, Fixed64.One, Fixed64.Zero, out var line));
+        Assert.True(line.Depth >= Fixed64.One);
+        int[] reversed = WideOrientedBox.BoxHullTriangles.ToArray(); Array.Reverse(reversed);
+        Assert.True(ConvexHullCylinderContact.TryGetContact(frame, points, reversed, Vector3d.Right, FixedQuaternion.Identity,
+            Fixed64.Half, Fixed64.Quarter, out var boundary));
+        Assert.Equal(Fixed64.Quarter, boundary.Depth);
+        int[] rotated = new int[reversed.Length];
+        for (int i = 0; i < rotated.Length; i++) rotated[i] = WideOrientedBox.BoxHullTriangles[(i + 12) % rotated.Length];
+        Assert.True(ConvexHullCylinderContact.TryGetContact(frame, points, rotated, new Vector3d((Fixed64)1.25m, (Fixed64)1.25m, Fixed64.Zero),
+            FixedQuaternion.Identity, Fixed64.Half, Fixed64.Quarter, out var corner));
+        Assert.Equal(Vector3d.Right, corner.Normal); Assert.Equal(Fixed64.Zero, corner.Depth);
+        Assert.True(corner.FirstAnchor.TryGetPoint(out Vector3d a)); Assert.Equal(new Vector3d(1, 1, 0), a);
     }
 
     [Fact]
     public void BallCertificate_DeclinesPlanesThatDoNotBoundTheHull()
     {
-        var frame=ScaledRigidFrame3d.Rigid(Vector3d.Zero,FixedQuaternion.Identity);
-        Vector3d[] points=Cube(Vector3d.One);
-        var hull=new CylinderHullSupport(frame,points,Vector3d.Zero,FixedQuaternion.Identity,Fixed64.Half,Fixed64.Quarter);
-        var triangle=new FixedTriangle(points[0],points[2],points[3]);
-        var geometry=new TriangleCircularGeometry(triangle,frame,hull,0,2,3);
-        Span<ulong> values=stackalloc ulong[ConvexContactCandidate.Slots*CylinderContactAlgebra.Words],direction=stackalloc ulong[3*CylinderContactAlgebra.Words];
-        Span<int> signs=stackalloc int[ConvexContactCandidate.Slots],directionSigns=stackalloc int[3];
-        Assert.True(TriangleCylinderAnalyticFeatures.TryGetBest(geometry,default,default,values,signs,direction,directionSigns,
-            out int gap,out _,out _,out _,hull));
-        var candidate=new ConvexContactCandidate(values,signs,gap);
-        Assert.False(hull.HasBallMinimumCertificate(frame,new[]{0,7,6},candidate));
-        Assert.False(hull.HasBallMinimumCertificate(frame,new[]{0,0,0},candidate));
+        var frame = ScaledRigidFrame3d.Rigid(Vector3d.Zero, FixedQuaternion.Identity);
+        Vector3d[] points = Cube(Vector3d.One);
+        var hull = new CylinderHullSupport(frame, points, Vector3d.Zero, FixedQuaternion.Identity, Fixed64.Half, Fixed64.Quarter);
+        var triangle = new FixedTriangle(points[0], points[2], points[3]);
+        var geometry = new TriangleCircularGeometry(triangle, frame, hull, 0, 2, 3);
+        Span<ulong> values = stackalloc ulong[ConvexContactCandidate.Slots * CylinderContactAlgebra.Words], direction = stackalloc ulong[3 * CylinderContactAlgebra.Words];
+        Span<int> signs = stackalloc int[ConvexContactCandidate.Slots], directionSigns = stackalloc int[3];
+        Assert.True(TriangleCylinderAnalyticFeatures.TryGetBest(geometry, default, default, values, signs, direction, directionSigns,
+            out int gap, out _, out _, out _, hull));
+        var candidate = new ConvexContactCandidate(values, signs, gap);
+        Assert.False(hull.HasBallMinimumCertificate(frame, new[] { 0, 7, 6 }, candidate));
+        Assert.False(hull.HasBallMinimumCertificate(frame, new[] { 0, 0, 0 }, candidate));
     }
 
     [Fact]
     public void AffineAnalyticRimEdge_RetainsExactMatchingWeightsAcrossVertexOrders()
     {
-        var frame=new ScaledRigidFrame3d(Vector3d.Zero,FixedQuaternion.Identity,Vector3d.Zero,Vector3d.One*Fixed64.Two,
-            FixedQuaternion.Identity,Vector3d.Zero,Vector3d.One);
-        var triangle=new FixedTriangle(new Vector3d(2,3,0),new Vector3d(3,2,0),new Vector3d(3,3,1));
-        Span<ulong> normal=stackalloc ulong[3*CylinderContactAlgebra.Words];Span<int> signs=stackalloc int[3];
-        CylinderContactAlgebra.WriteDirection(new WideDirection3d(WideArithmetic.Negate(Signed576.One),WideArithmetic.Negate(Signed576.One),default),normal,signs);
-        for(int order=0;order<3;order++)
+        var frame = new ScaledRigidFrame3d(Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Zero, Vector3d.One * Fixed64.Two,
+            FixedQuaternion.Identity, Vector3d.Zero, Vector3d.One);
+        var triangle = new FixedTriangle(new Vector3d(2, 3, 0), new Vector3d(3, 2, 0), new Vector3d(3, 3, 1));
+        Span<ulong> normal = stackalloc ulong[3 * CylinderContactAlgebra.Words]; Span<int> signs = stackalloc int[3];
+        CylinderContactAlgebra.WriteDirection(new WideDirection3d(WideArithmetic.Negate(Signed576.One), WideArithmetic.Negate(Signed576.One), default), normal, signs);
+        for (int order = 0; order < 3; order++)
         {
-            var geometry=new TriangleCircularGeometry(triangle,frame,Vector3d.Zero,FixedQuaternion.Identity,Signed192.Raw((Fixed64)10),(Fixed64)5);
-            int mask=order==0?3:order==1?6:5;
-            Assert.True(TriangleCylinderRimWitnesses.TryGetAnalyticPoint(geometry,triangle,mask,normal,signs,-1,geometry.Radius,out Vector3d point));
-            Assert.Equal(new Vector3d(5,5,0),point);
-            triangle=new FixedTriangle(triangle.C,triangle.A,triangle.B);
+            var geometry = new TriangleCircularGeometry(triangle, frame, Vector3d.Zero, FixedQuaternion.Identity, Signed192.Raw((Fixed64)10), (Fixed64)5);
+            int mask = order == 0 ? 3 : order == 1 ? 6 : 5;
+            Assert.True(TriangleCylinderRimWitnesses.TryGetAnalyticPoint(geometry, triangle, mask, normal, signs, -1, geometry.Radius, out Vector3d point));
+            Assert.Equal(new Vector3d(5, 5, 0), point);
+            triangle = new FixedTriangle(triangle.C, triangle.A, triangle.B);
         }
     }
 
     [Fact]
     public void VariedContainedCylinders_MatchIndependentBoxMinimumAcrossTheWholeSupportFan()
     {
-        Vector3d[] points=Cube(Vector3d.One);
-        for(int seed=1;seed<=32;seed++)
+        Vector3d[] points = Cube(Vector3d.One);
+        for (int seed = 1; seed <= 32; seed++)
         {
-            FixedQuaternion rotation=new FixedQuaternion((Fixed64)(seed%5+1),(Fixed64)(seed%7-3),(Fixed64)3,(Fixed64)(seed%3+2)).Normalized;
-            Vector3d center=new(Fixed64.FromFraction(seed%7-3,4),Fixed64.FromFraction(seed%5-2,3),Fixed64.FromFraction(seed%3-1,2));
-            Fixed64 height=Fixed64.FromFraction(seed%8+1,4),radius=Fixed64.FromFraction(seed%6+1,3);
-            var frame=ScaledRigidFrame3d.Rigid(Vector3d.Zero,FixedQuaternion.Identity);
-            var box=new FixedOrientedBox(Vector3d.Zero,FixedQuaternion.Identity,Vector3d.One);
-            Assert.True(Contact(frame,points,center,rotation,height,radius,out var contact));
-            Assert.True(box.TryGetCenteredCylinderContact(center,rotation,Vector3d.Up,height,radius,out var expected));
-            Assert.Equal(expected.Depth,contact.Depth);
-            AssertContact(frame,points,center,rotation,height,radius,contact);
+            FixedQuaternion rotation = new FixedQuaternion((Fixed64)(seed % 5 + 1), (Fixed64)(seed % 7 - 3), (Fixed64)3, (Fixed64)(seed % 3 + 2)).Normalized;
+            Vector3d center = new(Fixed64.FromFraction(seed % 7 - 3, 4), Fixed64.FromFraction(seed % 5 - 2, 3), Fixed64.FromFraction(seed % 3 - 1, 2));
+            Fixed64 height = Fixed64.FromFraction(seed % 8 + 1, 4), radius = Fixed64.FromFraction(seed % 6 + 1, 3);
+            var frame = ScaledRigidFrame3d.Rigid(Vector3d.Zero, FixedQuaternion.Identity);
+            var box = new FixedOrientedBox(Vector3d.Zero, FixedQuaternion.Identity, Vector3d.One);
+            Assert.True(Contact(frame, points, center, rotation, height, radius, out var contact));
+            Assert.True(box.TryGetCenteredCylinderContact(center, rotation, Vector3d.Up, height, radius, out var expected));
+            Assert.Equal(expected.Depth, contact.Depth);
+            AssertContact(frame, points, center, rotation, height, radius, contact);
         }
     }
 
     [Fact]
     public void IndependentAffinePlacement_PreservesObliqueFiniteWitnessesWithoutRoundingTheSourceFrame()
     {
-        Vector3d reference=new(1000000,-1000000,1000000);
-        Vector3d[] points=Cube(Vector3d.One*Fixed64.Two);
-        for(int i=0;i<points.Length;i++)points[i]+=reference;
-        FixedQuaternion placement=new FixedQuaternion((Fixed64)1,(Fixed64)2,(Fixed64)3,(Fixed64)4).Normalized;
-        FixedQuaternion orientation=new FixedQuaternion((Fixed64)2,(Fixed64)3,(Fixed64)1,(Fixed64)5).Normalized;
-        var frame=new ScaledRigidFrame3d(new Vector3d(2,-1,3),placement,new Vector3d((Fixed64).3m,(Fixed64).2m,(Fixed64).1m),
-            new Vector3d(Fixed64.One+Fixed64.MinIncrement,(Fixed64).75m+Fixed64.MinIncrement,(Fixed64)1.25m+Fixed64.MinIncrement),
-            orientation,reference,new Vector3d(Fixed64.One+Fixed64.MinIncrement,Fixed64.One,Fixed64.One));
-        Assert.True(frame.TryGetPoint(reference,out Vector3d center));
-        FixedQuaternion rotation=new FixedQuaternion((Fixed64)3,(Fixed64)1,(Fixed64)4,(Fixed64)2).Normalized;
-        Assert.True(Contact(frame,points,center,rotation,Fixed64.One,Fixed64.Half,out var contact));
-        AssertContact(frame,points,center,rotation,Fixed64.One,Fixed64.Half,contact);
+        Vector3d reference = new(1000000, -1000000, 1000000);
+        Vector3d[] points = Cube(Vector3d.One * Fixed64.Two);
+        for (int i = 0; i < points.Length; i++) points[i] += reference;
+        FixedQuaternion placement = new FixedQuaternion((Fixed64)1, (Fixed64)2, (Fixed64)3, (Fixed64)4).Normalized;
+        FixedQuaternion orientation = new FixedQuaternion((Fixed64)2, (Fixed64)3, (Fixed64)1, (Fixed64)5).Normalized;
+        var frame = new ScaledRigidFrame3d(new Vector3d(2, -1, 3), placement, new Vector3d((Fixed64).3m, (Fixed64).2m, (Fixed64).1m),
+            new Vector3d(Fixed64.One + Fixed64.MinIncrement, (Fixed64).75m + Fixed64.MinIncrement, (Fixed64)1.25m + Fixed64.MinIncrement),
+            orientation, reference, new Vector3d(Fixed64.One + Fixed64.MinIncrement, Fixed64.One, Fixed64.One));
+        Assert.True(frame.TryGetPoint(reference, out Vector3d center));
+        FixedQuaternion rotation = new FixedQuaternion((Fixed64)3, (Fixed64)1, (Fixed64)4, (Fixed64)2).Normalized;
+        Assert.True(Contact(frame, points, center, rotation, Fixed64.One, Fixed64.Half, out var contact));
+        AssertContact(frame, points, center, rotation, Fixed64.One, Fixed64.Half, contact);
     }
 
     [Theory]
-    [InlineData(-1,0)]
-    [InlineData(1,0)]
-    [InlineData(0,-1)]
-    [InlineData(0,1)]
+    [InlineData(-1, 0)]
+    [InlineData(1, 0)]
+    [InlineData(0, -1)]
+    [InlineData(0, 1)]
     public void BallCertificate_PreservesSubRawCapSideRanking(int radiusRaw, int heightRaw)
     {
-        Fixed64 radius=Fixed64.Quarter+Fixed64.FromRaw(radiusRaw),height=Fixed64.Half+Fixed64.FromRaw(heightRaw);
-        var frame=ScaledRigidFrame3d.Rigid(Vector3d.Zero,FixedQuaternion.Identity);
-        Assert.True(Contact(frame,Cube(Vector3d.One),Vector3d.Zero,FixedQuaternion.Identity,height,radius,out var contact));
-        bool side=radius.m_rawValue*2<height.m_rawValue;
-        Assert.Equal(side,contact.Normal.Y==Fixed64.Zero);
-        Assert.Equal((Fixed64)1.25m+Fixed64.FromRaw(radiusRaw<0?radiusRaw:0),contact.Depth);
+        Fixed64 radius = Fixed64.Quarter + Fixed64.FromRaw(radiusRaw), height = Fixed64.Half + Fixed64.FromRaw(heightRaw);
+        var frame = ScaledRigidFrame3d.Rigid(Vector3d.Zero, FixedQuaternion.Identity);
+        Assert.True(Contact(frame, Cube(Vector3d.One), Vector3d.Zero, FixedQuaternion.Identity, height, radius, out var contact));
+        bool side = radius.m_rawValue * 2 < height.m_rawValue;
+        Assert.Equal(side, contact.Normal.Y == Fixed64.Zero);
+        Assert.Equal((Fixed64)1.25m + Fixed64.FromRaw(radiusRaw < 0 ? radiusRaw : 0), contact.Depth);
     }
 
     [Fact]
@@ -173,9 +173,9 @@ public sealed class ConvexHullCylinderContactTests
                 Vector3d.Zero, FixedQuaternion.Identity, Signed192.Raw(Fixed64.Two), Fixed64.One);
             Assert.False(TriangleCylinderWitnesses.TryGetSidePoint(geometry, triangle, 7, normal, signs, out _, out _, out _));
         }
-        foreach (int cap in new[] {-1,1})
+        foreach (int cap in new[] { -1, 1 })
         {
-            var triangle = new FixedTriangle(new Vector3d(1,cap,0),new Vector3d(1,cap,1),new Vector3d(1,cap+1,1));
+            var triangle = new FixedTriangle(new Vector3d(1, cap, 0), new Vector3d(1, cap, 1), new Vector3d(1, cap + 1, 1));
             var geometry = new TriangleCircularGeometry(triangle, Vector3d.Zero, FixedQuaternion.Identity,
                 Vector3d.Zero, FixedQuaternion.Identity, Signed192.Raw(Fixed64.Two), Fixed64.One);
             Assert.True(TriangleCylinderWitnesses.TryGetSidePoint(geometry, triangle, 7, normal, signs, out Vector3d point, out Fixed64 axial, out int endpoint));
@@ -190,33 +190,33 @@ public sealed class ConvexHullCylinderContactTests
     public void AnalyticRimWitness_AdmitsOnlyMatchingFiniteVertexAndFaceFeatures(int order)
     {
         Span<ulong> normal = stackalloc ulong[3 * CylinderContactAlgebra.Words]; Span<int> signs = stackalloc int[3];
-        foreach (Vector3d direction in new[] { new Vector3d(-3,-14,-4), new Vector3d(0,-14,-5), new Vector3d(0,0,-5) })
+        foreach (Vector3d direction in new[] { new Vector3d(-3, -14, -4), new Vector3d(0, -14, -5), new Vector3d(0, 0, -5) })
         {
-            Vector3d point = direction.X == Fixed64.Zero ? new Vector3d(0,5,5) : new Vector3d(3,5,4);
+            Vector3d point = direction.X == Fixed64.Zero ? new Vector3d(0, 5, 5) : new Vector3d(3, 5, 4);
             CylinderContactAlgebra.WriteDirection(new WideDirection3d(Signed576.ExtendValue(Signed192.Raw(direction.X)),
                 Signed576.ExtendValue(Signed192.Raw(direction.Y)), Signed576.ExtendValue(Signed192.Raw(direction.Z))), normal, signs);
-            foreach (bool matched in new[] {true,false})
+            foreach (bool matched in new[] { true, false })
             {
                 Vector3d a = point + (matched ? Vector3d.Zero : Vector3d.Up * Fixed64.Quarter);
-                var triangle = new FixedTriangle(a,a+new Vector3d(1,4,1),a+new Vector3d(2,1,1));
-                for (int i=0;i<order;i++) triangle = new FixedTriangle(triangle.C,triangle.A,triangle.B);
-                var geometry = new TriangleCircularGeometry(triangle,Vector3d.Zero,FixedQuaternion.Identity,
-                    Vector3d.Zero,FixedQuaternion.Identity,Signed192.Raw((Fixed64)10),(Fixed64)5);
-                Assert.Equal(matched,TriangleCylinderRimWitnesses.TryGetAnalyticPoint(geometry,triangle,1<<order,
-                    normal,signs,-1,geometry.Radius,out Vector3d witness));
-                if(matched) Assert.Equal(point,witness);
+                var triangle = new FixedTriangle(a, a + new Vector3d(1, 4, 1), a + new Vector3d(2, 1, 1));
+                for (int i = 0; i < order; i++) triangle = new FixedTriangle(triangle.C, triangle.A, triangle.B);
+                var geometry = new TriangleCircularGeometry(triangle, Vector3d.Zero, FixedQuaternion.Identity,
+                    Vector3d.Zero, FixedQuaternion.Identity, Signed192.Raw((Fixed64)10), (Fixed64)5);
+                Assert.Equal(matched, TriangleCylinderRimWitnesses.TryGetAnalyticPoint(geometry, triangle, 1 << order,
+                    normal, signs, -1, geometry.Radius, out Vector3d witness));
+                if (matched) Assert.Equal(point, witness);
             }
         }
-        CylinderContactAlgebra.WriteDirection(new WideDirection3d(WideArithmetic.Negate(Signed576.One),WideArithmetic.Negate(Signed576.One),default),normal,signs);
-        foreach (bool matched in new[] {true,false})
+        CylinderContactAlgebra.WriteDirection(new WideDirection3d(WideArithmetic.Negate(Signed576.One), WideArithmetic.Negate(Signed576.One), default), normal, signs);
+        foreach (bool matched in new[] { true, false })
         {
             int z = matched ? -1 : 4;
-            var triangle = new FixedTriangle(new Vector3d(4,6,z),new Vector3d(6,4,z),new Vector3d(5,5,z+2));
-            for(int i=0;i<order;i++) triangle = new FixedTriangle(triangle.C,triangle.A,triangle.B);
-            var geometry = new TriangleCircularGeometry(triangle,Vector3d.Zero,FixedQuaternion.Identity,
-                Vector3d.Zero,FixedQuaternion.Identity,Signed192.Raw((Fixed64)10),(Fixed64)5);
-            Assert.Equal(matched,TriangleCylinderRimWitnesses.TryGetAnalyticPoint(geometry,triangle,7,normal,signs,-1,geometry.Radius,out _));
-            Assert.False(TriangleCylinderRimWitnesses.TryGetAnalyticPoint(geometry,triangle,3,normal,signs,-1,geometry.Radius,out _));
+            var triangle = new FixedTriangle(new Vector3d(4, 6, z), new Vector3d(6, 4, z), new Vector3d(5, 5, z + 2));
+            for (int i = 0; i < order; i++) triangle = new FixedTriangle(triangle.C, triangle.A, triangle.B);
+            var geometry = new TriangleCircularGeometry(triangle, Vector3d.Zero, FixedQuaternion.Identity,
+                Vector3d.Zero, FixedQuaternion.Identity, Signed192.Raw((Fixed64)10), (Fixed64)5);
+            Assert.Equal(matched, TriangleCylinderRimWitnesses.TryGetAnalyticPoint(geometry, triangle, 7, normal, signs, -1, geometry.Radius, out _));
+            Assert.False(TriangleCylinderRimWitnesses.TryGetAnalyticPoint(geometry, triangle, 3, normal, signs, -1, geometry.Radius, out _));
         }
     }
 
@@ -233,17 +233,17 @@ public sealed class ConvexHullCylinderContactTests
             new((Fixed64)5+e, (Fixed64)4, (Fixed64)6+e),
             new((Fixed64)6, (Fixed64)19+e, (Fixed64)8), new(11,23,9)
         };
-        int[] triangles = { 0,1,2, 0,3,1, 0,2,3, 1,3,2 };
-        Vector3d translation = new Vector3d(3,14,4) * Fixed64.FromRaw(offsetRaw);
+        int[] triangles = { 0, 1, 2, 0, 3, 1, 0, 2, 3, 1, 3, 2 };
+        Vector3d translation = new Vector3d(3, 14, 4) * Fixed64.FromRaw(offsetRaw);
         var frame = ScaledRigidFrame3d.Rigid(translation, FixedQuaternion.Identity);
         Assert.Equal(offsetRaw <= 0, ConvexHullCylinderContact.TryGetContact(frame, points, triangles, Vector3d.Zero,
-            FixedQuaternion.Identity, (Fixed64)10+e, (Fixed64)5, out var contact));
+            FixedQuaternion.Identity, (Fixed64)10 + e, (Fixed64)5, out var contact));
         if (offsetRaw == 0)
         {
             Assert.Equal(Fixed64.Zero, contact.Depth);
             Assert.True(contact.FirstAnchor.TryGetPoint(out Vector3d a));
             Assert.True(contact.SecondAnchor.TryGetPoint(out Vector3d b));
-            Assert.Equal(new Vector3d(3,5,4), a); Assert.Equal(a,b);
+            Assert.Equal(new Vector3d(3, 5, 4), a); Assert.Equal(a, b);
         }
     }
 
@@ -252,7 +252,7 @@ public sealed class ConvexHullCylinderContactTests
     {
         Vector3d[] points = { new((Fixed64)5.25m,(Fixed64)5.25m,Fixed64.Zero),
             new((Fixed64)4.75m,(Fixed64)6,Fixed64.Zero), new((Fixed64)6,(Fixed64)4.75m,Fixed64.Zero), new(6,6,1) };
-        int[] tetrahedron = { 0,1,2, 0,3,1, 0,2,3, 1,3,2 };
+        int[] tetrahedron = { 0, 1, 2, 0, 3, 1, 0, 2, 3, 1, 3, 2 };
         var frame = ScaledRigidFrame3d.Rigid(Vector3d.Zero, FixedQuaternion.Identity);
         Assert.False(ConvexHullCylinderContact.TryGetContact(frame, points, tetrahedron, Vector3d.Zero,
             FixedQuaternion.Identity, (Fixed64)10, (Fixed64)5, out _));
@@ -261,8 +261,8 @@ public sealed class ConvexHullCylinderContactTests
         Assert.Equal(Fixed64.One, axisContact.Depth);
         // An incomplete topology cannot supply a witness on the omitted side
         // of the hull. Decline it rather than project outside its finite face.
-        Assert.False(ConvexHullCylinderContact.TryGetContact(frame, Cube(Vector3d.One), new[] {2,6,7},
-            new Vector3d(Fixed64.Half,Fixed64.Zero,-Fixed64.Half), FixedQuaternion.Identity, Fixed64.Half, Fixed64.Quarter, out _));
+        Assert.False(ConvexHullCylinderContact.TryGetContact(frame, Cube(Vector3d.One), new[] { 2, 6, 7 },
+            new Vector3d(Fixed64.Half, Fixed64.Zero, -Fixed64.Half), FixedQuaternion.Identity, Fixed64.Half, Fixed64.Quarter, out _));
     }
 
     [Theory]
@@ -325,7 +325,7 @@ public sealed class ConvexHullCylinderContactTests
         bool exceedsOldSquareBank = false;
         ReadOnlySpan<int> indices = WideOrientedBox.BoxHullTriangles;
         Span<ulong> weights = stackalloc ulong[3 * CylinderContactAlgebra.Words];
-        foreach(Vector3d candidateCenter in new[]{center,center+Vector3d.Right*(Fixed64)3})
+        foreach (Vector3d candidateCenter in new[] { center, center + Vector3d.Right * (Fixed64)3 })
         {
             var hull = new CylinderHullSupport(frame, points, candidateCenter, rotation, Fixed64.Half, Fixed64.Quarter);
             for (int i = 0; i < indices.Length; i += 3)
@@ -342,7 +342,7 @@ public sealed class ConvexHullCylinderContactTests
                 }
                 BigInteger limit = denominator * Integer(chart.Radius);
                 exceedsOldSquareBank |= BigInteger.Max(nx * nx + nz * nz, limit * limit).GetBitLength() > 2560;
-                Assert.Equal(nx*nx+nz*nz<=limit*limit,TriangleCylinderWitnesses.TryGetCapPoint(chart,triangle,7,out _,out _));
+                Assert.Equal(nx * nx + nz * nz <= limit * limit, TriangleCylinderWitnesses.TryGetCapPoint(chart, triangle, 7, out _, out _));
             }
         }
         Assert.True(exceedsOldSquareBank, "The fixture must exercise squares wider than the former 40-word admission bank.");
@@ -498,14 +498,14 @@ public sealed class ConvexHullCylinderContactTests
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static bool HullContactWithDirtyCaller(in ScaledRigidFrame3d frame,Vector3d[] points,Vector3d center,
-        FixedQuaternion rotation,ulong seed,out FixedContactAnchors contact)
+    private static bool HullContactWithDirtyCaller(in ScaledRigidFrame3d frame, Vector3d[] points, Vector3d center,
+        FixedQuaternion rotation, ulong seed, out FixedContactAnchors contact)
     {
-        Span<ulong> caller=stackalloc ulong[8192];
-        for(int i=0;i<caller.Length;i++)caller[i]=seed^unchecked(0x9E3779B97F4A7C15UL*(ulong)(i+1));
-        bool found=Contact(frame,points,center,rotation,(Fixed64)10,(Fixed64)25,out contact);
-        for(int i=0;i<caller.Length;i++)
-            if(caller[i]!=(seed^unchecked(0x9E3779B97F4A7C15UL*(ulong)(i+1))))throw new InvalidOperationException("Hull contact changed the live caller buffer.");
+        Span<ulong> caller = stackalloc ulong[8192];
+        for (int i = 0; i < caller.Length; i++) caller[i] = seed ^ unchecked(0x9E3779B97F4A7C15UL * (ulong)(i + 1));
+        bool found = Contact(frame, points, center, rotation, (Fixed64)10, (Fixed64)25, out contact);
+        for (int i = 0; i < caller.Length; i++)
+            if (caller[i] != (seed ^ unchecked(0x9E3779B97F4A7C15UL * (ulong)(i + 1)))) throw new InvalidOperationException("Hull contact changed the live caller buffer.");
         return found;
     }
 }

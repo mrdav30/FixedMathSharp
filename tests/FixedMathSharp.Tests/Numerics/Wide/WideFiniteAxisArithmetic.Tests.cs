@@ -74,23 +74,23 @@ public sealed class WideFiniteAxisArithmeticTests
             (2 * (BigInteger)long.MaxValue + 1, 2), ((BigInteger.One << 64) + 1, 2), (1, 0)
         };
         foreach (long origin in new[] { -3L, 0L, 1L, 2L, long.MinValue, long.MaxValue })
-        foreach (var item in cases)
-        {
-            BigInteger rounded = 0;
-            bool expected = item.D != 0;
-            if (expected)
+            foreach (var item in cases)
             {
-                rounded = BigInteger.DivRem(item.N, item.D, out BigInteger remainder);
-                int half = (2 * remainder).CompareTo(item.D);
-                if (half > 0 || half == 0 && !(rounded + origin).IsEven) rounded++;
-                if (negative) rounded = -rounded;
-                expected = rounded >= long.MinValue && rounded <= long.MaxValue;
+                BigInteger rounded = 0;
+                bool expected = item.D != 0;
+                if (expected)
+                {
+                    rounded = BigInteger.DivRem(item.N, item.D, out BigInteger remainder);
+                    int half = (2 * remainder).CompareTo(item.D);
+                    if (half > 0 || half == 0 && !(rounded + origin).IsEven) rounded++;
+                    if (negative) rounded = -rounded;
+                    expected = rounded >= long.MinValue && rounded <= long.MaxValue;
+                }
+                ulong[] n = ToTwosComplementWords(item.N << (64 * commonWords), commonWords + 8);
+                ulong[] d = ToTwosComplementWords(item.D << (64 * commonWords), commonWords + 6);
+                Assert.Equal(expected, Fixed64.TryGetSignedRawRatio(n, d, negative, out Fixed64 actual, origin));
+                Assert.Equal(expected ? (long)rounded : 0, actual.m_rawValue);
             }
-            ulong[] n = ToTwosComplementWords(item.N << (64 * commonWords), commonWords + 8);
-            ulong[] d = ToTwosComplementWords(item.D << (64 * commonWords), commonWords + 6);
-            Assert.Equal(expected, Fixed64.TryGetSignedRawRatio(n, d, negative, out Fixed64 actual, origin));
-            Assert.Equal(expected ? (long)rounded : 0, actual.m_rawValue);
-        }
     }
 
     [Theory]
@@ -233,33 +233,33 @@ public sealed class WideFiniteAxisArithmeticTests
     public void WideNormalization_PreservesNearestEvenScaleRatiosAcrossNarrowingBoundary()
     {
         foreach (int shift in new[] { 0, 64, 158, 285, 286, 400 })
-        foreach (int sign in new[] { -1, 1 })
-        {
-            // Odd small components land on opposite nearest-even half ties;
-            // the 286-bit shift also exercises the excluded Signed320 minimum.
-            BigInteger scale = BigInteger.One << (33 + shift);
-            foreach (BigInteger[] components in new[]
+            foreach (int sign in new[] { -1, 1 })
             {
+                // Odd small components land on opposite nearest-even half ties;
+                // the 286-bit shift also exercises the excluded Signed320 minimum.
+                BigInteger scale = BigInteger.One << (33 + shift);
+                foreach (BigInteger[] components in new[]
+                {
                 new[] { sign * scale, BigInteger.One << shift, -3 * (BigInteger.One << shift) },
                 new[] { sign * scale, scale / 3, -(2 * scale / 5) }
             })
-            for (int axis = 0; axis < 3; axis++)
-            {
-                var expected = new Vector3d(Round(components[axis]), Round(components[(axis + 1) % 3]),
-                    Round(components[(axis + 2) % 3]));
-                Vector3d actual = WideNormalization.GetNormalized(ToSigned576(components[axis]),
-                    ToSigned576(components[(axis + 1) % 3]), ToSigned576(components[(axis + 2) % 3]));
-                Assert.Equal(Vector3d.GetScaleNormalized(expected), actual);
-            }
+                    for (int axis = 0; axis < 3; axis++)
+                    {
+                        var expected = new Vector3d(Round(components[axis]), Round(components[(axis + 1) % 3]),
+                            Round(components[(axis + 2) % 3]));
+                        Vector3d actual = WideNormalization.GetNormalized(ToSigned576(components[axis]),
+                            ToSigned576(components[(axis + 1) % 3]), ToSigned576(components[(axis + 2) % 3]));
+                        Assert.Equal(Vector3d.GetScaleNormalized(expected), actual);
+                    }
 
-            Fixed64 Round(BigInteger value)
-            {
-                BigInteger quotient = BigInteger.DivRem(BigInteger.Abs(value) << 32, scale, out BigInteger remainder);
-                int half = (2 * remainder).CompareTo(scale);
-                if (half > 0 || half == 0 && !quotient.IsEven) quotient++;
-                return Fixed64.FromRaw((long)(value.Sign < 0 ? -quotient : quotient));
+                Fixed64 Round(BigInteger value)
+                {
+                    BigInteger quotient = BigInteger.DivRem(BigInteger.Abs(value) << 32, scale, out BigInteger remainder);
+                    int half = (2 * remainder).CompareTo(scale);
+                    if (half > 0 || half == 0 && !quotient.IsEven) quotient++;
+                    return Fixed64.FromRaw((long)(value.Sign < 0 ? -quotient : quotient));
+                }
             }
-        }
     }
 
     [Fact]

@@ -20,9 +20,9 @@ public sealed class ScaledAxisTriangleTests
     {
         var frame = new ScaledRigidFrame3d(Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Zero,
             Vector3d.One * Fixed64.Half, FixedQuaternion.Identity, Vector3d.Zero, Vector3d.One);
-        Vector3d a = new(0,-4,0), b = new(0,4,0), c = new(2,0,0);
-        FixedTriangle triangle = reverse ? new(b,a,c) : new(a,b,c);
-        Signed832 unit = new(0,0,0,0,0,0,1,0,0,0,0,0,0), twice = WideArithmetic.AddSigned832(unit, unit);
+        Vector3d a = new(0, -4, 0), b = new(0, 4, 0), c = new(2, 0, 0);
+        FixedTriangle triangle = reverse ? new(b, a, c) : new(a, b, c);
+        Signed832 unit = new(0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0), twice = WideArithmetic.AddSigned832(unit, unit);
         Signed832 four = WideArithmetic.AddSigned832(twice, twice), three = WideArithmetic.AddSigned832(unit, twice);
         var interval = new RationalSegmentInterval(unit, four, three, four);
         Vector3d center = new(Fixed64.Quarter, lowerOutside ? Fixed64.Quarter : -Fixed64.Quarter, Fixed64.Quarter);
@@ -43,11 +43,11 @@ public sealed class ScaledAxisTriangleTests
     {
         var source = new ScaledRigidFrame3d(Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Zero,
             Vector3d.One * Fixed64.Half, FixedQuaternion.Identity, Vector3d.Zero, Vector3d.One);
-        FixedTriangle triangle = new(new(-4,0,0), new(4,0,0), new(0,0,4));
+        FixedTriangle triangle = new(new(-4, 0, 0), new(4, 0, 0), new(0, 0, 4));
         Signed320 one = Signed320.ExtendValue(Signed192.Signed(1)), three = Signed320.ExtendValue(Signed192.Signed(3)),
             four = Signed320.ExtendValue(Signed192.Signed(4));
         var interval = new RationalSegmentInterval(one, four, three, four);
-        Vector3d center = new(side * Fixed64.FromFraction(3,2), Fixed64.Quarter, -Fixed64.Quarter);
+        Vector3d center = new(side * Fixed64.FromFraction(3, 2), Fixed64.Quarter, -Fixed64.Quarter);
         Assert.True(triangle.TryGetClippedCenteredCapsuleContact(source, center, FixedQuaternion.Identity,
             Fixed64.One, Fixed64.One, Vector3d.Up, interval, out var contact, out _, out int endpoint, out _));
         Assert.Equal(side, endpoint); Assert.True(contact.Depth > Fixed64.Zero);
@@ -62,7 +62,7 @@ public sealed class ScaledAxisTriangleTests
     {
         var source = new ScaledRigidFrame3d(Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Zero,
             Vector3d.One * Fixed64.Half, FixedQuaternion.Identity, Vector3d.Zero, Vector3d.One);
-        FixedTriangle triangle = new(new(-2,0,-2), new(2,0,-2), new(0,0,2));
+        FixedTriangle triangle = new(new(-2, 0, -2), new(2, 0, -2), new(0, 0, 2));
         foreach (bool downward in new[] { false, true })
         {
             FixedQuaternion rotation = downward
@@ -79,13 +79,13 @@ public sealed class ScaledAxisTriangleTests
     [Fact]
     public void GenericClippedContact_ShouldRejectASeparationWhosePrimitiveDirectionExceedsItsStorage()
     {
-        Signed832 d = new(1UL << 32,0,0,0,0,0,0,0,0,0,0,0,1);
-        Signed832 lower = new(1UL << 31,0,0,0,0,0,0,0,0,0,0,0,1);
-        Signed832 upper = new(3UL << 30,0,0,0,0,0,0,0,0,0,0,0,1);
+        Signed832 d = new(1UL << 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1);
+        Signed832 lower = new(1UL << 31, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1);
+        Signed832 upper = new(3UL << 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1);
         var interval = new RationalSegmentInterval(lower, d, upper, d);
         var half = new ScaledRigidFrame3d(Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Zero,
             Vector3d.One * Fixed64.Half, FixedQuaternion.Identity, Vector3d.Zero, Vector3d.One);
-        var triangle = new FixedTriangle(new(-2,0,0), new(2,0,0), new(0,0,2));
+        var triangle = new FixedTriangle(new(-2, 0, 0), new(2, 0, 0), new(0, 0, 2));
         Vector3d center = new(Fixed64.Zero, Fixed64.One + Fixed64.MinIncrement, Fixed64.Zero);
         // The retained endpoint is x.Raw=Q/(2^800+1). Separation from
         // y.Raw=Q+1 has coprime direction (Q,(Q+1)*(2^800+1),0),
@@ -105,8 +105,8 @@ public sealed class ScaledAxisTriangleTests
         var source = rigid ? ScaledRigidFrame3d.Rigid(Vector3d.Zero, FixedQuaternion.Identity)
             : new ScaledRigidFrame3d(Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Zero,
                 Vector3d.One * Fixed64.Half, FixedQuaternion.Identity, Vector3d.Zero, Vector3d.One);
-        var triangle = new FixedTriangle(new(-4,0,0), new(4,0,0), new(0,0,8));
-        Signed832 unit = new(0,0,0,0,0,0,1,0,0,0,0,0,0), twice = WideArithmetic.AddSigned832(unit, unit);
+        var triangle = new FixedTriangle(new(-4, 0, 0), new(4, 0, 0), new(0, 0, 8));
+        Signed832 unit = new(0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0), twice = WideArithmetic.AddSigned832(unit, unit);
         Signed832 four = WideArithmetic.AddSigned832(twice, twice), three = WideArithmetic.AddSigned832(unit, twice);
         var clip = new RationalSegmentInterval(unit, four, three, four);
         Assert.True(triangle.TryGetClippedCenteredCapsuleContact(source, new(Fixed64.Zero, Fixed64.Quarter, -Fixed64.Quarter),
@@ -167,7 +167,7 @@ public sealed class ScaledAxisTriangleTests
     [InlineData(true)]
     public void RigidSourceIngress_ShouldPreserveTheExistingFiniteAndClippedContactCharts(bool sphere)
     {
-        var triangle = new FixedTriangle(new(-2,0,0), new(2,0,0), new(0,0,4));
+        var triangle = new FixedTriangle(new(-2, 0, 0), new(2, 0, 0), new(0, 0, 4));
         var source = ScaledRigidFrame3d.Rigid(Vector3d.Zero, FixedQuaternion.Identity);
         Vector3d center = new(Fixed64.Zero, Fixed64.Quarter, -Fixed64.Quarter);
         Fixed64 length = sphere ? Fixed64.Zero : Fixed64.Two;
@@ -211,10 +211,10 @@ public sealed class ScaledAxisTriangleTests
         var source = new ScaledRigidFrame3d(Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Zero,
             Vector3d.One * Fixed64.Half, FixedQuaternion.Identity, Vector3d.Zero, Vector3d.One);
         var finite = new CapsuleFiniteSectionFrame(source, Vector3d.Zero, FixedQuaternion.Identity, Fixed64.Two, Fixed64.One);
-        FixedTriangle triangle = vertical ? new(new(0,-16,-16), new(0,16,-16), new(0,0,16))
+        FixedTriangle triangle = vertical ? new(new(0, -16, -16), new(0, 16, -16), new(0, 0, 16))
             : new(Plane.A * (Fixed64)4, Plane.B * (Fixed64)4, Plane.C * (Fixed64)4);
         Assert.True(CapsulePlaneRayEvents.IntersectsTriangle(finite, triangle));
-        var degenerate = new FixedTriangle(new(8,8,8), new(9,9,9), new(10,10,10));
+        var degenerate = new FixedTriangle(new(8, 8, 8), new(9, 9, 9), new(10, 10, 10));
         Assert.False(CapsulePlaneRayEvents.IntersectsTriangle(finite, degenerate));
     }
 
@@ -228,7 +228,7 @@ public sealed class ScaledAxisTriangleTests
         Signed832 unit = new(0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0);
         Signed832 twice = WideArithmetic.AddSigned832(unit, unit), four = WideArithmetic.AddSigned832(twice, twice);
         var interval = new RationalSegmentInterval(unit, four, WideArithmetic.AddSigned832(twice, unit), four);
-        var edge = new CapsulePlaneRayEventSource(new FixedSegment(new(-4,0,0), new(4,0,0)));
+        var edge = new CapsulePlaneRayEventSource(new FixedSegment(new(-4, 0, 0), new(4, 0, 0)));
         int count = 0;
         void Visit(in CapsulePlaneRayEventSource descriptorSource, in CapsulePlaneRayFrame descriptorFrame,
             CapsulePlaneRayEvent descriptor, int orientation, scoped in CapsulePlaneRaySelection point)
@@ -263,22 +263,22 @@ public sealed class ScaledAxisTriangleTests
         Span<ulong> values = stackalloc ulong[4 * 64]; Span<int> signs = stackalloc int[4];
         Span<ulong> root = stackalloc ulong[128];
         foreach (bool rigid in new[] { false, true })
-        foreach (Fixed64 length in new[] { Fixed64.Zero, Fixed64.Two })
-        {
-            var frame = new CapsuleFiniteSectionFrame(rigid ? ScaledRigidFrame3d.Rigid(Vector3d.Zero, FixedQuaternion.Identity) : source,
-                Vector3d.Zero, FixedQuaternion.Identity, length, Fixed64.One);
-            var segment = new FixedSegment(new(-4, 0, 0), new(4, 0, 0));
-            var middle = new RationalSegmentInterval(unit, twice, seven, eight);
-            var before = new RationalSegmentInterval(default(Signed832), unit, unit, eight);
-            var after = new RationalSegmentInterval(seven, eight, unit, unit);
-            Assert.True(frame.IntersectsSegment(segment, middle));
-            Assert.False(frame.IntersectsSegment(segment, before)); Assert.False(frame.IntersectsSegment(segment, after));
-            var n = ContactQuadratic.At(values, signs, 0, 64); var d = ContactQuadratic.At(values, signs, 1, 64);
-            Assert.True(frame.TryGetFirstSegmentParameter(new(Vector3d.Zero, new(4, 0, 0)), n, d, root));
-            Assert.Equal(0, n.Sign(root)); Assert.True(d.Sign(root) > 0);
-            Assert.False(frame.TryGetFirstSegmentParameter(new(new(0, 5, 0), new(0, 6, 0)), n, d, root));
-            Assert.False(frame.TryGetFirstSegmentParameter(new(new(5, 0, 0), new(8, 0, 0)), n, d, root));
-        }
+            foreach (Fixed64 length in new[] { Fixed64.Zero, Fixed64.Two })
+            {
+                var frame = new CapsuleFiniteSectionFrame(rigid ? ScaledRigidFrame3d.Rigid(Vector3d.Zero, FixedQuaternion.Identity) : source,
+                    Vector3d.Zero, FixedQuaternion.Identity, length, Fixed64.One);
+                var segment = new FixedSegment(new(-4, 0, 0), new(4, 0, 0));
+                var middle = new RationalSegmentInterval(unit, twice, seven, eight);
+                var before = new RationalSegmentInterval(default(Signed832), unit, unit, eight);
+                var after = new RationalSegmentInterval(seven, eight, unit, unit);
+                Assert.True(frame.IntersectsSegment(segment, middle));
+                Assert.False(frame.IntersectsSegment(segment, before)); Assert.False(frame.IntersectsSegment(segment, after));
+                var n = ContactQuadratic.At(values, signs, 0, 64); var d = ContactQuadratic.At(values, signs, 1, 64);
+                Assert.True(frame.TryGetFirstSegmentParameter(new(Vector3d.Zero, new(4, 0, 0)), n, d, root));
+                Assert.Equal(0, n.Sign(root)); Assert.True(d.Sign(root) > 0);
+                Assert.False(frame.TryGetFirstSegmentParameter(new(new(0, 5, 0), new(0, 6, 0)), n, d, root));
+                Assert.False(frame.TryGetFirstSegmentParameter(new(new(5, 0, 0), new(8, 0, 0)), n, d, root));
+            }
     }
 
     [Theory]

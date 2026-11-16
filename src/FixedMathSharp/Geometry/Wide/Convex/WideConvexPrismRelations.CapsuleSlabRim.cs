@@ -7,8 +7,8 @@
 
 using System;
 using System.Runtime.CompilerServices;
-using static FixedMathSharp.Geometry.CylinderContactAlgebra;
 using static FixedMathSharp.Geometry.CircularRimContactAlgebra;
+using static FixedMathSharp.Geometry.CylinderContactAlgebra;
 
 namespace FixedMathSharp.Geometry;
 
@@ -48,9 +48,11 @@ internal static partial class WideConvexPrismRelations
         intersects = false; normal = default; depth = default; clamped = false;
         var best = new CapsuleSlabRimSelection
         {
-            Values = stackalloc ulong[5 * ValueWords], Signs = stackalloc sbyte[5],
+            Values = stackalloc ulong[5 * ValueWords],
+            Signs = stackalloc sbyte[5],
             Cell = stackalloc ulong[CapsuleSlabValueCellWords],
-            ParameterValues = stackalloc ulong[5 * Words], ParameterSigns = stackalloc sbyte[5],
+            ParameterValues = stackalloc ulong[5 * Words],
+            ParameterSigns = stackalloc sbyte[5],
             ParameterCell = stackalloc ulong[CapsuleSlabParameterCellWords]
         };
         GetBasis(geometry.CapsuleAxis, out WideAxis3 u, out WideAxis3 v);
@@ -66,12 +68,12 @@ internal static partial class WideConvexPrismRelations
             for (int end = -1; end <= 1; end += 2)
                 for (int firstSign = -1; firstSign <= 1; firstSign += 2)
                     for (int secondSign = -1; secondSign <= 1; secondSign += 2)
-                        {
-                            WideAxis3 first = firstSign > 0 ? u : -u, second = secondSign > 0 ? v : -v;
-                            if (KeepCapsuleSlabRimCharts(geometry, cap, end, first, second, analytic, ref best))
-                                goto RimSelected;
-                        }
-        RimSelected:
+                    {
+                        WideAxis3 first = firstSign > 0 ? u : -u, second = secondSign > 0 ? v : -v;
+                        if (KeepCapsuleSlabRimCharts(geometry, cap, end, first, second, analytic, ref best))
+                            goto RimSelected;
+                    }
+    RimSelected:
         if (!best.HasValue) return false;
         if (best.GapSign == 0)
         {

@@ -1,6 +1,6 @@
 using System;
-using FixedMathSharp.Geometry;
 using System.Numerics;
+using FixedMathSharp.Geometry;
 using Xunit;
 
 namespace FixedMathSharp.Tests.Bounds;
@@ -150,24 +150,24 @@ public sealed class FixedConvex2dPlanarSweepTests
         long[] coordinates = { long.MinValue, -unit, -1, 0, 1, unit, long.MaxValue };
         long[] dimensions = { 0, 1, 3, unit, long.MaxValue };
         foreach (long x in coordinates)
-        foreach (long y in coordinates)
-        foreach (long length in dimensions)
-        foreach (long radius in dimensions)
-        {
-            // A stationary upright axis against a unit square has independent
-            // horizontal and vertical gaps. BigInteger is test-only oracle math.
-            BigInteger horizontal = BigInteger.Abs((BigInteger)x * 2) - unit;
-            BigInteger vertical = BigInteger.Abs((BigInteger)y * 2) - unit - length;
-            bool expected = radius == 0
-                ? horizontal < 0 && vertical < 0
-                : BigInteger.Pow(BigInteger.Max(horizontal, 0), 2)
-                    + BigInteger.Pow(BigInteger.Max(vertical, 0), 2)
-                    < BigInteger.Pow((BigInteger)radius * 2, 2);
-            Vector2d center = new(Fixed64.FromRaw(x), Fixed64.FromRaw(y));
-            bool actual = FixedConvex2dRelations.IntersectsSweptUprightCapsuleStrict(
-                center, center, Fixed64.FromRaw(length), Fixed64.FromRaw(radius), Vector2d.Zero, Square);
-            Assert.Equal(expected, actual);
-        }
+            foreach (long y in coordinates)
+                foreach (long length in dimensions)
+                    foreach (long radius in dimensions)
+                    {
+                        // A stationary upright axis against a unit square has independent
+                        // horizontal and vertical gaps. BigInteger is test-only oracle math.
+                        BigInteger horizontal = BigInteger.Abs((BigInteger)x * 2) - unit;
+                        BigInteger vertical = BigInteger.Abs((BigInteger)y * 2) - unit - length;
+                        bool expected = radius == 0
+                            ? horizontal < 0 && vertical < 0
+                            : BigInteger.Pow(BigInteger.Max(horizontal, 0), 2)
+                                + BigInteger.Pow(BigInteger.Max(vertical, 0), 2)
+                                < BigInteger.Pow((BigInteger)radius * 2, 2);
+                        Vector2d center = new(Fixed64.FromRaw(x), Fixed64.FromRaw(y));
+                        bool actual = FixedConvex2dRelations.IntersectsSweptUprightCapsuleStrict(
+                            center, center, Fixed64.FromRaw(length), Fixed64.FromRaw(radius), Vector2d.Zero, Square);
+                        Assert.Equal(expected, actual);
+                    }
     }
 
     [Fact]

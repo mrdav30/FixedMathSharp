@@ -5,9 +5,6 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-using System;
-using static FixedMathSharp.Geometry.ContactQuadratic;
-
 namespace FixedMathSharp.Geometry;
 
 /// <content>CylinderCylinderPenetration declaration for WideConvexPrismRelations.</content>

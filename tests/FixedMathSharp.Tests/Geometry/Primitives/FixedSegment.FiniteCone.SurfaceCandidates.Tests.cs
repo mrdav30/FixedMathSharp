@@ -22,13 +22,13 @@ public sealed class FixedSegmentFiniteConeSurfaceCandidatesTests
         Assert.True(SegmentConeSurfaceCandidates.AccumulateSegmentConeSurfaceCandidates(new FixedSegment(point, point),
             translation, rotation, translation, rotation, (Fixed64)4, zeroRadius ? Fixed64.Zero : Fixed64.Two, ref selection));
         for (int first = 0; first < selection.Count; first++)
-        for (int second = 0; second < selection.Count; second++)
-        {
-            (int a, int b) = AxisSquaredDepth(selection[first].Feature, y, zeroRadius);
-            (int c, int d) = AxisSquaredDepth(selection[second].Feature, y, zeroRadius);
-            int expected = Math.Sign(a * d - c * b);
-            Assert.Equal(expected, SegmentConeSurfaceCandidates.CompareDepths(selection[first], selection[second]));
-        }
+            for (int second = 0; second < selection.Count; second++)
+            {
+                (int a, int b) = AxisSquaredDepth(selection[first].Feature, y, zeroRadius);
+                (int c, int d) = AxisSquaredDepth(selection[second].Feature, y, zeroRadius);
+                int expected = Math.Sign(a * d - c * b);
+                Assert.Equal(expected, SegmentConeSurfaceCandidates.CompareDepths(selection[first], selection[second]));
+            }
     }
 
     [Theory]
@@ -109,15 +109,15 @@ public sealed class FixedSegmentFiniteConeSurfaceCandidatesTests
         var selection = new ConeSurfaceSelection(storage);
         Assert.True(Accumulate(segment, Vector3d.Zero, ref selection));
         for (int first = 0; first < selection.Count; first++)
-        for (int second = 0; second < selection.Count; second++)
-        {
-            SegmentConeSurfaceCandidate a = selection[first], b = selection[second];
-            int aY = (int)(a.RootOrdinal == 1 ? segment.End.Y : segment.Start.Y);
-            int bY = (int)(b.RootOrdinal == 1 ? segment.End.Y : segment.Start.Y);
-            (int an, int ad) = AxisSquaredDepth(a.Feature, aY, false);
-            (int bn, int bd) = AxisSquaredDepth(b.Feature, bY, false);
-            Assert.Equal(Math.Sign(an * bd - bn * ad), SegmentConeSurfaceCandidates.CompareDepths(a, b));
-        }
+            for (int second = 0; second < selection.Count; second++)
+            {
+                SegmentConeSurfaceCandidate a = selection[first], b = selection[second];
+                int aY = (int)(a.RootOrdinal == 1 ? segment.End.Y : segment.Start.Y);
+                int bY = (int)(b.RootOrdinal == 1 ? segment.End.Y : segment.Start.Y);
+                (int an, int ad) = AxisSquaredDepth(a.Feature, aY, false);
+                (int bn, int bd) = AxisSquaredDepth(b.Feature, bY, false);
+                Assert.Equal(Math.Sign(an * bd - bn * ad), SegmentConeSurfaceCandidates.CompareDepths(a, b));
+            }
     }
 
     [Theory]

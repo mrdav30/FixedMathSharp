@@ -268,19 +268,19 @@ public sealed class FixedTriangleFiniteConePlaneSectionEventTests
     public void PlaneEvents_IntegerPlaneCorpus_MatchesIndependentSupportAndPairedRayBounds()
     {
         for (int b = -3; b <= 3; b++)
-        for (int c = -3; c <= 3; c++)
-        for (int k = -3; k <= 3; k++)
-        {
-            // x+b*y+c*z=k. This triangle contains the complete Y/Z projection
-            // of the cone, so support interval membership is an independent
-            // exact oracle for whether its finite plane section exists.
-            var triangle = new FixedTriangle(new Vector3d(k + 8 * b + 8 * c, -8, -8),
-                new Vector3d(k - 8 * b + 8 * c, 8, -8), new Vector3d(k - 8 * c, 0, 8));
-            int apex = 2 * b, shifted = k + 2 * b;
-            bool expected = k == apex || k > apex && (shifted <= 0 || shifted * shifted <= 4 * (1 + c * c))
-                || k < apex && (shifted >= 0 || shifted * shifted <= 4 * (1 + c * c));
-            CheckPlaneCorpusCase(triangle, b, c, k, expected);
-        }
+            for (int c = -3; c <= 3; c++)
+                for (int k = -3; k <= 3; k++)
+                {
+                    // x+b*y+c*z=k. This triangle contains the complete Y/Z projection
+                    // of the cone, so support interval membership is an independent
+                    // exact oracle for whether its finite plane section exists.
+                    var triangle = new FixedTriangle(new Vector3d(k + 8 * b + 8 * c, -8, -8),
+                        new Vector3d(k - 8 * b + 8 * c, 8, -8), new Vector3d(k - 8 * c, 0, 8));
+                    int apex = 2 * b, shifted = k + 2 * b;
+                    bool expected = k == apex || k > apex && (shifted <= 0 || shifted * shifted <= 4 * (1 + c * c))
+                        || k < apex && (shifted >= 0 || shifted * shifted <= 4 * (1 + c * c));
+                    CheckPlaneCorpusCase(triangle, b, c, k, expected);
+                }
     }
 
     private static void CheckPlaneCorpusCase(FixedTriangle triangle, int b, int c, int k, bool expected)
@@ -516,10 +516,16 @@ public sealed class FixedTriangleFiniteConePlaneSectionEventTests
         var missing = new ConePlaneRayEvent(ConePlaneRayEventKind.EdgeSide, 99);
         Assert.Throws<ArgumentOutOfRangeException>(() => Materialize(ConePlaneRayEventSource.Plane, frame, axis,
             0, out _, out _, out _));
-        Assert.Throws<ArgumentException>(() => { Span<ConePlaneRayEvent> events = stackalloc ConePlaneRayEvent[1];
-            ConePlaneRayEvents.GetIntrinsicEvents(frame, events); });
-        Assert.Throws<ArgumentException>(() => { Span<ConePlaneRayEvent> events = stackalloc ConePlaneRayEvent[1];
-            ConePlaneRayEvents.GetBoundaryEvents(events); });
+        Assert.Throws<ArgumentException>(() =>
+        {
+            Span<ConePlaneRayEvent> events = stackalloc ConePlaneRayEvent[1];
+            ConePlaneRayEvents.GetIntrinsicEvents(frame, events);
+        });
+        Assert.Throws<ArgumentException>(() =>
+        {
+            Span<ConePlaneRayEvent> events = stackalloc ConePlaneRayEvent[1];
+            ConePlaneRayEvents.GetBoundaryEvents(events);
+        });
         Assert.False(Materialize(ConePlaneRayEventSource.Plane, frame, missing, 1, out _, out _, out _));
         Assert.False(Materialize(ConePlaneRayEventSource.Plane, frame,
             new ConePlaneRayEvent(ConePlaneRayEventKind.Generator, 8, 0, 0, 0), 1, out _, out _, out _));

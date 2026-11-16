@@ -5,8 +5,6 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-using System;
-
 namespace FixedMathSharp.Geometry;
 
 /// <summary>An open real-edge interval or closed point with one exact incident support fan.</summary>

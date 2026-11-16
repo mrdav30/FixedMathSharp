@@ -57,7 +57,7 @@ public sealed class CapsulePrismDomainTests
             edge ? Interval(1, 2, 1, 2) : default, edge ? -Fixed64.Half : Fixed64.Zero,
             edge ? Fixed64.Half : Fixed64.Zero, 0, out _));
         var domain = new CaptureDomain(edge ? Array.Empty<RationalSegmentInterval>() : new RationalSegmentInterval[] { default })
-            { IncludeRecovery = false, CompareBoundary = worker };
+        { IncludeRecovery = false, CompareBoundary = worker };
         Assert.True(Visit(center, FixedQuaternion.Identity, Fixed64.One, Fixed64.Half, Fixed64.One, domain, out bool overlaps));
         Assert.True(overlaps); Assert.NotEmpty(domain.NativeComparisons);
         Assert.All(domain.NativeComparisons, comparison => Assert.Equal(0, comparison));
@@ -361,7 +361,9 @@ public sealed class CapsulePrismDomainTests
     {
         var domain = new CaptureDomain(Array.Empty<RationalSegmentInterval>())
         {
-            EdgeVertex = 2, EdgeKind = 2, RejectEdgeEndpoints = true,
+            EdgeVertex = 2,
+            EdgeKind = 2,
+            RejectEdgeEndpoints = true,
             EdgeIntervals = new[] { Interval(0, 1, 1, 4), Interval(3, 4, 1, 1) }
         };
         Assert.True(Visit(new(5 * Fixed64.Quarter, Fixed64.Zero, 5 * Fixed64.Quarter), FixedQuaternion.Identity,
@@ -409,7 +411,8 @@ public sealed class CapsulePrismDomainTests
     {
         var domain = new CaptureDomain(Array.Empty<RationalSegmentInterval>())
         {
-            EdgeVertex = 2, EdgeKind = 2,
+            EdgeVertex = 2,
+            EdgeKind = 2,
             EdgeIntervals = new[] { Interval(0, 1, 1, 2), Interval(1, 2, 1, 1) }
         };
         Fixed64 halfRoot = Fixed64.FromRaw(3_037_000_500);
@@ -610,43 +613,43 @@ public sealed class CapsulePrismDomainTests
         FixedQuaternion rotation = coreAxis == 0 ? new(Fixed64.Zero, Fixed64.Zero, halfRoot, halfRoot)
             : coreAxis == 2 ? new(halfRoot, Fixed64.Zero, Fixed64.Zero, halfRoot) : FixedQuaternion.Identity;
         for (int axial = -3; axial <= 3; axial += 3)
-        for (int firstSign = -1; firstSign <= 1; firstSign += 2)
-        for (int secondSign = -1; secondSign <= 1; secondSign += 2)
-        for (int size = 0; size < 3; size++)
-        for (int explicitWindow = 0; explicitWindow < 2; explicitWindow++)
-        {
-            Vector3d center = Vector3d.Zero;
-            center[coreAxis] = (Fixed64)axial;
-            center[(coreAxis + 1) % 3] = firstSign * 5 * Fixed64.Quarter;
-            center[(coreAxis + 2) % 3] = secondSign * 5 * Fixed64.Quarter;
-            Fixed64 radius = size == 0 ? Fixed64.Quarter : size == 1 ? Fixed64.Two : (Fixed64)4;
-            // The two transverse gaps are exactly 1/4. A core centered at
-            // +/-3 adds a unit axial gap; a centered core overlaps the edge.
-            int squaredNumerator = axial == 0 ? 2 : 18;
-            var domain = new CaptureDomain(Array.Empty<RationalSegmentInterval>())
-            { EdgeIntervals = explicitWindow == 0 ? new RationalSegmentInterval[] { default } : new[] { Interval(0, 1, 1, 1) } };
-            Assert.Equal(size != 0, Visit(center, rotation, Fixed64.Two, radius, Fixed64.One, domain, out bool overlaps));
-            Assert.Equal(size != 0, overlaps);
-            Assert.Empty(domain.Supports);
-            if (size == 0) { Assert.Empty(domain.Edges); continue; }
-            if (axial != 0) Assert.Single(domain.Edges);
-            else Assert.NotEmpty(domain.Edges);
-            var targets = new HashSet<Vector3d>();
-            foreach (var edge in domain.Edges)
-            {
-                Assert.True(edge.Contact.SecondAnchor.TryGetPoint(out Vector3d target));
-                // Parallel horizontal edges and their two endpoint vertices
-                // are distinct finite features of the same closest family.
-                // This math domain does not promise cross-feature grouping.
-                Assert.True(targets.Add(target));
-                Assert.Equal((Fixed64)firstSign, target[(coreAxis + 1) % 3]);
-                Assert.Equal((Fixed64)secondSign, target[(coreAxis + 2) % 3]);
-                if (axial != 0) Assert.Equal((Fixed64)(axial / 3), target[coreAxis]);
-                else Assert.InRange(target[coreAxis].m_rawValue, (-Fixed64.One).m_rawValue, Fixed64.One.m_rawValue);
-                Fixed64 expected = radius - FixedMath.Sqrt((Fixed64)squaredNumerator) * Fixed64.Quarter;
-                Assert.InRange(edge.Contact.Depth.m_rawValue, expected.m_rawValue - 1, expected.m_rawValue + 1);
-            }
-        }
+            for (int firstSign = -1; firstSign <= 1; firstSign += 2)
+                for (int secondSign = -1; secondSign <= 1; secondSign += 2)
+                    for (int size = 0; size < 3; size++)
+                        for (int explicitWindow = 0; explicitWindow < 2; explicitWindow++)
+                        {
+                            Vector3d center = Vector3d.Zero;
+                            center[coreAxis] = (Fixed64)axial;
+                            center[(coreAxis + 1) % 3] = firstSign * 5 * Fixed64.Quarter;
+                            center[(coreAxis + 2) % 3] = secondSign * 5 * Fixed64.Quarter;
+                            Fixed64 radius = size == 0 ? Fixed64.Quarter : size == 1 ? Fixed64.Two : (Fixed64)4;
+                            // The two transverse gaps are exactly 1/4. A core centered at
+                            // +/-3 adds a unit axial gap; a centered core overlaps the edge.
+                            int squaredNumerator = axial == 0 ? 2 : 18;
+                            var domain = new CaptureDomain(Array.Empty<RationalSegmentInterval>())
+                            { EdgeIntervals = explicitWindow == 0 ? new RationalSegmentInterval[] { default } : new[] { Interval(0, 1, 1, 1) } };
+                            Assert.Equal(size != 0, Visit(center, rotation, Fixed64.Two, radius, Fixed64.One, domain, out bool overlaps));
+                            Assert.Equal(size != 0, overlaps);
+                            Assert.Empty(domain.Supports);
+                            if (size == 0) { Assert.Empty(domain.Edges); continue; }
+                            if (axial != 0) Assert.Single(domain.Edges);
+                            else Assert.NotEmpty(domain.Edges);
+                            var targets = new HashSet<Vector3d>();
+                            foreach (var edge in domain.Edges)
+                            {
+                                Assert.True(edge.Contact.SecondAnchor.TryGetPoint(out Vector3d target));
+                                // Parallel horizontal edges and their two endpoint vertices
+                                // are distinct finite features of the same closest family.
+                                // This math domain does not promise cross-feature grouping.
+                                Assert.True(targets.Add(target));
+                                Assert.Equal((Fixed64)firstSign, target[(coreAxis + 1) % 3]);
+                                Assert.Equal((Fixed64)secondSign, target[(coreAxis + 2) % 3]);
+                                if (axial != 0) Assert.Equal((Fixed64)(axial / 3), target[coreAxis]);
+                                else Assert.InRange(target[coreAxis].m_rawValue, (-Fixed64.One).m_rawValue, Fixed64.One.m_rawValue);
+                                Fixed64 expected = radius - FixedMath.Sqrt((Fixed64)squaredNumerator) * Fixed64.Quarter;
+                                Assert.InRange(edge.Contact.Depth.m_rawValue, expected.m_rawValue - 1, expected.m_rawValue + 1);
+                            }
+                        }
     }
 
     [Theory]

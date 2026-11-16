@@ -121,8 +121,12 @@ internal static partial class WideConvexPrismRelations
         Span<int> signs = stackalloc int[2 * ConvexContactCandidate.Slots + 3];
         var candidates = new CapsuleSlabCandidates
         {
-            Geometry = geometry, Values = storage[..(11 * Words)], BestValues = storage.Slice(11 * Words, 11 * Words),
-            Direction = storage[(22 * Words)..], Signs = signs[..11], BestSigns = signs.Slice(11, 11),
+            Geometry = geometry,
+            Values = storage[..(11 * Words)],
+            BestValues = storage.Slice(11 * Words, 11 * Words),
+            Direction = storage[(22 * Words)..],
+            Signs = signs[..11],
+            BestSigns = signs.Slice(11, 11),
             DirectionSigns = signs[22..]
         };
         WideAxis3 x = new(Signed320.ExtendValue(Signed192.Signed(1)), default, default);

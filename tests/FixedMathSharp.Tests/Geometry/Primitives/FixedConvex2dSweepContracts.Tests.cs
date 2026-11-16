@@ -101,28 +101,28 @@ public sealed class FixedConvex2dSweepContractsTests
         Fixed64 rotation = rotated ? Fixed64.HalfPi : Fixed64.Zero;
         Vector2d firstWorldContact = default;
         for (int targetFrame = 0; targetFrame < 2; targetFrame++)
-        for (int sourceFrame = 0; sourceFrame < 2; sourceFrame++)
-        {
-            Vector2d targetShift = targetFrame == 0 ? Vector2d.Zero : new(2, 1);
-            Vector2d sourceShift = sourceFrame == 0 ? Vector2d.Zero : new(5, 3);
-            Vector2d[] target = { new(1, 0), new(3, 0), new(3, 2), new(1, 2) };
-            Vector2d[] source = { new(-Fixed64.Half, -Fixed64.Half), new(Fixed64.Half, -Fixed64.Half),
+            for (int sourceFrame = 0; sourceFrame < 2; sourceFrame++)
+            {
+                Vector2d targetShift = targetFrame == 0 ? Vector2d.Zero : new(2, 1);
+                Vector2d sourceShift = sourceFrame == 0 ? Vector2d.Zero : new(5, 3);
+                Vector2d[] target = { new(1, 0), new(3, 0), new(3, 2), new(1, 2) };
+                Vector2d[] source = { new(-Fixed64.Half, -Fixed64.Half), new(Fixed64.Half, -Fixed64.Half),
                 new(Fixed64.Half, Fixed64.Half), new(-Fixed64.Half, Fixed64.Half) };
-            for (int i = 0; i < target.Length; i++) target[i] -= targetShift;
-            for (int i = 0; i < source.Length; i++) source[i] -= sourceShift;
-            Assert.True(FixedConvex2dRelations.TryGetSweptConvexFirstDistance(
-                center + Rotate(sourceShift), rotation, source, direction, (Fixed64)8,
-                origin + Rotate(targetShift), rotation, target,
-                out Fixed64 distance, out Vector2d normal, out FixedPointAnchor2d contact));
-            Assert.Equal(Fixed64.FromFraction(5, 2), distance);
-            Assert.Equal(-direction, normal);
-            Assert.Equal((Fixed64)(reverse ? 3 : 1), contact.LocalPoint.X + targetShift.X);
-            FixedMathTestHelper.AssertWithinRange(contact.LocalPoint.Y + targetShift.Y, Fixed64.Half, Fixed64.FromFraction(3, 2));
-            Assert.True(contact.TryGetPoint(out Vector2d world));
-            Assert.Equal(origin + Rotate(contact.LocalPoint + targetShift), world);
-            if (targetFrame == 0 && sourceFrame == 0) firstWorldContact = world;
-            else Assert.Equal(firstWorldContact, world);
-        }
+                for (int i = 0; i < target.Length; i++) target[i] -= targetShift;
+                for (int i = 0; i < source.Length; i++) source[i] -= sourceShift;
+                Assert.True(FixedConvex2dRelations.TryGetSweptConvexFirstDistance(
+                    center + Rotate(sourceShift), rotation, source, direction, (Fixed64)8,
+                    origin + Rotate(targetShift), rotation, target,
+                    out Fixed64 distance, out Vector2d normal, out FixedPointAnchor2d contact));
+                Assert.Equal(Fixed64.FromFraction(5, 2), distance);
+                Assert.Equal(-direction, normal);
+                Assert.Equal((Fixed64)(reverse ? 3 : 1), contact.LocalPoint.X + targetShift.X);
+                FixedMathTestHelper.AssertWithinRange(contact.LocalPoint.Y + targetShift.Y, Fixed64.Half, Fixed64.FromFraction(3, 2));
+                Assert.True(contact.TryGetPoint(out Vector2d world));
+                Assert.Equal(origin + Rotate(contact.LocalPoint + targetShift), world);
+                if (targetFrame == 0 && sourceFrame == 0) firstWorldContact = world;
+                else Assert.Equal(firstWorldContact, world);
+            }
     }
 
     [Theory]
@@ -210,39 +210,39 @@ public sealed class FixedConvex2dSweepContractsTests
         Vector2d direction = reverse ? Vector2d.Left : Vector2d.Right;
         Vector2d center = new((Fixed64)(reverse ? 2 : -2), shape == 2 ? Fixed64.Half : Fixed64.Zero);
         for (int order = 0; order < 6; order++)
-        for (int frame = 0; frame < 3; frame++)
-        {
-            Vector2d shift = frame == 0 ? Vector2d.Zero : frame == 1 ? new(Fixed64.Zero, -Fixed64.Half) : new(4, 2);
-            var polygon = new Vector2d[3];
-            for (int i = 0; i < polygon.Length; i++)
-                polygon[i] = vertices[(order / 2 + (order % 2 == 0 ? i : 3 - i)) % 3] - shift;
-            Fixed64 distance;
-            Vector2d normal;
-            Vector2d contact;
-            bool hit;
-            if (shape == 2)
+            for (int frame = 0; frame < 3; frame++)
             {
-                Vector2d[] source = { new(-Fixed64.Half, -Fixed64.Half), new(Fixed64.Half, -Fixed64.Half),
+                Vector2d shift = frame == 0 ? Vector2d.Zero : frame == 1 ? new(Fixed64.Zero, -Fixed64.Half) : new(4, 2);
+                var polygon = new Vector2d[3];
+                for (int i = 0; i < polygon.Length; i++)
+                    polygon[i] = vertices[(order / 2 + (order % 2 == 0 ? i : 3 - i)) % 3] - shift;
+                Fixed64 distance;
+                Vector2d normal;
+                Vector2d contact;
+                bool hit;
+                if (shape == 2)
+                {
+                    Vector2d[] source = { new(-Fixed64.Half, -Fixed64.Half), new(Fixed64.Half, -Fixed64.Half),
                     new(Fixed64.Half, Fixed64.Half), new(-Fixed64.Half, Fixed64.Half) };
-                hit = FixedConvex2dRelations.TryGetSweptConvexFirstDistance(center, source, direction,
-                    (Fixed64)4, shift, polygon, out distance, out normal, out contact);
+                    hit = FixedConvex2dRelations.TryGetSweptConvexFirstDistance(center, source, direction,
+                        (Fixed64)4, shift, polygon, out distance, out normal, out contact);
+                }
+                else
+                {
+                    hit = shape == 0
+                        ? FixedConvex2dRelations.TryGetSegmentFirstIntersectionDistance(center, direction,
+                            (Fixed64)4, shift, polygon, out distance, out normal, out contact)
+                        : FixedConvex2dRelations.TryGetSweptCenteredCapsuleFirstDistance(center, Vector2d.Right,
+                            Fixed64.One, Fixed64.Zero, direction, (Fixed64)4, shift, polygon,
+                            out distance, out normal, out contact);
+                }
+                Assert.True(hit);
+                Assert.Equal(shape == 0 ? Fixed64.Two : Fixed64.FromFraction(3, 2), distance);
+                Assert.Equal(-shift, contact);
+                Assert.True(normal.IsNormalized());
+                // A valid supporting normal cannot put another target vertex beyond the contacted apex.
+                foreach (Vector2d vertex in vertices) Assert.True(Vector2d.Dot(vertex, normal) <= Fixed64.Zero);
             }
-            else
-            {
-                hit = shape == 0
-                    ? FixedConvex2dRelations.TryGetSegmentFirstIntersectionDistance(center, direction,
-                        (Fixed64)4, shift, polygon, out distance, out normal, out contact)
-                    : FixedConvex2dRelations.TryGetSweptCenteredCapsuleFirstDistance(center, Vector2d.Right,
-                        Fixed64.One, Fixed64.Zero, direction, (Fixed64)4, shift, polygon,
-                        out distance, out normal, out contact);
-            }
-            Assert.True(hit);
-            Assert.Equal(shape == 0 ? Fixed64.Two : Fixed64.FromFraction(3, 2), distance);
-            Assert.Equal(-shift, contact);
-            Assert.True(normal.IsNormalized());
-            // A valid supporting normal cannot put another target vertex beyond the contacted apex.
-            foreach (Vector2d vertex in vertices) Assert.True(Vector2d.Dot(vertex, normal) <= Fixed64.Zero);
-        }
     }
 
     [Fact]

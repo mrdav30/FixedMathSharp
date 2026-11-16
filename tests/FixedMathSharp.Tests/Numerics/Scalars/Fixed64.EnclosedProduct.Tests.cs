@@ -23,9 +23,9 @@ public sealed class Fixed64EnclosedProductTests
             (1L << 58) - 1, 1L << 58, -(1L << 58) + 1, -(1L << 58), long.MaxValue, long.MinValue };
         uint[] errors = { 0, 1, 9, uint.MaxValue };
         foreach (BigInteger coefficient in coefficients)
-        foreach (long mass in masses)
-        foreach (uint error in errors)
-            CheckProduct(coefficient, mass, error);
+            foreach (long mass in masses)
+                foreach (uint error in errors)
+                    CheckProduct(coefficient, mass, error);
 
         // Fill both numerator limbs and exercise their addition carry without
         // selecting samples through the implementation's arithmetic helpers.
@@ -68,17 +68,17 @@ public sealed class Fixed64EnclosedProductTests
             BigInteger.One << 310, -(BigInteger.One << 310),
             (BigInteger.One << 319) - 1, -(BigInteger.One << 319) };
         foreach (BigInteger numerator in numerators)
-        foreach (BigInteger denominator in denominators)
-        {
-            BigInteger expected = denominator == 0 ? 0 : numerator / denominator;
-            bool valid = denominator != 0 && expected >= -(BigInteger.One << 191) && expected < BigInteger.One << 191;
-            if (denominator == 0)
-                Assert.Throws<DivideByZeroException>(() => WideArithmetic.DivideSigned576ToSigned192(To576(numerator), To320(denominator)));
-            else if (!valid)
-                Assert.Throws<OverflowException>(() => WideArithmetic.DivideSigned576ToSigned192(To576(numerator), To320(denominator)));
-            else
-                Assert.Equal(expected, From192(WideArithmetic.DivideSigned576ToSigned192(To576(numerator), To320(denominator))));
-        }
+            foreach (BigInteger denominator in denominators)
+            {
+                BigInteger expected = denominator == 0 ? 0 : numerator / denominator;
+                bool valid = denominator != 0 && expected >= -(BigInteger.One << 191) && expected < BigInteger.One << 191;
+                if (denominator == 0)
+                    Assert.Throws<DivideByZeroException>(() => WideArithmetic.DivideSigned576ToSigned192(To576(numerator), To320(denominator)));
+                else if (!valid)
+                    Assert.Throws<OverflowException>(() => WideArithmetic.DivideSigned576ToSigned192(To576(numerator), To320(denominator)));
+                else
+                    Assert.Equal(expected, From192(WideArithmetic.DivideSigned576ToSigned192(To576(numerator), To320(denominator))));
+            }
     }
 
     [Fact]

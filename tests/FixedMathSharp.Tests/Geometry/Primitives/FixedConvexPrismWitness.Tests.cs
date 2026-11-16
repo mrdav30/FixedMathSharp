@@ -273,32 +273,32 @@ public sealed class FixedConvexPrismWitnessTests
         FixedQuaternion rotation = FixedQuaternion.FromEulerAnglesInDegrees((Fixed64)22, (Fixed64)17, (Fixed64)9);
         Fixed64 bound = Fixed64.FromRaw(8);
         for (int x = -2; x <= 2; x++)
-        for (int y = -2; y <= 2; y++)
-        for (int z = -2; z <= 2; z++)
-        {
-            Vector3d center = new Vector3d(x, y, z) * Fixed64.FromFraction(3, 4);
-            bool hit = FixedConvexPrismRelations.TryGetCenteredCapsuleContact(center, rotation, Vector3d.Up,
-                Fixed64.Two, Fixed64.Half, Vector3d.Zero, Fixed64.Zero, offsets, Fixed64.One, out var actual);
-            bool expectedHit = box.TryGetCenteredCapsuleContact(center, rotation, Vector3d.Up,
-                Fixed64.Two, Fixed64.Half, out var expected);
-            Assert.True(hit == expectedHit, $"Classification differs at {center}");
-            if (!hit) continue;
-            Assert.Equal(expected.Depth, actual.Depth);
-            Assert.False(actual.DepthIsClamped);
-            Assert.True(actual.FirstAnchor.TryGetOffsetFrom(actual.SecondAnchor, out Vector3d delta));
-            Vector3d ranked = actual.Normal * actual.Depth;
-            // Two rounded anchors and the rounded direction/depth contribute at
-            // most eight raw units per component for this bounded unit-box fixture.
-            for (int axis = 0; axis < 3; axis++)
-                FixedMathTestHelper.AssertWithinRange(delta[axis], ranked[axis] - bound, ranked[axis] + bound);
-            Vector3d boundary = center - actual.Normal * actual.Depth;
-            bool touching = FixedConvexPrismRelations.TryGetCenteredCapsuleContact(boundary, rotation, Vector3d.Up,
-                Fixed64.Two, Fixed64.Half, Vector3d.Zero, Fixed64.Zero, offsets, Fixed64.One, out var boundaryContact);
-            Assert.True(!touching || boundaryContact.Depth <= bound);
-            Assert.False(FixedConvexPrismRelations.TryGetCenteredCapsuleContact(
-                center - actual.Normal * (actual.Depth + Fixed64.FromRaw(64)), rotation, Vector3d.Up,
-                Fixed64.Two, Fixed64.Half, Vector3d.Zero, Fixed64.Zero, offsets, Fixed64.One, out _));
-        }
+            for (int y = -2; y <= 2; y++)
+                for (int z = -2; z <= 2; z++)
+                {
+                    Vector3d center = new Vector3d(x, y, z) * Fixed64.FromFraction(3, 4);
+                    bool hit = FixedConvexPrismRelations.TryGetCenteredCapsuleContact(center, rotation, Vector3d.Up,
+                        Fixed64.Two, Fixed64.Half, Vector3d.Zero, Fixed64.Zero, offsets, Fixed64.One, out var actual);
+                    bool expectedHit = box.TryGetCenteredCapsuleContact(center, rotation, Vector3d.Up,
+                        Fixed64.Two, Fixed64.Half, out var expected);
+                    Assert.True(hit == expectedHit, $"Classification differs at {center}");
+                    if (!hit) continue;
+                    Assert.Equal(expected.Depth, actual.Depth);
+                    Assert.False(actual.DepthIsClamped);
+                    Assert.True(actual.FirstAnchor.TryGetOffsetFrom(actual.SecondAnchor, out Vector3d delta));
+                    Vector3d ranked = actual.Normal * actual.Depth;
+                    // Two rounded anchors and the rounded direction/depth contribute at
+                    // most eight raw units per component for this bounded unit-box fixture.
+                    for (int axis = 0; axis < 3; axis++)
+                        FixedMathTestHelper.AssertWithinRange(delta[axis], ranked[axis] - bound, ranked[axis] + bound);
+                    Vector3d boundary = center - actual.Normal * actual.Depth;
+                    bool touching = FixedConvexPrismRelations.TryGetCenteredCapsuleContact(boundary, rotation, Vector3d.Up,
+                        Fixed64.Two, Fixed64.Half, Vector3d.Zero, Fixed64.Zero, offsets, Fixed64.One, out var boundaryContact);
+                    Assert.True(!touching || boundaryContact.Depth <= bound);
+                    Assert.False(FixedConvexPrismRelations.TryGetCenteredCapsuleContact(
+                        center - actual.Normal * (actual.Depth + Fixed64.FromRaw(64)), rotation, Vector3d.Up,
+                        Fixed64.Two, Fixed64.Half, Vector3d.Zero, Fixed64.Zero, offsets, Fixed64.One, out _));
+                }
     }
 
     [Theory]

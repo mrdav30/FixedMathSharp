@@ -36,40 +36,40 @@ internal static partial class ConePlaneRayEvents
         // axial pruning. Each chart reuses its defining line for both roots;
         // generator endpoints reuse that same admitted circle parameter.
         for (int upper = source.IsSegment ? 1 : 0; upper < 2; upper++)
-        for (int quadrant = 0; quadrant < 4; quadrant++)
-        {
-            if (source.Scope == ConePlaneRayEventScope.Plane)
-                for (int endpoint = 0; endpoint < 2; endpoint++)
-                {
-                    if (endpoint == 0 ? (quadrant & 2) != 0 : (quadrant & 1) != 0) continue;
-                    if (!axial || upper == 0 && frame.Radius != Fixed64.Zero && !frame.PlaneConstant.IsZero)
-                        found |= AccumulateCircleChart(source, frame, upper != 0, 8, quadrant, endpoint, endpoint, lines, lineSigns, ref positive, ref negative, ref sink);
-                }
-            if (axial && source.Scope == ConePlaneRayEventScope.Plane) continue;
-            int lineCount = source.IsSegment ? 1 : upper == 0 ? 6 : 8;
-            for (int line = 0; line < lineCount; line++)
+            for (int quadrant = 0; quadrant < 4; quadrant++)
             {
                 if (source.Scope == ConePlaneRayEventScope.Plane)
+                    for (int endpoint = 0; endpoint < 2; endpoint++)
+                    {
+                        if (endpoint == 0 ? (quadrant & 2) != 0 : (quadrant & 1) != 0) continue;
+                        if (!axial || upper == 0 && frame.Radius != Fixed64.Zero && !frame.PlaneConstant.IsZero)
+                            found |= AccumulateCircleChart(source, frame, upper != 0, 8, quadrant, endpoint, endpoint, lines, lineSigns, ref positive, ref negative, ref sink);
+                    }
+                if (axial && source.Scope == ConePlaneRayEventScope.Plane) continue;
+                int lineCount = source.IsSegment ? 1 : upper == 0 ? 6 : 8;
+                for (int line = 0; line < lineCount; line++)
                 {
-                    // The azimuth line has only cardinal seam roots when one
-                    // radial normal component is zero; seam cohorts own them.
-                    if (line == (upper == 0 ? 5 : 7)
-                        && (frame.Normal.X.IsZero || frame.Normal.Z.IsZero)) continue;
-                    // Lower line 0 imposes N.g=0 and can retain a generator
-                    // only when c=0. Radial upper lines 4/5 are respectively
-                    // a positive constant and the zero polynomial. Neither
-                    // yields an isolated root. For c!=0, lower line 1 already
-                    // supplies upper line 3's base points and both exits. For
-                    // Ny=0, line 6 projects by reflection onto that same base
-                    // intersection (line 3 when c=0). Lower/cardinal provenance
-                    // wins those ties. Target replay retains every descriptor.
-                    if (upper == 0 ? line >= 2 && line <= 4 || line == 0 && !frame.PlaneConstant.IsZero
-                        : line < 3 || line == 3 && !frame.PlaneConstant.IsZero
-                            || frame.Normal.Y.IsZero && line >= 4 && line <= 6) continue;
+                    if (source.Scope == ConePlaneRayEventScope.Plane)
+                    {
+                        // The azimuth line has only cardinal seam roots when one
+                        // radial normal component is zero; seam cohorts own them.
+                        if (line == (upper == 0 ? 5 : 7)
+                            && (frame.Normal.X.IsZero || frame.Normal.Z.IsZero)) continue;
+                        // Lower line 0 imposes N.g=0 and can retain a generator
+                        // only when c=0. Radial upper lines 4/5 are respectively
+                        // a positive constant and the zero polynomial. Neither
+                        // yields an isolated root. For c!=0, lower line 1 already
+                        // supplies upper line 3's base points and both exits. For
+                        // Ny=0, line 6 projects by reflection onto that same base
+                        // intersection (line 3 when c=0). Lower/cardinal provenance
+                        // wins those ties. Target replay retains every descriptor.
+                        if (upper == 0 ? line >= 2 && line <= 4 || line == 0 && !frame.PlaneConstant.IsZero
+                            : line < 3 || line == 3 && !frame.PlaneConstant.IsZero
+                                || frame.Normal.Y.IsZero && line >= 4 && line <= 6) continue;
+                    }
+                    found |= AccumulateCircleChart(source, frame, upper != 0, line, quadrant, -1, 1, lines, lineSigns, ref positive, ref negative, ref sink);
                 }
-                found |= AccumulateCircleChart(source, frame, upper != 0, line, quadrant, -1, 1, lines, lineSigns, ref positive, ref negative, ref sink);
             }
-        }
         return found;
     }
 

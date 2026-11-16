@@ -118,31 +118,31 @@ public sealed class StrictCirclePolynomialTests
         };
         int sample = 0;
         foreach (int[] roots in factorizations)
-        foreach (int leading in new[] { -1, 1 })
-        foreach (int strip in new[] { 0, 1, 2, 3, 4, 5, 6, 7 })
-        {
-            var polynomial = new int[5];
-            polynomial[0] = leading;
-            for (int index = 0; index < roots.Length; index++)
-            {
-                for (int coefficient = index + 1; coefficient > 0; coefficient--)
-                    polynomial[coefficient] = polynomial[coefficient - 1] - roots[index] * polynomial[coefficient];
-                polynomial[0] *= -roots[index];
-            }
-            bool expected = false;
-            // All real roots lie in [-3,3]; +/-4.5 also sample both unbounded cells.
-            for (int twiceParameter = -9; twiceParameter <= 9; twiceParameter++)
-            {
-                long value = leading;
-                for (int index = 0; index < roots.Length; index++)
-                    value *= twiceParameter - 2 * roots[index];
-                expected |= value < 0 && EvaluateQuadraticAtHalfParameter(lowerStrips[strip], twiceParameter) > 0
-                    && EvaluateQuadraticAtHalfParameter(upperStrips[strip], twiceParameter) > 0;
-            }
-            bool actual = HasPoint(polynomial, lowerStrips[strip], upperStrips[strip]);
-            Assert.True(actual == expected, $"Factorized interval sample {sample}: expected {expected}, actual {actual}.");
-            sample++;
-        }
+            foreach (int leading in new[] { -1, 1 })
+                foreach (int strip in new[] { 0, 1, 2, 3, 4, 5, 6, 7 })
+                {
+                    var polynomial = new int[5];
+                    polynomial[0] = leading;
+                    for (int index = 0; index < roots.Length; index++)
+                    {
+                        for (int coefficient = index + 1; coefficient > 0; coefficient--)
+                            polynomial[coefficient] = polynomial[coefficient - 1] - roots[index] * polynomial[coefficient];
+                        polynomial[0] *= -roots[index];
+                    }
+                    bool expected = false;
+                    // All real roots lie in [-3,3]; +/-4.5 also sample both unbounded cells.
+                    for (int twiceParameter = -9; twiceParameter <= 9; twiceParameter++)
+                    {
+                        long value = leading;
+                        for (int index = 0; index < roots.Length; index++)
+                            value *= twiceParameter - 2 * roots[index];
+                        expected |= value < 0 && EvaluateQuadraticAtHalfParameter(lowerStrips[strip], twiceParameter) > 0
+                            && EvaluateQuadraticAtHalfParameter(upperStrips[strip], twiceParameter) > 0;
+                    }
+                    bool actual = HasPoint(polynomial, lowerStrips[strip], upperStrips[strip]);
+                    Assert.True(actual == expected, $"Factorized interval sample {sample}: expected {expected}, actual {actual}.");
+                    sample++;
+                }
     }
 
     private static long EvaluateQuadraticAtHalfParameter(int[] coefficients, int twiceParameter) =>

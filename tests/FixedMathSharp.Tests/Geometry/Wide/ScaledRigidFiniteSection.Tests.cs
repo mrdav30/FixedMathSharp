@@ -1,6 +1,6 @@
 using System;
-using System.Numerics;
 using System.Collections.Generic;
+using System.Numerics;
 using FixedMathSharp.Geometry;
 using Xunit;
 
@@ -97,7 +97,7 @@ public sealed class ScaledRigidFiniteSectionTests
         Fixed64 radius = twiceX == 4 ? Fixed64.One : Fixed64.Quarter;
         Assert.Equal(expected, WideOrientedBox.DoesCenteredCylinderPenetrateConvexHull(new Vector3d(Fixed64.FromFraction(twiceX, 2), Fixed64.Zero, Fixed64.Zero),
             FixedQuaternion.Identity, Fixed64.One, radius, source, vertices, faces, closed));
-        FixedTriangle floor = new(new Vector3d(-4,0,-4), new(4,0,-4), new(0,0,4));
+        FixedTriangle floor = new(new Vector3d(-4, 0, -4), new(4, 0, -4), new(0, 0, 4));
         Assert.True(WideOrientedBox.DoesCenteredCylinderPenetrateTriangle(Vector3d.Zero,
             FixedQuaternion.Identity, Fixed64.Two, Fixed64.One, floor, source));
     }
@@ -116,7 +116,7 @@ public sealed class ScaledRigidFiniteSectionTests
             FixedQuaternion.Identity, Signed192.Raw(Fixed64.Two), Fixed64.One, out _, out _));
         Assert.False(WideOrientedBox.DoesCenteredCylinderPenetrateTriangle(Vector3d.Zero,
             FixedQuaternion.Identity, Fixed64.Two, Fixed64.One, collapsed, source));
-        FixedTriangle face = new(new Vector3d(-4,0,-4), new(4,0,-4), new(0,0,4));
+        FixedTriangle face = new(new Vector3d(-4, 0, -4), new(4, 0, -4), new(0, 0, 4));
         var collapsedPlane = new ConePlaneRayFrame(collapsed, source, Vector3d.Zero, FixedQuaternion.Identity, Fixed64.Two, Fixed64.One);
         Assert.False(ConePlaneRayEvents.IntersectsTriangle(collapsedPlane, collapsed));
         var plane = new ConePlaneRayFrame(face, source, Vector3d.Zero, FixedQuaternion.Identity, Fixed64.Two, Fixed64.One);
@@ -259,22 +259,22 @@ public sealed class ScaledRigidFiniteSectionTests
     {
         bool rootWinner = feature != 0;
         FixedTriangle world = rootWinner
-            ? new(new Vector3d(Fixed64.FromFraction(1021,256), Fixed64.FromFraction(309,64), Fixed64.FromFraction(231,64)),
-                new(Fixed64.FromFraction(509,256), Fixed64.FromFraction(325,64), Fixed64.FromFraction(279,64)),
-                new(Fixed64.FromFraction(813,256), Fixed64.FromFraction(365,64), Fixed64.FromFraction(271,64)))
-            : new(new Vector3d(Fixed64.FromFraction(43,4), Fixed64.FromFraction(5,4), (Fixed64)6),
-                new(Fixed64.FromFraction(19,4), Fixed64.FromFraction(45,4), (Fixed64)(-2)), new(3,5,4));
+            ? new(new Vector3d(Fixed64.FromFraction(1021, 256), Fixed64.FromFraction(309, 64), Fixed64.FromFraction(231, 64)),
+                new(Fixed64.FromFraction(509, 256), Fixed64.FromFraction(325, 64), Fixed64.FromFraction(279, 64)),
+                new(Fixed64.FromFraction(813, 256), Fixed64.FromFraction(365, 64), Fixed64.FromFraction(271, 64)))
+            : new(new Vector3d(Fixed64.FromFraction(43, 4), Fixed64.FromFraction(5, 4), (Fixed64)6),
+                new(Fixed64.FromFraction(19, 4), Fixed64.FromFraction(45, 4), (Fixed64)(-2)), new(3, 5, 4));
         if (feature == 2)
         {
             // The finite face itself owns the rim-stationary witness. Its third
             // vertex cuts the old edge at the exact q=(765/256,317/64,255/64).
-            Vector3d q = new(Fixed64.FromFraction(765,256), Fixed64.FromFraction(317,64), Fixed64.FromFraction(255,64));
-            world = new(world.A, world.B, q + new Vector3d(Fixed64.Quarter, Fixed64.Zero, -Fixed64.FromFraction(3,16)));
+            Vector3d q = new(Fixed64.FromFraction(765, 256), Fixed64.FromFraction(317, 64), Fixed64.FromFraction(255, 64));
+            world = new(world.A, world.B, q + new Vector3d(Fixed64.Quarter, Fixed64.Zero, -Fixed64.FromFraction(3, 16)));
         }
         Vector3d Unscale(Vector3d p) => new(p.X / Fixed64.Two, p.Y, p.Z / Fixed64.Two);
         FixedTriangle authored = new(Unscale(world.A), Unscale(world.B), Unscale(world.C));
         var source = new ScaledRigidFrame3d(Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Zero,
-            new Vector3d(2,1,2), FixedQuaternion.Identity, Vector3d.Zero, Vector3d.One);
+            new Vector3d(2, 1, 2), FixedQuaternion.Identity, Vector3d.Zero, Vector3d.One);
         for (int turn = 0; turn < 3; turn++)
         {
             Assert.True(TriangleCylinderContact.TryGetContact(authored, source, Vector3d.Zero,
@@ -333,18 +333,18 @@ public sealed class ScaledRigidFiniteSectionTests
         var z = ContactQuadratic.At(values, signs, 2, words); var d = ContactQuadratic.At(values, signs, 3, words);
         x.Set(Signed576.ExtendValue(Signed192.Raw(-Fixed64.One)));
         y.Set(Signed576.ExtendValue(Signed192.Raw((Fixed64)(-6))));
-        z.Set(Signed576.ExtendValue(Signed192.Raw(Fixed64.FromFraction(15,4)))); d.Set(Signed576.ExtendValue(Signed192.Signed(1)));
+        z.Set(Signed576.ExtendValue(Signed192.Raw(Fixed64.FromFraction(15, 4)))); d.Set(Signed576.ExtendValue(Signed192.Signed(1)));
         var frame = new ScaledRigidFrame3d(Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Zero,
-            new Vector3d(-Fixed64.Half, Fixed64.Two, Fixed64.FromFraction(3,4)), FixedQuaternion.Identity, Vector3d.Zero, Vector3d.One);
+            new Vector3d(-Fixed64.Half, Fixed64.Two, Fixed64.FromFraction(3, 4)), FixedQuaternion.Identity, Vector3d.Zero, Vector3d.One);
         Assert.True(QuadraticPointMaterialization.TryGetPointInScaledFrame(Vector3d.Zero, FixedQuaternion.Identity,
             frame, x, y, z, d, ReadOnlySpan<ulong>.Empty, out Vector3d source));
-        Assert.Equal(new Vector3d(2,-3,5), source);
+        Assert.Equal(new Vector3d(2, -3, 5), source);
         d.MultiplySign(-1);
         Assert.False(QuadraticPointMaterialization.TryGetPointInScaledFrame(Vector3d.Zero, FixedQuaternion.Identity,
             frame, x, y, z, d, ReadOnlySpan<ulong>.Empty, out _));
         d.MultiplySign(-1);
         var singular = new ScaledRigidFrame3d(Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Zero,
-            new Vector3d(0,1,1), FixedQuaternion.Identity, Vector3d.Zero, Vector3d.One);
+            new Vector3d(0, 1, 1), FixedQuaternion.Identity, Vector3d.Zero, Vector3d.One);
         Assert.False(QuadraticPointMaterialization.TryGetPointInScaledFrame(Vector3d.Zero, FixedQuaternion.Identity,
             singular, x, y, z, d, ReadOnlySpan<ulong>.Empty, out _));
         var tiny = new ScaledRigidFrame3d(Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Zero,
@@ -357,10 +357,10 @@ public sealed class ScaledRigidFiniteSectionTests
     public void WideClippedConeGenerator_ShouldRetainTheSameFinitePlaneAndFamilySamples()
     {
         var source = ScaledRigidFrame3d.Rigid(Vector3d.Zero, FixedQuaternion.Identity);
-        FixedTriangle triangle = new(new Vector3d(-3,-3,0), new(3,-3,0), new(0,3,0));
+        FixedTriangle triangle = new(new Vector3d(-3, -3, 0), new(3, -3, 0), new(0, 3, 0));
         var frame = new ConePlaneRayFrame(triangle, source, Vector3d.Zero, FixedQuaternion.Identity, Fixed64.Two, Fixed64.One);
-        FixedSegment segment = new(new Vector3d(-1,-1,0), Vector3d.Up);
-        Signed832 unit = new(0,0,0,0,0,0,1,0,0,0,0,0,0);
+        FixedSegment segment = new(new Vector3d(-1, -1, 0), Vector3d.Up);
+        Signed832 unit = new(0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0);
         Signed832 twice = WideArithmetic.AddSigned832(unit, unit),
             three = WideArithmetic.AddSigned832(twice, unit), four = WideArithmetic.AddSigned832(twice, twice);
         var wide = new RationalSegmentInterval(unit, four, three, four);
@@ -509,8 +509,8 @@ public sealed class ScaledRigidFiniteSectionTests
     [InlineData(true)]
     public void RigidContactIngress_PreservesTheExistingFiniteWitness(bool cone)
     {
-        FixedTriangle triangle = new(new Vector3d(-4,0,-4), new(4,0,-4), new(0,0,4));
-        Vector3d origin = new(7,-3,11), center = origin + Vector3d.Up * Fixed64.Quarter;
+        FixedTriangle triangle = new(new Vector3d(-4, 0, -4), new(4, 0, -4), new(0, 0, 4));
+        Vector3d origin = new(7, -3, 11), center = origin + Vector3d.Up * Fixed64.Quarter;
         var frame = ScaledRigidFrame3d.Rigid(origin, FixedQuaternion.Identity);
         bool actual = cone
             ? TriangleConeContact.TryGetContact(triangle, frame, center, FixedQuaternion.Identity, Fixed64.Two, Fixed64.One, out FixedContactAnchors a)
@@ -529,13 +529,13 @@ public sealed class ScaledRigidFiniteSectionTests
     [InlineData(2)]
     public void AffineConePlane_CanonicalOrientationRetainsEveryPrincipalPlane(int axis)
     {
-        Vector3d Map(Vector3d v) => axis == 0 ? new(v.Y,v.X,v.Z) : axis == 2 ? new(v.X,v.Z,v.Y) : v;
-        FixedTriangle triangle = new(Map(new(-3,0,-3)), Map(new(3,0,-3)), Map(new(0,0,3)));
+        Vector3d Map(Vector3d v) => axis == 0 ? new(v.Y, v.X, v.Z) : axis == 2 ? new(v.X, v.Z, v.Y) : v;
+        FixedTriangle triangle = new(Map(new(-3, 0, -3)), Map(new(3, 0, -3)), Map(new(0, 0, 3)));
         var frame = new ScaledRigidFrame3d(Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Zero,
-            new Vector3d(2,3,4), FixedQuaternion.Identity, Vector3d.Zero, Vector3d.One);
+            new Vector3d(2, 3, 4), FixedQuaternion.Identity, Vector3d.Zero, Vector3d.One);
         var plane = new ConePlaneRayFrame(triangle, frame, Vector3d.Zero, FixedQuaternion.Identity, Fixed64.Two, Fixed64.One);
         Assert.Equal(Map(Vector3d.Up), plane.GetWorldNormal(FixedQuaternion.Identity));
-        Assert.True(plane.IsCoplanar(plane.Transform(Map(new(Fixed64.Half,Fixed64.Zero,Fixed64.Half)))));
+        Assert.True(plane.IsCoplanar(plane.Transform(Map(new(Fixed64.Half, Fixed64.Zero, Fixed64.Half)))));
         Assert.False(plane.IsCoplanar(plane.Transform(Map(Vector3d.Up))));
         Assert.True(ConePlaneRayEvents.IntersectsTriangle(plane, triangle));
     }
@@ -556,7 +556,7 @@ public sealed class ScaledRigidFiniteSectionTests
     [InlineData(true)]
     public void WideConePlaneCohort_RetainsTheStationarySideExit(bool affine)
     {
-        FixedTriangle physical = new(new Vector3d(0,-5,-3), new(0,-5,3), new(-2,1,0));
+        FixedTriangle physical = new(new Vector3d(0, -5, -3), new(0, -5, 3), new(-2, 1, 0));
         FixedTriangle authored = affine ? new(physical.A / Fixed64.Two, physical.B / Fixed64.Two, physical.C / Fixed64.Two) : physical;
         var frame = affine
             ? new ConePlaneRayFrame(authored, new ScaledRigidFrame3d(Vector3d.Zero, FixedQuaternion.Identity,
@@ -584,21 +584,21 @@ public sealed class ScaledRigidFiniteSectionTests
     {
         // A valid cap-plane contact need not contain the cap pole. Every
         // vertex permutation must keep the same finite closest feature.
-        Fixed64 y = Fixed64.FromFraction(19,4);
-        FixedTriangle physical = new(new Vector3d((Fixed64)(-2),y,Fixed64.Half),
-            new((Fixed64)(-1),y,Fixed64.Half),new(Fixed64.Zero,y,(Fixed64)1.5));
-        for(int turn=0;turn<order;turn++) physical=new(physical.B,physical.C,physical.A);
-        FixedTriangle authored = new(physical.A/Fixed64.Two,physical.B/Fixed64.Two,physical.C/Fixed64.Two);
-        var frame = new ScaledRigidFrame3d(Vector3d.Zero,FixedQuaternion.Identity,Vector3d.Zero,
-            Vector3d.One*Fixed64.Two,FixedQuaternion.Identity,Vector3d.Zero,Vector3d.One);
-        var geometry = new TriangleCircularGeometry(authored,frame,Vector3d.Zero,FixedQuaternion.Identity,
-            Signed192.Raw((Fixed64)10),(Fixed64)5);
+        Fixed64 y = Fixed64.FromFraction(19, 4);
+        FixedTriangle physical = new(new Vector3d((Fixed64)(-2), y, Fixed64.Half),
+            new((Fixed64)(-1), y, Fixed64.Half), new(Fixed64.Zero, y, (Fixed64)1.5));
+        for (int turn = 0; turn < order; turn++) physical = new(physical.B, physical.C, physical.A);
+        FixedTriangle authored = new(physical.A / Fixed64.Two, physical.B / Fixed64.Two, physical.C / Fixed64.Two);
+        var frame = new ScaledRigidFrame3d(Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Zero,
+            Vector3d.One * Fixed64.Two, FixedQuaternion.Identity, Vector3d.Zero, Vector3d.One);
+        var geometry = new TriangleCircularGeometry(authored, frame, Vector3d.Zero, FixedQuaternion.Identity,
+            Signed192.Raw((Fixed64)10), (Fixed64)5);
         Assert.False(geometry.HasFaceMinimumCertificate());
-        Assert.True(TriangleCylinderContact.TryGetContact(authored,frame,Vector3d.Zero,FixedQuaternion.Identity,
-            Signed192.Raw((Fixed64)10),(Fixed64)5,out FixedContactAnchors contact,out _));
-        Assert.Equal(Fixed64.Quarter,contact.Depth);
+        Assert.True(TriangleCylinderContact.TryGetContact(authored, frame, Vector3d.Zero, FixedQuaternion.Identity,
+            Signed192.Raw((Fixed64)10), (Fixed64)5, out FixedContactAnchors contact, out _));
+        Assert.Equal(Fixed64.Quarter, contact.Depth);
         Assert.True(contact.FirstAnchor.TryGetPoint(out Vector3d first));
-        Assert.Equal(new Vector3d((Fixed64)(-.75),y,(Fixed64).75),first);
+        Assert.Equal(new Vector3d((Fixed64)(-.75), y, (Fixed64).75), first);
     }
 
     [Theory]
@@ -606,20 +606,20 @@ public sealed class ScaledRigidFiniteSectionTests
     [InlineData(true)]
     public void FullDomainRimFace_EndpointPaddingDoesNotOverflowScalarBounds(bool negative)
     {
-        Vector3d a = new(Fixed64.FromFraction(1021,256),Fixed64.FromFraction(309,64),Fixed64.FromFraction(231,64));
-        Vector3d b = new(Fixed64.FromFraction(509,256),Fixed64.FromFraction(325,64),Fixed64.FromFraction(279,64));
-        Vector3d q = new(Fixed64.FromFraction(765,256),Fixed64.FromFraction(317,64),Fixed64.FromFraction(255,64));
-        Vector3d c = q + new Vector3d(Fixed64.Quarter,Fixed64.Zero,-Fixed64.FromFraction(3,16));
+        Vector3d a = new(Fixed64.FromFraction(1021, 256), Fixed64.FromFraction(309, 64), Fixed64.FromFraction(231, 64));
+        Vector3d b = new(Fixed64.FromFraction(509, 256), Fixed64.FromFraction(325, 64), Fixed64.FromFraction(279, 64));
+        Vector3d q = new(Fixed64.FromFraction(765, 256), Fixed64.FromFraction(317, 64), Fixed64.FromFraction(255, 64));
+        Vector3d c = q + new Vector3d(Fixed64.Quarter, Fixed64.Zero, -Fixed64.FromFraction(3, 16));
         long translation = negative ? long.MinValue + a.X.m_rawValue : long.MaxValue - a.X.m_rawValue;
-        Vector3d Move(Vector3d v) => new(Fixed64.FromRaw(translation + (negative ? -v.X.m_rawValue : v.X.m_rawValue)),v.Y,v.Z);
-        FixedTriangle triangle = new(Move(a),Move(b),Move(c));
-        Vector3d center = new(Fixed64.FromRaw(translation),Fixed64.Zero,Fixed64.Zero);
-        Assert.Equal(negative ? Fixed64.MinValue : Fixed64.MaxValue,triangle.A.X);
-        Assert.True(triangle.TryGetCenteredFiniteCylinderContact(Vector3d.Zero,FixedQuaternion.Identity,
-            center,FixedQuaternion.Identity,(Fixed64)10,(Fixed64)5,out FixedContactAnchors contact));
-        Assert.Equal(Fixed64.FromFraction(13,256),contact.Depth);
-        Assert.True(contact.FirstAnchor.TryGetPoint(out Vector3d first));Assert.Equal(Move(q),first);
-        Assert.True(contact.SecondAnchor.TryGetPoint(out Vector3d second));Assert.Equal(Move(new(3,5,4)),second);
+        Vector3d Move(Vector3d v) => new(Fixed64.FromRaw(translation + (negative ? -v.X.m_rawValue : v.X.m_rawValue)), v.Y, v.Z);
+        FixedTriangle triangle = new(Move(a), Move(b), Move(c));
+        Vector3d center = new(Fixed64.FromRaw(translation), Fixed64.Zero, Fixed64.Zero);
+        Assert.Equal(negative ? Fixed64.MinValue : Fixed64.MaxValue, triangle.A.X);
+        Assert.True(triangle.TryGetCenteredFiniteCylinderContact(Vector3d.Zero, FixedQuaternion.Identity,
+            center, FixedQuaternion.Identity, (Fixed64)10, (Fixed64)5, out FixedContactAnchors contact));
+        Assert.Equal(Fixed64.FromFraction(13, 256), contact.Depth);
+        Assert.True(contact.FirstAnchor.TryGetPoint(out Vector3d first)); Assert.Equal(Move(q), first);
+        Assert.True(contact.SecondAnchor.TryGetPoint(out Vector3d second)); Assert.Equal(Move(new(3, 5, 4)), second);
     }
 
     [Theory]
@@ -632,23 +632,23 @@ public sealed class ScaledRigidFiniteSectionTests
         // or whole-face witness. The translated local chart rounds y=1/2 raw
         // once; the cap anchor retains its independent exact half-raw term.
         FixedTriangle physical = new(
-            new Vector3d((Fixed64)(-2)+Fixed64.FromRaw(4),Fixed64.One+Fixed64.FromRaw(offsetRaw+1),Fixed64.Zero),
-            new Vector3d((Fixed64)2+Fixed64.FromRaw(6),-Fixed64.One+Fixed64.FromRaw(offsetRaw),Fixed64.Zero),
-            new Vector3d((Fixed64)2,(Fixed64)2+Fixed64.FromRaw(offsetRaw),Fixed64.Zero));
-        Vector3d Author(Vector3d v) => new(v.X*Fixed64.Two,v.Y,v.Z*Fixed64.Two);
-        FixedTriangle triangle = new(Author(physical.A),Author(physical.B),Author(physical.C));
-        var frame = new ScaledRigidFrame3d(Vector3d.Zero,FixedQuaternion.Identity,Vector3d.Zero,
-            new Vector3d(Fixed64.Half,Fixed64.One,Fixed64.Half),FixedQuaternion.Identity,Vector3d.Zero,Vector3d.One);
-        Vector3d center = new(Fixed64.Zero,Fixed64.FromRaw(offsetRaw),Fixed64.Zero);
-        Assert.True(TriangleCylinderContact.TryGetContact(triangle,frame,center,FixedQuaternion.Identity,
-            Signed192.Raw(Fixed64.MinIncrement),Fixed64.FromRaw(5),out FixedContactAnchors contact,out bool cap));
-        Assert.False(cap); Assert.Equal(Fixed64.Zero,contact.Depth);
-        Assert.Equal(new Vector3d(Fixed64.FromRaw(5),Fixed64.Zero,Fixed64.Zero),contact.FirstAnchor.LocalPoint);
+            new Vector3d((Fixed64)(-2) + Fixed64.FromRaw(4), Fixed64.One + Fixed64.FromRaw(offsetRaw + 1), Fixed64.Zero),
+            new Vector3d((Fixed64)2 + Fixed64.FromRaw(6), -Fixed64.One + Fixed64.FromRaw(offsetRaw), Fixed64.Zero),
+            new Vector3d((Fixed64)2, (Fixed64)2 + Fixed64.FromRaw(offsetRaw), Fixed64.Zero));
+        Vector3d Author(Vector3d v) => new(v.X * Fixed64.Two, v.Y, v.Z * Fixed64.Two);
+        FixedTriangle triangle = new(Author(physical.A), Author(physical.B), Author(physical.C));
+        var frame = new ScaledRigidFrame3d(Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Zero,
+            new Vector3d(Fixed64.Half, Fixed64.One, Fixed64.Half), FixedQuaternion.Identity, Vector3d.Zero, Vector3d.One);
+        Vector3d center = new(Fixed64.Zero, Fixed64.FromRaw(offsetRaw), Fixed64.Zero);
+        Assert.True(TriangleCylinderContact.TryGetContact(triangle, frame, center, FixedQuaternion.Identity,
+            Signed192.Raw(Fixed64.MinIncrement), Fixed64.FromRaw(5), out FixedContactAnchors contact, out bool cap));
+        Assert.False(cap); Assert.Equal(Fixed64.Zero, contact.Depth);
+        Assert.Equal(new Vector3d(Fixed64.FromRaw(5), Fixed64.Zero, Fixed64.Zero), contact.FirstAnchor.LocalPoint);
         Assert.True(contact.FirstAnchor.TryGetPoint(out Vector3d first));
         Assert.True(contact.SecondAnchor.TryGetPoint(out Vector3d second));
-        Assert.Equal(Fixed64.FromRaw(5),first.X); Assert.Equal(first.X,second.X);
-        Assert.InRange(first.Y.m_rawValue-second.Y.m_rawValue,-1L,1L);
-        Assert.Equal(Fixed64.Zero,first.Z); Assert.Equal(first.Z,second.Z);
+        Assert.Equal(Fixed64.FromRaw(5), first.X); Assert.Equal(first.X, second.X);
+        Assert.InRange(first.Y.m_rawValue - second.Y.m_rawValue, -1L, 1L);
+        Assert.Equal(Fixed64.Zero, first.Z); Assert.Equal(first.Z, second.Z);
     }
 
     [Theory]
@@ -670,19 +670,19 @@ public sealed class ScaledRigidFiniteSectionTests
         for (int affine = 0; affine < 2; affine++)
         {
             Fixed64 factor = affine == 0 ? Fixed64.One : Fixed64.Half;
-            FixedTriangle triangle = new(new Vector3d(-4,y,-4)*factor,
-                new Vector3d(4,y,-4)*factor,new Vector3d(0,y,4)*factor);
-            var source = new ScaledRigidFrame3d(Vector3d.Zero,FixedQuaternion.Identity,Vector3d.Zero,
-                Vector3d.One/factor,FixedQuaternion.Identity,Vector3d.Zero,Vector3d.One);
-            var frame = new ConePlaneRayFrame(triangle,source,Vector3d.Zero,FixedQuaternion.Identity,(Fixed64)4,(Fixed64)radius);
+            FixedTriangle triangle = new(new Vector3d(-4, y, -4) * factor,
+                new Vector3d(4, y, -4) * factor, new Vector3d(0, y, 4) * factor);
+            var source = new ScaledRigidFrame3d(Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Zero,
+                Vector3d.One / factor, FixedQuaternion.Identity, Vector3d.Zero, Vector3d.One);
+            var frame = new ConePlaneRayFrame(triangle, source, Vector3d.Zero, FixedQuaternion.Identity, (Fixed64)4, (Fixed64)radius);
             Span<ulong> values = new ulong[frame.PointStorageWords];
             Span<int> signs = new int[ConePlaneRayPoint.SignCount];
-            var point = new ConePlaneRayPoint(values,signs,frame.FieldWords);
-            point.Set(frame.Transform(new Vector3d(x,y,0)*factor));
-            Assert.Equal(expected,ConePlaneRayPointExits.ContainsPoint(ConePlaneRayEventSource.Plane,frame,point,ReadOnlySpan<ulong>.Empty));
+            var point = new ConePlaneRayPoint(values, signs, frame.FieldWords);
+            point.Set(frame.Transform(new Vector3d(x, y, 0) * factor));
+            Assert.Equal(expected, ConePlaneRayPointExits.ContainsPoint(ConePlaneRayEventSource.Plane, frame, point, ReadOnlySpan<ulong>.Empty));
             // Both transverse axes obey the same finite radius constraint.
-            point.Set(frame.Transform(new Vector3d(0,y,x)*factor));
-            Assert.Equal(expected,ConePlaneRayPointExits.ContainsPoint(ConePlaneRayEventSource.Plane,frame,point,ReadOnlySpan<ulong>.Empty));
+            point.Set(frame.Transform(new Vector3d(0, y, x) * factor));
+            Assert.Equal(expected, ConePlaneRayPointExits.ContainsPoint(ConePlaneRayEventSource.Plane, frame, point, ReadOnlySpan<ulong>.Empty));
         }
     }
 

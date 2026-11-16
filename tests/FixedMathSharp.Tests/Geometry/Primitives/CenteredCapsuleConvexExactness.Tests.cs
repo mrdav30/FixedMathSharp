@@ -19,24 +19,24 @@ public sealed class CenteredCapsuleConvexExactnessTests
     public void Contacts_CornerClassificationDistinguishesOneRawRadiusStep(long radiusStep)
     {
         foreach (int scale in new[] { 1, 10, 1000, 100000000 })
-        foreach (int degrees in new[] { 0, 30 })
-        {
-            Fixed64 rotation = FixedMath.DegToRad((Fixed64)degrees);
-            Fixed64 radius = Fixed64.FromRaw(((Fixed64)(5 * scale)).m_rawValue + radiusStep);
-            bool hit = FixedConvex2dRelations.TryGetCircleContact(
-                new Vector2d(3 * scale, 4 * scale), rotation, radius,
-                Vector2d.Zero, rotation, Corner,
-                out _, out FixedPointAnchor2d convexContact,
-                out Vector2d normal, out Fixed64 depth, out bool clamped);
+            foreach (int degrees in new[] { 0, 30 })
+            {
+                Fixed64 rotation = FixedMath.DegToRad((Fixed64)degrees);
+                Fixed64 radius = Fixed64.FromRaw(((Fixed64)(5 * scale)).m_rawValue + radiusStep);
+                bool hit = FixedConvex2dRelations.TryGetCircleContact(
+                    new Vector2d(3 * scale, 4 * scale), rotation, radius,
+                    Vector2d.Zero, rotation, Corner,
+                    out _, out FixedPointAnchor2d convexContact,
+                    out Vector2d normal, out Fixed64 depth, out bool clamped);
 
-            Assert.Equal(radiusStep >= 0, hit);
-            Assert.False(clamped);
-            Assert.Equal(Fixed64.FromRaw(Math.Max(radiusStep, 0)), depth);
-            Assert.Equal(radiusStep >= 0
-                ? new Vector2d(Fixed64.FromFraction(-3, 5), Fixed64.FromFraction(-4, 5))
-                : Vector2d.Zero, normal);
-            Assert.Equal(Vector2d.Zero, convexContact.LocalPoint);
-        }
+                Assert.Equal(radiusStep >= 0, hit);
+                Assert.False(clamped);
+                Assert.Equal(Fixed64.FromRaw(Math.Max(radiusStep, 0)), depth);
+                Assert.Equal(radiusStep >= 0
+                    ? new Vector2d(Fixed64.FromFraction(-3, 5), Fixed64.FromFraction(-4, 5))
+                    : Vector2d.Zero, normal);
+                Assert.Equal(Vector2d.Zero, convexContact.LocalPoint);
+            }
     }
 
     [Theory]
@@ -298,20 +298,20 @@ public sealed class CenteredCapsuleConvexExactnessTests
         Vector2d[] origins = { Vector2d.Zero, new(minimum, maximum), new(maximum, minimum) };
         Vector2d diagonal = new(Fixed64.FromFraction(3, 5), Fixed64.FromFraction(4, 5));
         foreach (Vector2d[] polygon in polygons)
-        foreach (Vector2d center in centers)
-        foreach (Vector2d origin in origins)
-        foreach (int degrees in new[] { 0, 30, 60 })
-        {
-            Fixed64 rotation = FixedMath.DegToRad((Fixed64)degrees);
-            bool expected = IntersectsBySegmentDistances(
-                center, diagonal, maximum, maximum, origin, rotation, polygon);
-            bool actual = FixedSegment2d.TryGetCenteredCapsuleConvexMinimumTranslation(
-                center, diagonal, maximum, maximum, origin, rotation, polygon, out _, out _);
-            Assert.Equal(expected, actual);
-            Assert.Equal(
-                IntersectsBySegmentDistances(center, diagonal, maximum, maximum, origin, rotation, polygon, strict: true),
-                FixedSegment2d.DoesCenteredCapsulePenetrateConvex(center, diagonal, maximum, maximum, origin, rotation, polygon));
-        }
+            foreach (Vector2d center in centers)
+                foreach (Vector2d origin in origins)
+                    foreach (int degrees in new[] { 0, 30, 60 })
+                    {
+                        Fixed64 rotation = FixedMath.DegToRad((Fixed64)degrees);
+                        bool expected = IntersectsBySegmentDistances(
+                            center, diagonal, maximum, maximum, origin, rotation, polygon);
+                        bool actual = FixedSegment2d.TryGetCenteredCapsuleConvexMinimumTranslation(
+                            center, diagonal, maximum, maximum, origin, rotation, polygon, out _, out _);
+                        Assert.Equal(expected, actual);
+                        Assert.Equal(
+                            IntersectsBySegmentDistances(center, diagonal, maximum, maximum, origin, rotation, polygon, strict: true),
+                            FixedSegment2d.DoesCenteredCapsulePenetrateConvex(center, diagonal, maximum, maximum, origin, rotation, polygon));
+                    }
     }
 
     [Fact]

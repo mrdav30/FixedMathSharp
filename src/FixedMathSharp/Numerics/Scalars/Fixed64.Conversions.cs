@@ -6,9 +6,9 @@
 //=======================================================================
 
 using System;
-using Chronicler.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using Chronicler.Diagnostics;
 
 namespace FixedMathSharp;
 

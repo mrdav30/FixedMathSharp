@@ -330,25 +330,25 @@ internal static partial class WideFiniteAxisIntersection
             coreRotationD = WideArithmetic.TruncateSigned320By64(coreFirst.Denominator);
         Span<ulong> values = stackalloc ulong[4 * ScaledAxisWords]; Span<int> signs = stackalloc int[4];
         var coefficient = ScaledAxisField(values, signs, 0); var term = ScaledAxisField(values, signs, 1);
-            Signed576 common = WideArithmetic.MultiplySigned320(first.Denominator, coreRotationD);
-            coefficient.Set(common); ContactQuadratic.Multiply(coefficient, d, ReadOnlySpan<ulong>.Empty, candidate.At(6));
-            for (int axis = 0; axis < 3; axis++)
-            {
-                Signed576 start = WideArithmetic.MultiplySigned576(ScaledAxisRelative(first, center, axis), coreRotationD);
-                Signed576 end = WideArithmetic.MultiplySigned576(ScaledAxisRelative(last, center, axis), coreRotationD);
-                ContactQuadratic.Scale(d, start, candidate.At(axis));
-                ContactQuadratic.Scale(edgeN, WideArithmetic.SubtractSigned576(end, start), term); candidate.At(axis).Add(term);
-                start = WideArithmetic.MultiplySigned576(ScaledAxisRelative(coreFirst, center, axis), sourceRotationD);
-                end = WideArithmetic.MultiplySigned576(ScaledAxisRelative(coreLast, center, axis), sourceRotationD);
-                ContactQuadratic.Scale(d, start, candidate.At(axis + 3));
-                ContactQuadratic.Scale(coreN, WideArithmetic.SubtractSigned576(end, start), term); candidate.At(axis + 3).Add(term);
-            }
-            int bit = 1 << edge;
-            candidate.EdgeMask = edgeN.Signs[0] == 0 ? bit | (1 << ((edge + 2) % 3))
-                : ContactQuadratic.CompareRatios(edgeN, d, ReadOnlySpan<ulong>.Empty,
-                    d, d, ReadOnlySpan<ulong>.Empty) == 0 ? bit | (1 << ((edge + 1) % 3)) : bit;
-            candidate.Endpoint = interval.IsClipped ? GetScaledAxisIntervalEndpoint(edgeN, d, interval) : 0;
-            candidate.Complete(); best.Keep(candidate);
+        Signed576 common = WideArithmetic.MultiplySigned320(first.Denominator, coreRotationD);
+        coefficient.Set(common); ContactQuadratic.Multiply(coefficient, d, ReadOnlySpan<ulong>.Empty, candidate.At(6));
+        for (int axis = 0; axis < 3; axis++)
+        {
+            Signed576 start = WideArithmetic.MultiplySigned576(ScaledAxisRelative(first, center, axis), coreRotationD);
+            Signed576 end = WideArithmetic.MultiplySigned576(ScaledAxisRelative(last, center, axis), coreRotationD);
+            ContactQuadratic.Scale(d, start, candidate.At(axis));
+            ContactQuadratic.Scale(edgeN, WideArithmetic.SubtractSigned576(end, start), term); candidate.At(axis).Add(term);
+            start = WideArithmetic.MultiplySigned576(ScaledAxisRelative(coreFirst, center, axis), sourceRotationD);
+            end = WideArithmetic.MultiplySigned576(ScaledAxisRelative(coreLast, center, axis), sourceRotationD);
+            ContactQuadratic.Scale(d, start, candidate.At(axis + 3));
+            ContactQuadratic.Scale(coreN, WideArithmetic.SubtractSigned576(end, start), term); candidate.At(axis + 3).Add(term);
+        }
+        int bit = 1 << edge;
+        candidate.EdgeMask = edgeN.Signs[0] == 0 ? bit | (1 << ((edge + 2) % 3))
+            : ContactQuadratic.CompareRatios(edgeN, d, ReadOnlySpan<ulong>.Empty,
+                d, d, ReadOnlySpan<ulong>.Empty) == 0 ? bit | (1 << ((edge + 1) % 3)) : bit;
+        candidate.Endpoint = interval.IsClipped ? GetScaledAxisIntervalEndpoint(edgeN, d, interval) : 0;
+        candidate.Complete(); best.Keep(candidate);
 
     }
 

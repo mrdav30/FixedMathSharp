@@ -138,32 +138,32 @@ internal static partial class WideConvex2dRelations
             Q(12).Set(h); Q(13).Set(radialSquared);
             ContactQuadratic.Multiply(Q(12), Q(13), ReadOnlySpan<ulong>.Empty, Q(14)); Q(14).Rational.CopyTo(Root(0));
             for (int bound = 0; bound < 2; bound++)
-            for (int side = -1; side <= 1; side += 2)
-            {
-                Signed320 d = bound == 0 ? _lowerD : _upperD;
-                Signed576 cut = bound == 0 ? _lower : _upper;
-                // q=(cut-u/2+side*dv*sqrt(QH)/H)/du must stay on
-                // the finite core. Its two signed tests retain the radical.
-                Q(12).Set(WideArithmetic.MultiplySigned576(cut, 2)); Q(13).Set(WideArithmetic.MultiplySigned320(u, d)); Q(12).Add(Q(13), -1);
-                ContactQuadratic.Scale(Q(12), h, Q(15));
-                Q(13).Set(WideArithmetic.MultiplySigned576(WideArithmetic.MultiplySigned320(dv, d), side * 2));
-                Q(13).Rational.CopyTo(Q(15).Radical); Q(15).Signs[1] = Q(13).Signs[0];
-                Q(12).Set(WideArithmetic.MultiplySigned576(WideArithmetic.MultiplySigned320(du, d), 2));
-                ContactQuadratic.Scale(Q(12), h, Q(16));
-                if (du.Sign < 0) { Q(15).MultiplySign(-1); Q(16).MultiplySign(-1); }
-                if (Q(15).Sign(Root(0)) < 0) continue;
-                Q(16).Add(Q(15), -1); if (Q(16).Sign(Root(0)) < 0) continue;
-                Q(0).Set(WideArithmetic.MultiplySigned576(cut, 2));
-                ContactQuadratic.Scale(Q(0), Signed576.ExtendValue(du), Q(12)); Q(12).CopyTo(Q(0));
-                Q(12).Set(WideArithmetic.SubtractSigned576(WideArithmetic.MultiplySigned320(v, du), WideArithmetic.MultiplySigned320(u, dv)));
-                ContactQuadratic.Scale(Q(12), Signed576.ExtendValue(d), Q(1));
-                Q(12).Set(WideArithmetic.MultiplySigned576(cut, 2)); ContactQuadratic.Scale(Q(12), Signed576.ExtendValue(dv), Q(13)); Q(1).Add(Q(13));
-                Q(12).Set(WideArithmetic.MultiplySigned576(Signed576.ExtendValue(d), side * 2));
-                Q(12).Rational.CopyTo(Q(1).Radical); Q(1).Signs[1] = Q(12).Signs[0];
-                Q(2).Set(WideArithmetic.MultiplySigned576(WideArithmetic.MultiplySigned320(du, d), 2));
-                if (du.Sign < 0) { Q(0).MultiplySign(-1); Q(1).MultiplySign(-1); Q(2).MultiplySign(-1); }
-                Keep();
-            }
+                for (int side = -1; side <= 1; side += 2)
+                {
+                    Signed320 d = bound == 0 ? _lowerD : _upperD;
+                    Signed576 cut = bound == 0 ? _lower : _upper;
+                    // q=(cut-u/2+side*dv*sqrt(QH)/H)/du must stay on
+                    // the finite core. Its two signed tests retain the radical.
+                    Q(12).Set(WideArithmetic.MultiplySigned576(cut, 2)); Q(13).Set(WideArithmetic.MultiplySigned320(u, d)); Q(12).Add(Q(13), -1);
+                    ContactQuadratic.Scale(Q(12), h, Q(15));
+                    Q(13).Set(WideArithmetic.MultiplySigned576(WideArithmetic.MultiplySigned320(dv, d), side * 2));
+                    Q(13).Rational.CopyTo(Q(15).Radical); Q(15).Signs[1] = Q(13).Signs[0];
+                    Q(12).Set(WideArithmetic.MultiplySigned576(WideArithmetic.MultiplySigned320(du, d), 2));
+                    ContactQuadratic.Scale(Q(12), h, Q(16));
+                    if (du.Sign < 0) { Q(15).MultiplySign(-1); Q(16).MultiplySign(-1); }
+                    if (Q(15).Sign(Root(0)) < 0) continue;
+                    Q(16).Add(Q(15), -1); if (Q(16).Sign(Root(0)) < 0) continue;
+                    Q(0).Set(WideArithmetic.MultiplySigned576(cut, 2));
+                    ContactQuadratic.Scale(Q(0), Signed576.ExtendValue(du), Q(12)); Q(12).CopyTo(Q(0));
+                    Q(12).Set(WideArithmetic.SubtractSigned576(WideArithmetic.MultiplySigned320(v, du), WideArithmetic.MultiplySigned320(u, dv)));
+                    ContactQuadratic.Scale(Q(12), Signed576.ExtendValue(d), Q(1));
+                    Q(12).Set(WideArithmetic.MultiplySigned576(cut, 2)); ContactQuadratic.Scale(Q(12), Signed576.ExtendValue(dv), Q(13)); Q(1).Add(Q(13));
+                    Q(12).Set(WideArithmetic.MultiplySigned576(Signed576.ExtendValue(d), side * 2));
+                    Q(12).Rational.CopyTo(Q(1).Radical); Q(1).Signs[1] = Q(12).Signs[0];
+                    Q(2).Set(WideArithmetic.MultiplySigned576(WideArithmetic.MultiplySigned320(du, d), 2));
+                    if (du.Sign < 0) { Q(0).MultiplySign(-1); Q(1).MultiplySign(-1); Q(2).MultiplySign(-1); }
+                    Keep();
+                }
         }
 
         private void Keep()

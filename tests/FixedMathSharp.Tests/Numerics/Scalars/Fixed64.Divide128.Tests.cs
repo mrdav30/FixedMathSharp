@@ -46,9 +46,9 @@ public sealed class Fixed64Divide128Tests
         };
         ulong[] lows = { 0, 1, uint.MaxValue, 1UL << 32, 1UL << 63, ulong.MaxValue - 1, ulong.MaxValue };
         foreach (ulong divisor in divisors)
-        foreach (ulong high in new[] { 0UL, divisor / 2, divisor - 1 })
-        foreach (ulong low in lows)
-            AssertDivision(high, low, divisor);
+            foreach (ulong high in new[] { 0UL, divisor / 2, divisor - 1 })
+                foreach (ulong low in lows)
+                    AssertDivision(high, low, divisor);
     }
 
     [Fact]

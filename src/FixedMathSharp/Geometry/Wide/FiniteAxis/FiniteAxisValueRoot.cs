@@ -40,9 +40,12 @@ internal ref struct FiniteAxisValueRoot
         cell[words..].Clear();
         return new FiniteAxisValueRoot
         {
-            Coefficients = coefficients[..source.Coefficients.Length], Signs = signs[..source.Signs.Length],
-            LowerNumerator = cell, DenominatorShift = source.DenominatorShift,
-            Ordinal = source.Ordinal, IsRational = source.IsRational
+            Coefficients = coefficients[..source.Coefficients.Length],
+            Signs = signs[..source.Signs.Length],
+            LowerNumerator = cell,
+            DenominatorShift = source.DenominatorShift,
+            Ordinal = source.Ordinal,
+            IsRational = source.IsRational
         };
     }
 }

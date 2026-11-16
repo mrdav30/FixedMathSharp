@@ -6,8 +6,8 @@
 //=======================================================================
 
 using System;
-using static FixedMathSharp.Geometry.CylinderContactAlgebra;
 using static FixedMathSharp.Geometry.ContactQuadratic;
+using static FixedMathSharp.Geometry.CylinderContactAlgebra;
 using static FixedMathSharp.Geometry.TriangleQuadraticSlice;
 
 namespace FixedMathSharp.Geometry;

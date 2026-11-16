@@ -35,25 +35,25 @@ public sealed class ConePlaneRayMaterializationTests
         BigInteger bound = (BigInteger)heightRaw + 2 * (BigInteger)radiusRaw;
         BigInteger gap = (bound + 1) / 2;
         for (int axis = 0; axis < 3; axis++)
-        for (int side = -1; side <= 1; side += 2)
-        for (int margin = -1; margin <= 1; margin++)
-        {
-            BigInteger centerRaw = side > 0 ? (BigInteger)long.MaxValue - gap - margin
-                : (BigInteger)long.MinValue + gap + margin;
-            if (centerRaw < long.MinValue || centerRaw > long.MaxValue) centerRaw = 0;
-            Vector3d center = Vector3d.Zero; center[axis] = Fixed64.FromRaw((long)centerRaw);
-            var plane = new FixedTriangle(new Vector3d(0, -2, -2), new Vector3d(0, 2, -2), new Vector3d(0, 0, 2));
-            var frame = new ConePlaneRayFrame(plane, center, FixedQuaternion.Identity,
-                center, FixedQuaternion.Identity, Fixed64.FromRaw(heightRaw), Fixed64.FromRaw(radiusRaw));
-            bool expected = true;
-            for (int coordinate = 0; coordinate < 3; coordinate++)
-            {
-                BigInteger doubled = 2 * (BigInteger)center[coordinate].m_rawValue;
-                expected &= doubled - bound >= 2 * (BigInteger)long.MinValue
-                    && doubled + bound <= 2 * (BigInteger)long.MaxValue;
-            }
-            Assert.Equal(expected, ConePlaneRayPointMaterialization.IsWorldRangeRepresentable(frame));
-        }
+            for (int side = -1; side <= 1; side += 2)
+                for (int margin = -1; margin <= 1; margin++)
+                {
+                    BigInteger centerRaw = side > 0 ? (BigInteger)long.MaxValue - gap - margin
+                        : (BigInteger)long.MinValue + gap + margin;
+                    if (centerRaw < long.MinValue || centerRaw > long.MaxValue) centerRaw = 0;
+                    Vector3d center = Vector3d.Zero; center[axis] = Fixed64.FromRaw((long)centerRaw);
+                    var plane = new FixedTriangle(new Vector3d(0, -2, -2), new Vector3d(0, 2, -2), new Vector3d(0, 0, 2));
+                    var frame = new ConePlaneRayFrame(plane, center, FixedQuaternion.Identity,
+                        center, FixedQuaternion.Identity, Fixed64.FromRaw(heightRaw), Fixed64.FromRaw(radiusRaw));
+                    bool expected = true;
+                    for (int coordinate = 0; coordinate < 3; coordinate++)
+                    {
+                        BigInteger doubled = 2 * (BigInteger)center[coordinate].m_rawValue;
+                        expected &= doubled - bound >= 2 * (BigInteger)long.MinValue
+                            && doubled + bound <= 2 * (BigInteger)long.MaxValue;
+                    }
+                    Assert.Equal(expected, ConePlaneRayPointMaterialization.IsWorldRangeRepresentable(frame));
+                }
     }
 
     [Theory]

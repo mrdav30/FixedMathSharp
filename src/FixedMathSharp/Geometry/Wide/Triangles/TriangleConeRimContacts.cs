@@ -7,8 +7,8 @@
 
 using System;
 using System.Runtime.CompilerServices;
-using static FixedMathSharp.Geometry.CylinderContactAlgebra;
 using static FixedMathSharp.Geometry.CircularRimContactAlgebra;
+using static FixedMathSharp.Geometry.CylinderContactAlgebra;
 
 namespace FixedMathSharp.Geometry;
 
@@ -147,7 +147,10 @@ internal static class TriangleConeRimContacts
                 continue;
             var candidate = new Selection
             {
-                HasValue = true, First = first, Second = second, Edge = edge,
+                HasValue = true,
+                First = first,
+                Second = second,
+                Edge = edge,
                 ParameterOrdinal = ordinal
             };
             if (gapSign == 0)
@@ -248,8 +251,12 @@ internal static class TriangleConeRimContacts
 
     private static FiniteAxisValueRoot Restore(ReadOnlySpan<ulong> values, ReadOnlySpan<sbyte> signs,
         Span<ulong> cell, in Selection selection) => new()
-    {
-        Coefficients = values, Signs = signs, LowerNumerator = cell,
-        DenominatorShift = selection.ValueShift, Ordinal = selection.ValueOrdinal, IsRational = selection.IsRational
-    };
+        {
+            Coefficients = values,
+            Signs = signs,
+            LowerNumerator = cell,
+            DenominatorShift = selection.ValueShift,
+            Ordinal = selection.ValueOrdinal,
+            IsRational = selection.IsRational
+        };
 }

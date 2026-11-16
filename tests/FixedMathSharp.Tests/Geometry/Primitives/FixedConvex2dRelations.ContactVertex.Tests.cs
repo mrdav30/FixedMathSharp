@@ -1,5 +1,5 @@
-using FixedMathSharp.Geometry;
 using System;
+using FixedMathSharp.Geometry;
 using Xunit;
 
 namespace FixedMathSharp.Tests.Bounds;
@@ -29,7 +29,10 @@ public sealed class FixedConvex2dContactVertexTests
     }
 
     [Theory]
-    [InlineData(0, true)] [InlineData(1, false)] [InlineData(2, false)] [InlineData(-2, true)]
+    [InlineData(0, true)]
+    [InlineData(1, false)]
+    [InlineData(2, false)]
+    [InlineData(-2, true)]
     public void ExactFanBoundary_ShouldRetainTheOriginalAxisSign(int rawX, bool admitted)
     {
         var witness = Anchor(Vector2d.Zero);
@@ -39,9 +42,12 @@ public sealed class FixedConvex2dContactVertexTests
     }
 
     [Theory]
-    [InlineData(-2, 0, 2, 0, 2)] [InlineData(2, 0, -2, 0, 2)]
-    [InlineData(2, 3, -2, -2, 2)] [InlineData(2, -3, -2, 2, 2)]
-    [InlineData(0, 0, 0, 0, 2)] [InlineData(2, 3, -2, -3, 0)]
+    [InlineData(-2, 0, 2, 0, 2)]
+    [InlineData(2, 0, -2, 0, 2)]
+    [InlineData(2, 3, -2, -2, 2)]
+    [InlineData(2, -3, -2, 2, 2)]
+    [InlineData(0, 0, 0, 0, 2)]
+    [InlineData(2, 3, -2, -3, 0)]
     public void ClosestFiniteCoreAxis_ShouldRemainExactAcrossEndpointsAndInterior(int x, int y, int dx, int dy, int length)
     {
         Vector2d origin = new(7, -3);
@@ -137,7 +143,9 @@ public sealed class FixedConvex2dContactVertexTests
     }
 
     [Theory]
-    [InlineData(-1)] [InlineData(0)] [InlineData(1)]
+    [InlineData(-1)]
+    [InlineData(0)]
+    [InlineData(1)]
     public void MissingOverlapOrAdmissibleFan_ShouldRemainWithoutContact(int side)
     {
         Vector2d[] polygon = { new(-1, -1), new(1, -1), new(1, 1), new(-1, 1) };
@@ -197,7 +205,10 @@ public sealed class FixedConvex2dContactVertexTests
     }
 
     [Theory]
-    [InlineData(-2, -1)] [InlineData(-1, 1)] [InlineData(0, 0)] [InlineData(1, 2)]
+    [InlineData(-2, -1)]
+    [InlineData(-1, 1)]
+    [InlineData(0, 0)]
+    [InlineData(1, 2)]
     public void FullSpanPointLocation_ShouldRetainBothOriginalEndpoints(int x, int expected)
     {
         Assert.Equal(expected, WideConvex2dRelations.LocateBoundaryPoint(Anchor(new(x, 0)), Vector2d.Zero,
@@ -216,7 +227,11 @@ public sealed class FixedConvex2dContactVertexTests
     }
 
     [Theory]
-    [InlineData(0)] [InlineData(1)] [InlineData(2)] [InlineData(3)] [InlineData(4)]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
     public void SupportingLineDegeneracyAndNonparallelFrames_ShouldRemainDistinct(int kind)
     {
         FixedSegment2d first = kind == 1 ? new(Vector2d.Zero, Vector2d.Zero) : kind == 0
@@ -240,8 +255,11 @@ public sealed class FixedConvex2dContactVertexTests
     }
 
     [Theory]
-    [InlineData(-1, true)] [InlineData(0, true)] [InlineData(1, true)]
-    [InlineData(2, false)] [InlineData(3, false)]
+    [InlineData(-1, true)]
+    [InlineData(0, true)]
+    [InlineData(1, true)]
+    [InlineData(2, false)]
+    [InlineData(3, false)]
     public void StrictConvexClassification_ShouldDistinguishPenetrationFromTouchWithoutRoundedDepth(int offset, bool penetrates)
     {
         Vector2d[] square = { new(-1, -1), new(1, -1), new(1, 1), new(-1, 1) };
@@ -253,7 +271,9 @@ public sealed class FixedConvex2dContactVertexTests
     }
 
     [Theory]
-    [InlineData(-1, true, true)] [InlineData(0, false, true)] [InlineData(1, false, false)]
+    [InlineData(-1, true, true)]
+    [InlineData(0, false, true)]
+    [InlineData(1, false, false)]
     public void CapsuleClassification_ShouldKeepClosedTouchSeparateFromStrictPenetration(int offset, bool strict, bool closed)
     {
         Vector2d[] square = { new(-1, -1), new(1, -1), new(1, 1), new(-1, 1) };
@@ -282,7 +302,9 @@ public sealed class FixedConvex2dContactVertexTests
     }
 
     [Theory]
-    [InlineData(-1, false, false)] [InlineData(0, false, true)] [InlineData(1, true, true)]
+    [InlineData(-1, false, false)]
+    [InlineData(0, false, true)]
+    [InlineData(1, true, true)]
     public void ObliqueConvexClassification_ShouldRetainSubrawPenetration(int offset, bool strict, bool closed)
     {
         Vector2d[] first = { new(-2, 1), new(0, 0), new(2, 4), new(0, 5) };
@@ -302,7 +324,9 @@ public sealed class FixedConvex2dContactVertexTests
     }
 
     [Theory]
-    [InlineData(0, 0, true)] [InlineData(1, 0, false)] [InlineData(0, 1, false)]
+    [InlineData(0, 0, true)]
+    [InlineData(1, 0, false)]
+    [InlineData(0, 1, false)]
     public void ClosedCollapsedConvexes_ShouldRetainFiniteCoordinateExtent(int x, int y, bool closed)
     {
         Vector2d[] point = { Vector2d.Zero, Vector2d.Zero, Vector2d.Zero };

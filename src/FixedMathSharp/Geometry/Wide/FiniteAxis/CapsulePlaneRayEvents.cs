@@ -186,28 +186,28 @@ internal static class CapsulePlaneRayEvents
             // The sagittal diameter contains the ray extrema. Its transverse
             // diameter supplies independent finite coverage on the same ellipse.
             for (int kind = 0; kind < 2; kind++)
-            for (int branch = -1; branch <= 1; branch += 2)
-            {
-                var descriptor = new CapsulePlaneRayEvent(CapsulePlaneRayEventKind.Sagittal, kind == 0 ? 0 : 3, branch);
-                if (targeted && !target.Matches(descriptor)) continue;
-                CopyRadicand(radial, root);
-                ContactQuadratic.Scale(radial, Signed832.ExtendValue(frame.Normal.Y), d);
-                ContactQuadratic.Scale(radial, frame.PlaneConstant, y);
-                coefficient.Set(Signed832.ExtendValue(radius));
-                ContactQuadratic.Scale(coefficient, Signed832.ExtendValue(kind == 0 ? frame.Normal.X : frame.Normal.Z), term);
-                if (kind != 0) term.MultiplySign(-1);
-                ContactQuadratic.Scale(term, Signed832.ExtendValue(frame.Normal.Y), work); SetRadical(x, work, branch);
-                ContactQuadratic.Scale(coefficient, Signed832.ExtendValue(kind == 0 ? frame.Normal.Z : frame.Normal.X), term);
-                ContactQuadratic.Scale(term, Signed832.ExtendValue(frame.Normal.Y), work); SetRadical(z, work, branch);
-                if (kind == 0)
+                for (int branch = -1; branch <= 1; branch += 2)
                 {
-                    ContactQuadratic.Scale(radial, Signed832.ExtendValue(radius), work);
-                    SetRadical(term, work, -branch); y.Add(term);
+                    var descriptor = new CapsulePlaneRayEvent(CapsulePlaneRayEventKind.Sagittal, kind == 0 ? 0 : 3, branch);
+                    if (targeted && !target.Matches(descriptor)) continue;
+                    CopyRadicand(radial, root);
+                    ContactQuadratic.Scale(radial, Signed832.ExtendValue(frame.Normal.Y), d);
+                    ContactQuadratic.Scale(radial, frame.PlaneConstant, y);
+                    coefficient.Set(Signed832.ExtendValue(radius));
+                    ContactQuadratic.Scale(coefficient, Signed832.ExtendValue(kind == 0 ? frame.Normal.X : frame.Normal.Z), term);
+                    if (kind != 0) term.MultiplySign(-1);
+                    ContactQuadratic.Scale(term, Signed832.ExtendValue(frame.Normal.Y), work); SetRadical(x, work, branch);
+                    ContactQuadratic.Scale(coefficient, Signed832.ExtendValue(kind == 0 ? frame.Normal.Z : frame.Normal.X), term);
+                    ContactQuadratic.Scale(term, Signed832.ExtendValue(frame.Normal.Y), work); SetRadical(z, work, branch);
+                    if (kind == 0)
+                    {
+                        ContactQuadratic.Scale(radial, Signed832.ExtendValue(radius), work);
+                        SetRadical(term, work, -branch); y.Add(term);
+                    }
+                    if (d.Signs[0] < 0) { x.MultiplySign(-1); y.MultiplySign(-1); z.MultiplySign(-1); d.MultiplySign(-1); }
+                    if (ContainsPrimitivePoint(frame, y, d, root, 0))
+                        found |= EmitPoint(source, frame, descriptor, orientation, x, y, z, d, root, ref maximum, visitor, admitted: true);
                 }
-                if (d.Signs[0] < 0) { x.MultiplySign(-1); y.MultiplySign(-1); z.MultiplySign(-1); d.MultiplySign(-1); }
-                if (ContainsPrimitivePoint(frame, y, d, root, 0))
-                    found |= EmitPoint(source, frame, descriptor, orientation, x, y, z, d, root, ref maximum, visitor, admitted: true);
-            }
         }
         for (int endpoint = 0; endpoint < 2; endpoint++)
         {

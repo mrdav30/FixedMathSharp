@@ -32,7 +32,8 @@ public sealed class CenteredCapsuleAnchor3dTests
     }
 
     [Theory]
-    [InlineData(-1)] [InlineData(1)]
+    [InlineData(-1)]
+    [InlineData(1)]
     public void AnchoredFiniteCoreDirection_ShouldRetainOddLengthSubRawEndpoints(int sign)
     {
         var point = WideGeometry.GetCenteredCapsuleSupportAnchor(Vector3d.Zero,

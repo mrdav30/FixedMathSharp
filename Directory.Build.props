@@ -1,5 +1,7 @@
 <Project>
   <PropertyGroup>
+    <!-- Resolve the SDK default before deriving configuration-specific restore paths. -->
+    <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
     <_FixedMathSharpHostPlatform Condition="$([MSBuild]::IsOSPlatform('Windows'))">windows</_FixedMathSharpHostPlatform>
     <_FixedMathSharpHostPlatform Condition="'$(_FixedMathSharpHostPlatform)' == '' And $([MSBuild]::IsOSPlatform('OSX'))">macos</_FixedMathSharpHostPlatform>
     <_FixedMathSharpHostPlatform Condition="'$(_FixedMathSharpHostPlatform)' == ''">unix</_FixedMathSharpHostPlatform>

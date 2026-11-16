@@ -6,8 +6,10 @@ namespace FixedMathSharp.Tests;
 public sealed class FiniteSlabClippedSectionTests
 {
     [Theory]
-    [InlineData(0, false)] [InlineData(0, true)]
-    [InlineData(2, false)] [InlineData(2, true)]
+    [InlineData(0, false)]
+    [InlineData(0, true)]
+    [InlineData(2, false)]
+    [InlineData(2, true)]
     public void RetainedSegment_ShouldKeepClosedCurvedAdmissionWithoutRoundingItsCut(int length, bool affine)
     {
         var source = affine

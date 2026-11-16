@@ -128,8 +128,8 @@ public sealed class CenteredCylinderPolytopeStrictOverlapTests
         Vector3d origin = Point(long.MinValue, long.MaxValue, long.MinValue);
         foreach (long step in new[] { -1L, 0L, 1L })
         {
-            var triangle = new FixedTriangle(Point(4+step, -4, -4),
-                Point(4+step, 4, -4), Point(4+step, 0, 4));
+            var triangle = new FixedTriangle(Point(4 + step, -4, -4),
+                Point(4 + step, 4, -4), Point(4 + step, 0, 4));
             Assert.Equal(step < 0, Triangle(origin, rotation, Raw(8), Raw(4),
                 triangle, origin, rotation));
         }
@@ -214,14 +214,14 @@ public sealed class CenteredCylinderPolytopeStrictOverlapTests
 
         long[] limits = { long.MinValue, -1L, 0L, 1L, long.MaxValue };
         foreach (long coordinate in limits)
-        foreach (long translation in limits)
-        {
-            AssertOracle(Point(long.MinValue, translation, long.MaxValue), cylinderRotation,
-                Fixed64.MaxValue, Fixed64.MaxValue,
-                new FixedTriangle(Point(coordinate, long.MaxValue, long.MinValue),
-                    Point(long.MaxValue, long.MinValue, coordinate), Point(long.MinValue, coordinate, long.MaxValue)),
-                Point(translation, long.MaxValue, long.MinValue), shapeRotation);
-        }
+            foreach (long translation in limits)
+            {
+                AssertOracle(Point(long.MinValue, translation, long.MaxValue), cylinderRotation,
+                    Fixed64.MaxValue, Fixed64.MaxValue,
+                    new FixedTriangle(Point(coordinate, long.MaxValue, long.MinValue),
+                        Point(long.MaxValue, long.MinValue, coordinate), Point(long.MinValue, coordinate, long.MaxValue)),
+                    Point(translation, long.MaxValue, long.MinValue), shapeRotation);
+            }
     }
 
     [Fact]
@@ -280,29 +280,29 @@ public sealed class CenteredCylinderPolytopeStrictOverlapTests
         }
         internal int Sign => N.Sign;
         public static implicit operator Rational(long n) => new(n, BigInteger.One);
-        public static Rational operator +(Rational a, Rational b) => new(a.N*b.D+b.N*a.D, a.D*b.D);
-        public static Rational operator -(Rational a, Rational b) => new(a.N*b.D-b.N*a.D, a.D*b.D);
-        public static Rational operator *(Rational a, Rational b) => new(a.N*b.N, a.D*b.D);
-        public static Rational operator /(Rational a, Rational b) => new(a.N*b.D, a.D*b.N);
+        public static Rational operator +(Rational a, Rational b) => new(a.N * b.D + b.N * a.D, a.D * b.D);
+        public static Rational operator -(Rational a, Rational b) => new(a.N * b.D - b.N * a.D, a.D * b.D);
+        public static Rational operator *(Rational a, Rational b) => new(a.N * b.N, a.D * b.D);
+        public static Rational operator /(Rational a, Rational b) => new(a.N * b.D, a.D * b.N);
     }
 
     private readonly record struct OraclePoint(Rational X, Rational Y, Rational Z)
     {
         internal static OraclePoint From(Vector3d value) => new(value.X.m_rawValue, value.Y.m_rawValue, value.Z.m_rawValue);
-        public static OraclePoint operator +(OraclePoint a, OraclePoint b) => new(a.X+b.X, a.Y+b.Y, a.Z+b.Z);
-        public static OraclePoint operator -(OraclePoint a, OraclePoint b) => new(a.X-b.X, a.Y-b.Y, a.Z-b.Z);
-        public static OraclePoint operator *(OraclePoint a, Rational t) => new(a.X*t, a.Y*t, a.Z*t);
+        public static OraclePoint operator +(OraclePoint a, OraclePoint b) => new(a.X + b.X, a.Y + b.Y, a.Z + b.Z);
+        public static OraclePoint operator -(OraclePoint a, OraclePoint b) => new(a.X - b.X, a.Y - b.Y, a.Z - b.Z);
+        public static OraclePoint operator *(OraclePoint a, Rational t) => new(a.X * t, a.Y * t, a.Z * t);
     }
 
     private static OraclePoint OracleRotate(OraclePoint p, FixedQuaternion q, bool inverse)
     {
         BigInteger x = q.X.m_rawValue, y = q.Y.m_rawValue, z = q.Z.m_rawValue, w = q.W.m_rawValue;
         if (inverse) { x = -x; y = -y; z = -z; }
-        BigInteger d = x*x+y*y+z*z+w*w;
+        BigInteger d = x * x + y * y + z * z + w * w;
         return new OraclePoint(
-            p.X*new Rational(x*x-y*y-z*z+w*w,d)+p.Y*new Rational(2*(x*y-z*w),d)+p.Z*new Rational(2*(x*z+y*w),d),
-            p.X*new Rational(2*(x*y+z*w),d)+p.Y*new Rational(y*y-x*x-z*z+w*w,d)+p.Z*new Rational(2*(y*z-x*w),d),
-            p.X*new Rational(2*(x*z-y*w),d)+p.Y*new Rational(2*(y*z+x*w),d)+p.Z*new Rational(z*z-x*x-y*y+w*w,d));
+            p.X * new Rational(x * x - y * y - z * z + w * w, d) + p.Y * new Rational(2 * (x * y - z * w), d) + p.Z * new Rational(2 * (x * z + y * w), d),
+            p.X * new Rational(2 * (x * y + z * w), d) + p.Y * new Rational(y * y - x * x - z * z + w * w, d) + p.Z * new Rational(2 * (y * z - x * w), d),
+            p.X * new Rational(2 * (x * z - y * w), d) + p.Y * new Rational(2 * (y * z + x * w), d) + p.Z * new Rational(z * z - x * x - y * y + w * w, d));
     }
 
     private static void AssertOracle(Vector3d center, FixedQuaternion rotation, Fixed64 height,
@@ -314,7 +314,7 @@ public sealed class CenteredCylinderPolytopeStrictOverlapTests
         Rational halfHeight = new(height.m_rawValue, 2);
         bool axialInterior = points.Exists(p => (p.Y + halfHeight).Sign > 0)
             && points.Exists(p => (p.Y - halfHeight).Sign < 0);
-        points = Clip(Clip(points, halfHeight, true), (Rational)0-halfHeight, false);
+        points = Clip(Clip(points, halfHeight, true), (Rational)0 - halfHeight, false);
         bool expected = false;
         if (axialInterior && points.Count > 0)
         {
@@ -323,15 +323,15 @@ public sealed class CenteredCylinderPolytopeStrictOverlapTests
             bool originInside = true;
             for (int index = 0; index < points.Count; index++)
             {
-                OraclePoint a = points[index], b = points[(index+1)%points.Count];
-                OraclePoint edge = b-a;
-                Rational q = edge.X*edge.X+edge.Z*edge.Z;
-                Rational parameter = q.Sign == 0 ? 0 : ((Rational)0-a.X*edge.X-a.Z*edge.Z)/q;
+                OraclePoint a = points[index], b = points[(index + 1) % points.Count];
+                OraclePoint edge = b - a;
+                Rational q = edge.X * edge.X + edge.Z * edge.Z;
+                Rational parameter = q.Sign == 0 ? 0 : ((Rational)0 - a.X * edge.X - a.Z * edge.Z) / q;
                 if (parameter.Sign < 0) parameter = 0;
-                if ((parameter-(Rational)1).Sign > 0) parameter = 1;
-                OraclePoint closest = a+edge*parameter;
-                expected |= (closest.X*closest.X+closest.Z*closest.Z-radiusSquared).Sign < 0;
-                int cross = (a.X*b.Z-a.Z*b.X).Sign;
+                if ((parameter - (Rational)1).Sign > 0) parameter = 1;
+                OraclePoint closest = a + edge * parameter;
+                expected |= (closest.X * closest.X + closest.Z * closest.Z - radiusSquared).Sign < 0;
+                int cross = (a.X * b.Z - a.Z * b.X).Sign;
                 if (cross != 0)
                 {
                     if (orientation != 0 && orientation != cross) originInside = false;
@@ -349,11 +349,11 @@ public sealed class CenteredCylinderPolytopeStrictOverlapTests
         var result = new List<OraclePoint>();
         for (int index = 0; index < points.Count; index++)
         {
-            OraclePoint a = points[index], b = points[(index+1)%points.Count];
-            bool aInside = upper ? (a.Y-plane).Sign <= 0 : (a.Y-plane).Sign >= 0;
-            bool bInside = upper ? (b.Y-plane).Sign <= 0 : (b.Y-plane).Sign >= 0;
+            OraclePoint a = points[index], b = points[(index + 1) % points.Count];
+            bool aInside = upper ? (a.Y - plane).Sign <= 0 : (a.Y - plane).Sign >= 0;
+            bool bInside = upper ? (b.Y - plane).Sign <= 0 : (b.Y - plane).Sign >= 0;
             if (aInside) result.Add(a);
-            if (aInside != bInside) result.Add(a+(b-a)*((plane-a.Y)/(b.Y-a.Y)));
+            if (aInside != bInside) result.Add(a + (b - a) * ((plane - a.Y) / (b.Y - a.Y)));
         }
         return result;
     }

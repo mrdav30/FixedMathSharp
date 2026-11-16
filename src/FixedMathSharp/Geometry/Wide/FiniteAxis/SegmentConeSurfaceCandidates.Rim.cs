@@ -7,8 +7,8 @@
 
 using System;
 using System.Runtime.CompilerServices;
-using static FixedMathSharp.Geometry.CylinderContactAlgebra;
 using static FixedMathSharp.Geometry.CircularRimContactAlgebra;
+using static FixedMathSharp.Geometry.CylinderContactAlgebra;
 
 namespace FixedMathSharp.Geometry;
 
@@ -44,9 +44,12 @@ internal static partial class SegmentConeSurfaceCandidates
         // from caller storage explicitly; the local parameter chart cannot escape.
         value = new FiniteAxisValueRoot
         {
-            Coefficients = values[..mapped.Coefficients.Length], Signs = valueSigns[..mapped.Signs.Length],
-            LowerNumerator = valueCell, DenominatorShift = mapped.DenominatorShift,
-            Ordinal = mapped.Ordinal, IsRational = mapped.IsRational
+            Coefficients = values[..mapped.Coefficients.Length],
+            Signs = valueSigns[..mapped.Signs.Length],
+            LowerNumerator = valueCell,
+            DenominatorShift = mapped.DenominatorShift,
+            Ordinal = mapped.Ordinal,
+            IsRational = mapped.IsRational
         };
         return true;
     }
@@ -199,13 +202,13 @@ internal static partial class SegmentConeSurfaceCandidates
         WideDirection3d start = new(geometry.A.X, WideArithmetic.SubtractSigned576(geometry.Cap, geometry.A.Y), geometry.A.Z);
         WideDirection3d delta = new(geometry.Edge.X, WideArithmetic.Negate(geometry.Edge.Y), geometry.Edge.Z);
         for (int axis = 0; axis < 3; axis++)
-        for (int power = 0; power < 2; power++)
-        {
-            Span<ulong> destination = Slot(points, 2 * axis + power, Words);
-            CylinderContactAlgebra.DifferenceOfProducts(power == 0 ? d0 : d1, Signed832.ExtendValue(Component(start, axis)),
-                power == 0 ? a0 : a1, Signed832.ExtendValue(Component(delta, axis)), destination, out int coefficientSign);
-            pointSigns[2 * axis + power] = (sbyte)(denominatorSign * coefficientSign);
-        }
+            for (int power = 0; power < 2; power++)
+            {
+                Span<ulong> destination = Slot(points, 2 * axis + power, Words);
+                CylinderContactAlgebra.DifferenceOfProducts(power == 0 ? d0 : d1, Signed832.ExtendValue(Component(start, axis)),
+                    power == 0 ? a0 : a1, Signed832.ExtendValue(Component(delta, axis)), destination, out int coefficientSign);
+                pointSigns[2 * axis + power] = (sbyte)(denominatorSign * coefficientSign);
+            }
         Write(points, pointSigns, 6, d0); Write(points, pointSigns, 7, d1);
         pointSigns[6] *= (sbyte)denominatorSign; pointSigns[7] *= (sbyte)denominatorSign;
         if (WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, points.Slice(2 * Words, 2 * Words), pointSigns.Slice(2, 2)) < 0)

@@ -135,8 +135,12 @@ public sealed class CylinderPairRimFeaturesTests
                     cell.CopyTo(freshCell, 0);
                     var fresh = new FiniteAxisValueRoot
                     {
-                        Coefficients = root.Coefficients, Signs = root.Signs, LowerNumerator = freshCell,
-                        DenominatorShift = root.DenominatorShift, Ordinal = root.Ordinal, IsRational = root.IsRational
+                        Coefficients = root.Coefficients,
+                        Signs = root.Signs,
+                        LowerNumerator = freshCell,
+                        DenominatorShift = root.DenominatorShift,
+                        Ordinal = root.Ordinal,
+                        IsRational = root.IsRational
                     };
                     int slope = CylinderPairRimFeatures.GetSimpleValueSlopeSign(root);
                     int freshMask = 0;

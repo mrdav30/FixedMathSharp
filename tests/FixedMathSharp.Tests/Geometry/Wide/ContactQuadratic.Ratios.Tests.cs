@@ -70,7 +70,7 @@ public sealed class ContactQuadraticRatioTests
         ContactQuadratic d = ContactQuadratic.At(values, signs, 3, words);
         BigInteger aScale = rationalPower < 0 ? BigInteger.Zero : BigInteger.One << rationalPower;
         BigInteger bScale = rationalOnly ? BigInteger.Zero : BigInteger.One << radicalPower;
-        BigInteger[] original = { 5*aScale, -3*bScale, 0, 2*bScale, -14*aScale, 0, 9*aScale, bScale };
+        BigInteger[] original = { 5 * aScale, -3 * bScale, 0, 2 * bScale, -14 * aScale, 0, 9 * aScale, bScale };
         SetIntegerField(x, original[0], original[1]); SetIntegerField(y, original[2], original[3]);
         SetIntegerField(z, original[4], original[5]); SetIntegerField(d, original[6], original[7]);
         // These banks have no mathematical contribution, despite stale storage.
@@ -101,8 +101,8 @@ public sealed class ContactQuadraticRatioTests
             BigInteger a = original[2 * coordinate], b = original[2 * coordinate + 1] * factor;
             BigInteger na = normalized[2 * coordinate], nb = normalized[2 * coordinate + 1];
             BigInteger da = original[6], db = original[7] * factor, nda = normalized[6], ndb = normalized[7];
-            Assert.Equal(BigInteger.Zero, a*nda + b*ndb*newRoot - na*da - nb*db*newRoot);
-            Assert.Equal(BigInteger.Zero, a*ndb + b*nda - na*db - nb*da);
+            Assert.Equal(BigInteger.Zero, a * nda + b * ndb * newRoot - na * da - nb * db * newRoot);
+            Assert.Equal(BigInteger.Zero, a * ndb + b * nda - na * db - nb * da);
         }
 
         static BigInteger ReadMagnitude(ReadOnlySpan<ulong> field)
@@ -240,22 +240,22 @@ public sealed class ContactQuadraticRatioTests
         BigInteger wide = (BigInteger.One << 320) + 3;
         BigInteger[] numerators = { -wide, -7, 0, 5, wide }, denominators = { -wide, -3, 2, wide };
         foreach (BigInteger firstN in numerators)
-        foreach (BigInteger firstD in denominators)
-        foreach (BigInteger secondN in numerators)
-        foreach (BigInteger secondD in denominators)
-        {
-            SetIntegerField(a, firstN, 0); SetIntegerField(b, firstD, 0);
-            SetIntegerField(c, secondN, 0); SetIntegerField(d, secondD, 0);
-            // A retained zero sign can legitimately outlive old borrowed bytes.
-            // Rational comparison must ignore every radical bank in that case.
-            a.Radical.Fill(ulong.MaxValue); b.Radical.Fill(ulong.MaxValue);
-            c.Radical.Fill(ulong.MaxValue); d.Radical.Fill(ulong.MaxValue);
-            ulong[] original = fields.ToArray(); int[] originalSigns = signs.ToArray();
-            int expected = (firstN * secondD - secondN * firstD).Sign * firstD.Sign * secondD.Sign;
-            Assert.Equal(expected, ContactQuadratic.CompareRatios(a, b, new ulong[] { 2 }, c, d, new ulong[] { 3 }));
-            Assert.Equal(0, ContactQuadratic.CompareRatios(a, b, new ulong[] { 2 }, a, b, new ulong[] { 7 }));
-            Assert.True(fields.SequenceEqual(original)); Assert.True(signs.SequenceEqual(originalSigns));
-        }
+            foreach (BigInteger firstD in denominators)
+                foreach (BigInteger secondN in numerators)
+                    foreach (BigInteger secondD in denominators)
+                    {
+                        SetIntegerField(a, firstN, 0); SetIntegerField(b, firstD, 0);
+                        SetIntegerField(c, secondN, 0); SetIntegerField(d, secondD, 0);
+                        // A retained zero sign can legitimately outlive old borrowed bytes.
+                        // Rational comparison must ignore every radical bank in that case.
+                        a.Radical.Fill(ulong.MaxValue); b.Radical.Fill(ulong.MaxValue);
+                        c.Radical.Fill(ulong.MaxValue); d.Radical.Fill(ulong.MaxValue);
+                        ulong[] original = fields.ToArray(); int[] originalSigns = signs.ToArray();
+                        int expected = (firstN * secondD - secondN * firstD).Sign * firstD.Sign * secondD.Sign;
+                        Assert.Equal(expected, ContactQuadratic.CompareRatios(a, b, new ulong[] { 2 }, c, d, new ulong[] { 3 }));
+                        Assert.Equal(0, ContactQuadratic.CompareRatios(a, b, new ulong[] { 2 }, a, b, new ulong[] { 7 }));
+                        Assert.True(fields.SequenceEqual(original)); Assert.True(signs.SequenceEqual(originalSigns));
+                    }
     }
 
     [Theory]
@@ -270,24 +270,24 @@ public sealed class ContactQuadraticRatioTests
         ContactQuadratic result = ContactQuadratic.At(fields, signs, 0, words);
         // A live word12 proves that the direct import retains all 832 bits;
         // the narrow destination instead exercises the complete active prefix.
-        Signed832 value = new(upperWord ? 1UL : 0UL,0UL,0UL,0UL,0UL,0UL,0UL,0UL,0UL,0UL,0UL,0UL,3UL);
+        Signed832 value = new(upperWord ? 1UL : 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 3UL);
         Signed832 original = value;
         fields.Fill(ulong.MaxValue); signs.Fill(-1); result.Set(value);
-        Assert.Equal(1,result.Signs[0]); Assert.Equal(0,result.Signs[1]);
-        for(int index=0;index<words;index++)
+        Assert.Equal(1, result.Signs[0]); Assert.Equal(0, result.Signs[1]);
+        for (int index = 0; index < words; index++)
         {
-            Assert.Equal(index==0?3UL:upperWord&&index==12?1UL:0UL,result.Rational[index]);
-            Assert.Equal(0UL,result.Radical[index]);
+            Assert.Equal(index == 0 ? 3UL : upperWord && index == 12 ? 1UL : 0UL, result.Rational[index]);
+            Assert.Equal(0UL, result.Radical[index]);
         }
         Assert.True(value.Equals(original));
-        Signed832 negative = WideArithmetic.SubtractSigned832(default,value); result.Set(negative);
-        Assert.Equal(-1,result.Signs[0]); Assert.Equal(0,result.Signs[1]);
-        for(int index=0;index<words;index++)
-            Assert.Equal(index==0?3UL:upperWord&&index==12?1UL:0UL,result.Rational[index]);
+        Signed832 negative = WideArithmetic.SubtractSigned832(default, value); result.Set(negative);
+        Assert.Equal(-1, result.Signs[0]); Assert.Equal(0, result.Signs[1]);
+        for (int index = 0; index < words; index++)
+            Assert.Equal(index == 0 ? 3UL : upperWord && index == 12 ? 1UL : 0UL, result.Rational[index]);
         Assert.True(value.Equals(original));
         result.Set(default(Signed832));
-        foreach(ulong limb in fields) Assert.Equal(0UL,limb);
-        Assert.Equal(0,result.Signs[0]); Assert.Equal(0,result.Signs[1]);
+        foreach (ulong limb in fields) Assert.Equal(0UL, limb);
+        Assert.Equal(0, result.Signs[0]); Assert.Equal(0, result.Signs[1]);
     }
 
     [Theory]
@@ -459,11 +459,11 @@ public sealed class ContactQuadraticRatioTests
         {
             SetIntegerField(n, item.A, item.B); SetIntegerField(d, item.C, item.D); WriteMagnitude(item.Root, root);
             foreach (var domain in domains)
-            for (long parity = -1; parity <= 2; parity++)
-            {
-                long expected = RoundQuadraticOracle(item.A, item.B, item.C, item.D, item.Root, domain.Low, domain.High, parity);
-                Assert.Equal(expected, ContactQuadratic.RoundRatio(n, d, root, domain.Low, domain.High, parity).m_rawValue);
-            }
+                for (long parity = -1; parity <= 2; parity++)
+                {
+                    long expected = RoundQuadraticOracle(item.A, item.B, item.C, item.D, item.Root, domain.Low, domain.High, parity);
+                    Assert.Equal(expected, ContactQuadratic.RoundRatio(n, d, root, domain.Low, domain.High, parity).m_rawValue);
+                }
         }
     }
 
@@ -539,16 +539,16 @@ public sealed class ContactQuadraticRatioTests
         // Perfect-square roots make all four signed coefficients independent,
         // while the expected result needs only ordinary integer arithmetic.
         for (int a = -2; a <= 2; a++)
-        for (int b = -2; b <= 2; b++)
-        for (int c = -2; c <= 2; c++)
-        for (int d = -2; d <= 2; d++)
-        {
-            int left = a + 2 * b, right = c + 3 * d;
-            int firstDenominator = 7 + 2 * d, secondDenominator = -8 + 3 * b;
-            int expected = Math.Sign((left * secondDenominator - right * firstDenominator)
-                * Math.Sign(firstDenominator * secondDenominator));
-            Assert.Equal(expected, Compare(a, b, 7, d, 4, c, d, -8, b, 9));
-        }
+            for (int b = -2; b <= 2; b++)
+                for (int c = -2; c <= 2; c++)
+                    for (int d = -2; d <= 2; d++)
+                    {
+                        int left = a + 2 * b, right = c + 3 * d;
+                        int firstDenominator = 7 + 2 * d, secondDenominator = -8 + 3 * b;
+                        int expected = Math.Sign((left * secondDenominator - right * firstDenominator)
+                            * Math.Sign(firstDenominator * secondDenominator));
+                        Assert.Equal(expected, Compare(a, b, 7, d, 4, c, d, -8, b, 9));
+                    }
     }
 
     [Fact]
@@ -656,16 +656,16 @@ public sealed class ContactQuadraticRatioTests
         Span<int> signs = stackalloc int[4];
         ContactQuadratic n = ContactQuadratic.At(values, signs, 0), d = ContactQuadratic.At(values, signs, 1);
         for (int numerator = 0; numerator < 100; numerator++)
-        for (int denominator = 1; denominator < 18; denominator++)
-        {
-            int floor = 0;
-            while ((floor + 1) * (floor + 1) * denominator <= numerator) floor++;
-            int comparison = (4 * numerator).CompareTo(denominator * (2 * floor + 1) * (2 * floor + 1));
-            long expected = floor + (comparison > 0 || comparison == 0 && (floor & 1) != 0 ? 1 : 0);
-            Set(n, numerator, 0); Set(d, denominator, 0);
-            Assert.True(ContactQuadratic.TryRoundSquareRootRatio(n, d, ReadOnlySpan<ulong>.Empty, out Fixed64 result));
-            Assert.Equal(expected, result.m_rawValue);
-        }
+            for (int denominator = 1; denominator < 18; denominator++)
+            {
+                int floor = 0;
+                while ((floor + 1) * (floor + 1) * denominator <= numerator) floor++;
+                int comparison = (4 * numerator).CompareTo(denominator * (2 * floor + 1) * (2 * floor + 1));
+                long expected = floor + (comparison > 0 || comparison == 0 && (floor & 1) != 0 ? 1 : 0);
+                Set(n, numerator, 0); Set(d, denominator, 0);
+                Assert.True(ContactQuadratic.TryRoundSquareRootRatio(n, d, ReadOnlySpan<ulong>.Empty, out Fixed64 result));
+                Assert.Equal(expected, result.m_rawValue);
+            }
     }
 
     private static int Compare(int a, int b, int c, int d, int k,

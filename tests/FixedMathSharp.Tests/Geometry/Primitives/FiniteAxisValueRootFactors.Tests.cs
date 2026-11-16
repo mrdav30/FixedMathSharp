@@ -133,8 +133,8 @@ public sealed class FiniteAxisValueRootFactorsTests
     {
         var result = new BigInteger[left.Length + right.Length - 1];
         for (int i = 0; i < left.Length; i++)
-        for (int j = 0; j < right.Length; j++)
-            result[i + j] += left[i] * right[j];
+            for (int j = 0; j < right.Length; j++)
+                result[i + j] += left[i] * right[j];
         return result;
     }
 

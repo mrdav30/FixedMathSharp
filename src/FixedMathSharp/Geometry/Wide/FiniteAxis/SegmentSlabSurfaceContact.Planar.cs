@@ -426,8 +426,14 @@ internal static partial class SegmentSlabSurfaceContact
 
     private static FiniteAxisValueRoot RestoreObliqueValue(ReadOnlySpan<ulong> values, ReadOnlySpan<sbyte> signs,
         Span<ulong> cell, ObliqueSelection selection) => new()
-    { Coefficients = values, Signs = signs, LowerNumerator = cell, Ordinal = selection.ValueOrdinal,
-        DenominatorShift = selection.ValueShift, IsRational = selection.IsRational };
+        {
+            Coefficients = values,
+            Signs = signs,
+            LowerNumerator = cell,
+            Ordinal = selection.ValueOrdinal,
+            DenominatorShift = selection.ValueShift,
+            IsRational = selection.IsRational
+        };
 
     private static void RimParameter(scoped Input input, WideDirection3d first, WideDirection3d second, int region,
         out Signed832 a0, out Signed832 a1, out Signed832 b0, out Signed832 b1, out Signed832 d0, out Signed832 d1)

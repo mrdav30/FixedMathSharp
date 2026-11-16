@@ -355,7 +355,7 @@ internal static partial class WideOrientedBox
                 }
             }
         }
-            return count;
+        return count;
     }
 
     private static bool HasScaledHullEdge(int first, int second, ReadOnlySpan<int> edges)

@@ -199,7 +199,7 @@ public sealed class FixedSegmentFiniteConeSectionOrderingTests
     [InlineData(true, true)]
     public void SectionParameter_RetainsNondyadicSingletonInEitherInputOrder(bool upper, bool reverse)
     {
-        var segment = new FixedSegment(new Vector3d(-1,0,1), new Vector3d(2,0,1));
+        var segment = new FixedSegment(new Vector3d(-1, 0, 1), new Vector3d(2, 0, 1));
         if (reverse) segment = new FixedSegment(segment.End, segment.Start);
         Span<ulong> values = stackalloc ulong[6 * FiniteSectionPoint.Words];
         Span<int> signs = stackalloc int[6];
@@ -220,7 +220,7 @@ public sealed class FixedSegmentFiniteConeSectionOrderingTests
     [InlineData(true)]
     public void SectionParameter_RetainsBothIrrationalEndpointsOfClosedSection(bool upper)
     {
-        var segment = new FixedSegment(new Vector3d(-2,0,-2), new Vector3d(2,0,2));
+        var segment = new FixedSegment(new Vector3d(-2, 0, -2), new Vector3d(2, 0, 2));
         Span<ulong> values = stackalloc ulong[10 * FiniteSectionPoint.Words];
         Span<int> signs = stackalloc int[10];
         Span<ulong> root = stackalloc ulong[FiniteSectionPoint.RootWords];
@@ -243,7 +243,7 @@ public sealed class FixedSegmentFiniteConeSectionOrderingTests
     public void SectionParameter_UpperExitSupportsConcaveAndLinearCharts(bool linear)
     {
         var segment = linear
-            ? new FixedSegment(new Vector3d(0,1,0), new Vector3d(-1,3,0))
+            ? new FixedSegment(new Vector3d(0, 1, 0), new Vector3d(-1, 3, 0))
             : new FixedSegment(new Vector3d(Fixed64.Half, Fixed64.Zero, Fixed64.Zero), new Vector3d(-Fixed64.Half, (Fixed64)3, Fixed64.Zero));
         Span<ulong> values = stackalloc ulong[6 * FiniteSectionPoint.Words];
         Span<int> signs = stackalloc int[6];

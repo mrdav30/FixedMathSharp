@@ -5,7 +5,9 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
+#if NET10_0_OR_GREATER
 using System;
+#endif
 using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp;

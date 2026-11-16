@@ -199,8 +199,8 @@ public sealed class WideMagnitudeArithmeticTests
             (BigInteger.One << 127) + 3, (BigInteger.One << 192) - 1
         };
         foreach (BigInteger numerator in numerators)
-        foreach (BigInteger divisor in divisors)
-            AssertDivision(numerator, divisor);
+            foreach (BigInteger divisor in divisors)
+                AssertDivision(numerator, divisor);
     }
 
     [Fact]
@@ -267,16 +267,16 @@ public sealed class WideMagnitudeArithmeticTests
     {
         BigInteger[] values = { 0, 1, -1, ulong.MaxValue, -((BigInteger.One << 129) + 7) };
         foreach (BigInteger initial in values)
-        foreach (BigInteger addend in values)
-        {
-            ulong[] destination = EncodeMagnitude(BigInteger.Abs(initial), 8);
-            ulong[] source = EncodeMagnitude(BigInteger.Abs(addend), 3);
-            int sign = initial.Sign;
-            WideArithmetic.AddShiftedSignedMagnitude(source, addend.Sign, shift, destination, ref sign);
-            BigInteger expected = initial + (addend << shift);
-            Assert.Equal(expected.Sign, sign);
-            Assert.Equal(BigInteger.Abs(expected), ToBigInteger(destination));
-        }
+            foreach (BigInteger addend in values)
+            {
+                ulong[] destination = EncodeMagnitude(BigInteger.Abs(initial), 8);
+                ulong[] source = EncodeMagnitude(BigInteger.Abs(addend), 3);
+                int sign = initial.Sign;
+                WideArithmetic.AddShiftedSignedMagnitude(source, addend.Sign, shift, destination, ref sign);
+                BigInteger expected = initial + (addend << shift);
+                Assert.Equal(expected.Sign, sign);
+                Assert.Equal(BigInteger.Abs(expected), ToBigInteger(destination));
+            }
         // Equality and a borrow extending across whole words.
         BigInteger equal = (BigInteger.One << (shift + 65)) - (BigInteger.One << shift);
         ulong[] magnitude = EncodeMagnitude(equal, 8);

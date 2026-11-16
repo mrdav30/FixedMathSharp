@@ -210,6 +210,7 @@ public sealed class FixedTriangleCapsulePlaneRayClippedTests
         Assert.Throws<ArgumentNullException>(() => CapsulePlaneRayEvents.VisitEvents(CapsulePlaneRayEventSource.Plane, frame, 1, full, null!));
         Assert.Throws<ArgumentException>(() => CapsulePlaneRayEvents.VisitEvents(CapsulePlaneRayEventSource.Plane, frame, 1, clip,
             (in CapsulePlaneRayEventSource s, in CapsulePlaneRayFrame f, CapsulePlaneRayEvent e, int o,
-                scoped in CapsulePlaneRaySelection point) => { }));
+                scoped in CapsulePlaneRaySelection point) =>
+            { }));
     }
 }

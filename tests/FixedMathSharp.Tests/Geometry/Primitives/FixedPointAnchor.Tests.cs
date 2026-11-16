@@ -12,26 +12,26 @@ public sealed class FixedPointAnchorTests
     {
         long[] rawValues = { long.MinValue, long.MinValue + 1, -1, 0, 1, long.MaxValue - 1, long.MaxValue };
         foreach (long anchorRaw in rawValues)
-        foreach (long samplingRaw in rawValues)
-        foreach (long offsetRaw in rawValues)
-        {
-            var anchorOrigin = new Vector3d(Fixed64.FromRaw(anchorRaw), Fixed64.FromRaw(-1), Fixed64.FromRaw(1));
-            var samplingOrigin = new Vector3d(Fixed64.FromRaw(samplingRaw), Fixed64.FromRaw(1), Fixed64.FromRaw(-1));
-            var offset = new Vector3d(Fixed64.FromRaw(offsetRaw), Fixed64.FromRaw(3), Fixed64.FromRaw(-3));
-            FixedPointAnchor anchor = FixedPointAnchor.FromTranslatedPoint(anchorOrigin, samplingOrigin, offset);
-            Assert.Equal(anchorOrigin, anchor.Origin); Assert.Equal(FixedQuaternion.Identity, anchor.Rotation);
-            BigInteger expected = (BigInteger)samplingRaw + offsetRaw - anchorRaw;
-            BigInteger actual = (BigInteger)anchor.LocalPoint.X.m_rawValue + anchor.LocalDisplacement.X.m_rawValue
-                + anchor.LocalTranslation.X.m_rawValue;
-            Assert.Equal(expected * Fixed64.Two.m_rawValue, actual * Fixed64.Two.m_rawValue + anchor.ExactLocalTerm.X);
-            Assert.True(anchor.TryGetPointInFrame(samplingOrigin, out Vector3d restored));
-            Assert.Equal(offset, restored);
-            BigInteger expectedWorld = (BigInteger)samplingRaw + offsetRaw;
-            bool representable = expectedWorld >= long.MinValue && expectedWorld <= long.MaxValue;
-            Assert.Equal(representable, anchor.TryGetPoint(out Vector3d world));
-            if (representable)
-                Assert.Equal(new Vector3d(Fixed64.FromRaw((long)expectedWorld), Fixed64.FromRaw(4), Fixed64.FromRaw(-4)), world);
-        }
+            foreach (long samplingRaw in rawValues)
+                foreach (long offsetRaw in rawValues)
+                {
+                    var anchorOrigin = new Vector3d(Fixed64.FromRaw(anchorRaw), Fixed64.FromRaw(-1), Fixed64.FromRaw(1));
+                    var samplingOrigin = new Vector3d(Fixed64.FromRaw(samplingRaw), Fixed64.FromRaw(1), Fixed64.FromRaw(-1));
+                    var offset = new Vector3d(Fixed64.FromRaw(offsetRaw), Fixed64.FromRaw(3), Fixed64.FromRaw(-3));
+                    FixedPointAnchor anchor = FixedPointAnchor.FromTranslatedPoint(anchorOrigin, samplingOrigin, offset);
+                    Assert.Equal(anchorOrigin, anchor.Origin); Assert.Equal(FixedQuaternion.Identity, anchor.Rotation);
+                    BigInteger expected = (BigInteger)samplingRaw + offsetRaw - anchorRaw;
+                    BigInteger actual = (BigInteger)anchor.LocalPoint.X.m_rawValue + anchor.LocalDisplacement.X.m_rawValue
+                        + anchor.LocalTranslation.X.m_rawValue;
+                    Assert.Equal(expected * Fixed64.Two.m_rawValue, actual * Fixed64.Two.m_rawValue + anchor.ExactLocalTerm.X);
+                    Assert.True(anchor.TryGetPointInFrame(samplingOrigin, out Vector3d restored));
+                    Assert.Equal(offset, restored);
+                    BigInteger expectedWorld = (BigInteger)samplingRaw + offsetRaw;
+                    bool representable = expectedWorld >= long.MinValue && expectedWorld <= long.MaxValue;
+                    Assert.Equal(representable, anchor.TryGetPoint(out Vector3d world));
+                    if (representable)
+                        Assert.Equal(new Vector3d(Fixed64.FromRaw((long)expectedWorld), Fixed64.FromRaw(4), Fixed64.FromRaw(-4)), world);
+                }
         // A failure on Y or Z must retain all the other coordinates, too.
         var extremes = new Vector3d(Fixed64.Zero, Fixed64.MaxValue, Fixed64.MinValue);
         FixedPointAnchor allAxes = FixedPointAnchor.FromTranslatedPoint(-extremes, extremes, extremes);
@@ -667,23 +667,23 @@ public sealed class FixedPointAnchorTests
     public void TryGetLocalPointIn_IdentityFrameDefersCompositeOverflowOnEveryAxis()
     {
         foreach (Vector3d axis in new[] { Vector3d.Right, Vector3d.Up, Vector3d.Forward })
-        foreach (int sign in new[] { -1, 1 })
-        {
-            Vector3d origin = axis * (sign < 0 ? Fixed64.MinValue : Fixed64.MaxValue);
-            Vector3d step = axis * new Fixed64(sign);
-            FixedPointAnchor beyondWorld = new(origin, FixedQuaternion.Identity, step + step, -step);
-            Assert.False(beyondWorld.TryGetPoint(out _));
-            Assert.True(beyondWorld.TryGetLocalPointIn(origin, FixedQuaternion.Identity, out Vector3d local));
-            Assert.Equal(step, local);
+            foreach (int sign in new[] { -1, 1 })
+            {
+                Vector3d origin = axis * (sign < 0 ? Fixed64.MinValue : Fixed64.MaxValue);
+                Vector3d step = axis * new Fixed64(sign);
+                FixedPointAnchor beyondWorld = new(origin, FixedQuaternion.Identity, step + step, -step);
+                Assert.False(beyondWorld.TryGetPoint(out _));
+                Assert.True(beyondWorld.TryGetLocalPointIn(origin, FixedQuaternion.Identity, out Vector3d local));
+                Assert.Equal(step, local);
 
-            // The compact first sum overflows, but the displacement cancels
-            // before the complete expression reaches the world lattice.
-            FixedPointAnchor cancelled = new(origin, FixedQuaternion.Identity, step, -step);
-            Assert.True(cancelled.TryGetLocalPointIn(Vector3d.Zero, FixedQuaternion.Identity, out local));
-            Assert.Equal(origin, local);
-            Assert.False(beyondWorld.TryGetLocalPointIn(Vector3d.Zero, FixedQuaternion.Identity, out local));
-            Assert.Equal(default, local);
-        }
+                // The compact first sum overflows, but the displacement cancels
+                // before the complete expression reaches the world lattice.
+                FixedPointAnchor cancelled = new(origin, FixedQuaternion.Identity, step, -step);
+                Assert.True(cancelled.TryGetLocalPointIn(Vector3d.Zero, FixedQuaternion.Identity, out local));
+                Assert.Equal(origin, local);
+                Assert.False(beyondWorld.TryGetLocalPointIn(Vector3d.Zero, FixedQuaternion.Identity, out local));
+                Assert.Equal(default, local);
+            }
     }
 
     [Fact]
@@ -736,16 +736,16 @@ public sealed class FixedPointAnchorTests
     public void TryGetLocalPointIn_RejectsUnrepresentableLocalCoordinate()
     {
         foreach (Vector3d axis in new[] { Vector3d.Right, Vector3d.Up, Vector3d.Forward })
-        foreach (FixedQuaternion targetRotation in new[]
-        {
+            foreach (FixedQuaternion targetRotation in new[]
+            {
             FixedQuaternion.Identity,
             new FixedQuaternion(Fixed64.Zero, Fixed64.One, Fixed64.Zero, Fixed64.Zero)
         })
-        {
-            FixedPointAnchor anchor = new(axis * Fixed64.MaxValue, FixedQuaternion.Identity, Vector3d.Zero);
-            Assert.False(anchor.TryGetLocalPointIn(axis * Fixed64.MinValue, targetRotation, out Vector3d localPoint));
-            Assert.Equal(default, localPoint);
-        }
+            {
+                FixedPointAnchor anchor = new(axis * Fixed64.MaxValue, FixedQuaternion.Identity, Vector3d.Zero);
+                Assert.False(anchor.TryGetLocalPointIn(axis * Fixed64.MinValue, targetRotation, out Vector3d localPoint));
+                Assert.Equal(default, localPoint);
+            }
     }
 
     [Fact]

@@ -303,8 +303,8 @@ public sealed class CylinderPairValuePolynomialTests
 
     private static BigInteger[] MatrixDeterminant(BigInteger[] v, int lambda)
     {
-        BigInteger g=v[0], h=v[1], delta=v[2], rho=v[3], tau=v[4];
-        BigInteger cSquared=v[5], c0=v[6], c1=v[7], b0=v[8], b1=v[9], j=v[10];
+        BigInteger g = v[0], h = v[1], delta = v[2], rho = v[3], tau = v[4];
+        BigInteger cSquared = v[5], c0 = v[6], c1 = v[7], b0 = v[8], b1 = v[9], j = v[10];
         BigInteger z0 = cSquared + rho;
         BigInteger[] hPolynomial = { z0 + tau, -1 };
         BigInteger[] xx = { 4 * delta * c0 * c0 + 4 * tau * b0 * b0 - lambda * g };
@@ -338,8 +338,8 @@ public sealed class CylinderPairValuePolynomialTests
     {
         var result = new BigInteger[left.Length + right.Length - 1];
         for (int first = 0; first < left.Length; first++)
-        for (int second = 0; second < right.Length; second++)
-            result[first + second] += left[first] * right[second];
+            for (int second = 0; second < right.Length; second++)
+                result[first + second] += left[first] * right[second];
         return result;
     }
 

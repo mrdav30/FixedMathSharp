@@ -28,13 +28,17 @@ internal ref struct ConePlaneRayEventSink
     internal ConePlaneRayEventSink(ConePlaneRayEvent target, ConePlaneRayPoint point, Span<ulong> root,
         bool pointOnly = false, int requestedOrientation = 0, in ConePlaneRayEventSource source = default,
         in ConePlaneRayFrame frame = default, ReadOnlySpan<RationalSegmentInterval> clip = default)
-    { Target = target; outputPoint = point; outputRoot = root; PointOnly = pointOnly; RequestedOrientation = requestedOrientation;
-        HasPoint = false; visitor = null; this.source = source; this.frame = frame; Clip = clip; NativeSegment = default; }
+    {
+        Target = target; outputPoint = point; outputRoot = root; PointOnly = pointOnly; RequestedOrientation = requestedOrientation;
+        HasPoint = false; visitor = null; this.source = source; this.frame = frame; Clip = clip; NativeSegment = default;
+    }
 
     internal ConePlaneRayEventSink(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame, ConePlaneRayEventVisitor visitor,
         ReadOnlySpan<RationalSegmentInterval> clip = default, ReadOnlySpan<WideAxis3> nativeSegment = default)
-    { this.source = source; this.frame = frame; this.visitor = visitor; Target = default; outputPoint = default; outputRoot = default;
-        PointOnly = false; RequestedOrientation = 0; HasPoint = false; Clip = clip; NativeSegment = nativeSegment; }
+    {
+        this.source = source; this.frame = frame; this.visitor = visitor; Target = default; outputPoint = default; outputRoot = default;
+        PointOnly = false; RequestedOrientation = 0; HasPoint = false; Clip = clip; NativeSegment = nativeSegment;
+    }
 
     internal void GetSegment(in ConePlaneRayEventSource currentSource, in ConePlaneRayFrame currentFrame, out WideAxis3 start, out WideAxis3 end)
     {

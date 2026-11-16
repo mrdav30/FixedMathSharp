@@ -20,20 +20,20 @@ public sealed class Fixed64RawRatioTests
             2 * (BigInteger.One << 64), (BigInteger)ulong.MaxValue << 64, -((BigInteger)ulong.MaxValue << 64),
             (BigInteger.One << 128) + 1, (BigInteger.One << 191) - 1, -(BigInteger.One << 191) };
         foreach (BigInteger numerator in values)
-        foreach (BigInteger denominator in divisors)
-        {
-            BigInteger raw = 0;
-            if (denominator != 0)
+            foreach (BigInteger denominator in divisors)
             {
-                raw = BigInteger.DivRem(BigInteger.Abs(numerator), BigInteger.Abs(denominator), out BigInteger remainder);
-                int half = (2 * remainder).CompareTo(BigInteger.Abs(denominator));
-                if (half > 0 || half == 0 && !raw.IsEven) raw++;
-                if (numerator.Sign != denominator.Sign) raw = -raw;
+                BigInteger raw = 0;
+                if (denominator != 0)
+                {
+                    raw = BigInteger.DivRem(BigInteger.Abs(numerator), BigInteger.Abs(denominator), out BigInteger remainder);
+                    int half = (2 * remainder).CompareTo(BigInteger.Abs(denominator));
+                    if (half > 0 || half == 0 && !raw.IsEven) raw++;
+                    if (numerator.Sign != denominator.Sign) raw = -raw;
+                }
+                bool representable = denominator != 0 && raw >= long.MinValue && raw <= long.MaxValue;
+                Assert.Equal(representable, Fixed64.TryGetSignedRawRatio(ToSigned(numerator), ToSigned(denominator), out Fixed64 actual));
+                Assert.Equal(representable ? (long)raw : 0, actual.m_rawValue);
             }
-            bool representable = denominator != 0 && raw >= long.MinValue && raw <= long.MaxValue;
-            Assert.Equal(representable, Fixed64.TryGetSignedRawRatio(ToSigned(numerator), ToSigned(denominator), out Fixed64 actual));
-            Assert.Equal(representable ? (long)raw : 0, actual.m_rawValue);
-        }
     }
 
     private static Signed192 ToSigned(BigInteger value)

@@ -115,22 +115,22 @@ internal static partial class WideFiniteAxisIntersection
         matrix.Clear();
         matrixSigns.Clear();
         for (int row = 0; row < degree; row++)
-        for (int column = row; column < degree; column++)
-        {
-            int slot = GetFiniteRootMatrixIndex(degree, row, column);
-            Span<ulong> entry = matrix.Slice(slot * entryWords, entryWords);
-            for (int power = 0; power <= queryDegree; power++)
+            for (int column = row; column < degree; column++)
             {
-                int trace = row + column + power;
-                MultiplyRoundedCylinderWide(query.Slice(power * queryWords, queryWords),
-                    traces.Slice(trace * traceWords, traceWords), first);
-                MultiplyRoundedCylinderWide(first,
-                    powers.Slice((maximumTrace - trace) * traceWords, traceWords), second);
-                sbyte sign = (sbyte)(querySigns[power] * traceSigns[trace]);
-                AddRoundedCylinderSigned(entry, matrixSigns[slot], second, sign, sum, out matrixSigns[slot]);
-                sum.CopyTo(entry);
+                int slot = GetFiniteRootMatrixIndex(degree, row, column);
+                Span<ulong> entry = matrix.Slice(slot * entryWords, entryWords);
+                for (int power = 0; power <= queryDegree; power++)
+                {
+                    int trace = row + column + power;
+                    MultiplyRoundedCylinderWide(query.Slice(power * queryWords, queryWords),
+                        traces.Slice(trace * traceWords, traceWords), first);
+                    MultiplyRoundedCylinderWide(first,
+                        powers.Slice((maximumTrace - trace) * traceWords, traceWords), second);
+                    sbyte sign = (sbyte)(querySigns[power] * traceSigns[trace]);
+                    AddRoundedCylinderSigned(entry, matrixSigns[slot], second, sign, sum, out matrixSigns[slot]);
+                    sum.CopyTo(entry);
+                }
             }
-        }
         return GetFiniteRootSymmetricSignature(matrix, matrixSigns, degree, entryBits);
     }
 

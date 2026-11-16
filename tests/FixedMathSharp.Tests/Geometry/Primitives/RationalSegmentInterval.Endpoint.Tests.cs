@@ -1,6 +1,6 @@
-using FixedMathSharp.Geometry;
 using System;
 using System.Numerics;
+using FixedMathSharp.Geometry;
 using Xunit;
 
 namespace FixedMathSharp.Tests.Bounds;
@@ -10,9 +10,9 @@ public sealed class RationalSegmentIntervalEndpointTests
     [Fact]
     public void WideMapping_ShouldRejectAResultWhoseReducedDenominatorExceedsItsDocumentedStorage()
     {
-        Signed832 d = new(1UL << 32,0,0,0,0,0,0,0,0,0,0,0,1);
-        Signed832 lower = new(1UL << 31,0,0,0,0,0,0,0,0,0,0,0,1);
-        Signed832 upper = new(3UL << 30,0,0,0,0,0,0,0,0,0,0,0,1);
+        Signed832 d = new(1UL << 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1);
+        Signed832 lower = new(1UL << 31, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1);
+        Signed832 upper = new(3UL << 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1);
         var interval = new RationalSegmentInterval(lower, d, upper, d);
         var source = new FixedSegment(Vector3d.Zero, new(Fixed64.FromRaw(long.MaxValue - 1), Fixed64.Zero, Fixed64.Zero));
         var target = new FixedSegment(Vector3d.Zero, new(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero));
@@ -79,7 +79,7 @@ public sealed class RationalSegmentIntervalEndpointTests
         Assert.Equal(new Vector2d(1, 3), interval.GetEndpoint(edge, true));
         var source = reverseSource ? new FixedSegment(new(2, 0, 0), new(-2, 0, 0))
             : new FixedSegment(new(-2, 0, 0), new(2, 0, 0));
-        var target = reverse ? new FixedSegment(new(2, 0, 0), new(-2, 0, 0)) : new FixedSegment(new(-2,0,0), new(2,0,0));
+        var target = reverse ? new FixedSegment(new(2, 0, 0), new(-2, 0, 0)) : new FixedSegment(new(-2, 0, 0), new(2, 0, 0));
         Assert.True(interval.TryMapToSegment(source, target, out RationalSegmentInterval mapped));
         Assert.Equal(0, RationalSegmentInterval.CompareParameters(mapped.WideLowerNumerator,
             mapped.WideLowerDenominator, unit, four));
@@ -89,8 +89,8 @@ public sealed class RationalSegmentIntervalEndpointTests
         foreach ((int start, int end, int retainedStart, int retainedEnd) in new[]
             { (-3, 0, -1, 0), (0, 3, 0, 1), (-3, -1, -1, -1), (1, 3, 1, 1), (-1, 1, -1, 1) })
         {
-            var portion = reverse ? new FixedSegment(new(end,0,0), new(start,0,0))
-                : new FixedSegment(new(start,0,0), new(end,0,0));
+            var portion = reverse ? new FixedSegment(new(end, 0, 0), new(start, 0, 0))
+                : new FixedSegment(new(start, 0, 0), new(end, 0, 0));
             Assert.True(interval.TryMapToSegment(source, portion, out mapped));
             var planar = new FixedSegment2d(new(portion.Start.X, Fixed64.Zero), new(portion.End.X, Fixed64.Zero));
             Assert.Equal((Fixed64)(reverse ? retainedEnd : retainedStart), mapped.GetEndpoint(planar, false).X);

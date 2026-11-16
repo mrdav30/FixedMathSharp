@@ -101,32 +101,32 @@ public sealed class FixedOrientedBoxStrictOverlapTests
             new(Fixed64.MaxValue, Fixed64.MinValue, Fixed64.MaxValue),
             new(Fixed64.MinValue, Fixed64.MaxValue, Fixed64.MinValue) };
         foreach (Vector3d center in centers)
-        foreach (Vector3d extent in extents)
-        foreach (Vector3d point in points)
-        foreach (Fixed64 radius in new[] { Fixed64.Zero, Fixed64.MinIncrement, Fixed64.One, Fixed64.MaxValue })
-        {
-            BigInteger x = rotation.X.m_rawValue, y = rotation.Y.m_rawValue;
-            BigInteger z = rotation.Z.m_rawValue, w = rotation.W.m_rawValue;
-            BigInteger dx = (BigInteger)point.X.m_rawValue - center.X.m_rawValue;
-            BigInteger dy = (BigInteger)point.Y.m_rawValue - center.Y.m_rawValue;
-            BigInteger dz = (BigInteger)point.Z.m_rawValue - center.Z.m_rawValue;
-            BigInteger d = x*x + y*y + z*z + w*w;
-            BigInteger localX = dx*(x*x-y*y-z*z+w*w) + dy*2*(x*y+z*w) + dz*2*(x*z-y*w);
-            BigInteger localY = dx*2*(x*y-z*w) + dy*(y*y-x*x-z*z+w*w) + dz*2*(y*z+x*w);
-            BigInteger localZ = dx*2*(x*z+y*w) + dy*2*(y*z-x*w) + dz*(z*z-x*x-y*y+w*w);
-            BigInteger gapX = BigInteger.Abs(localX) - extent.X.m_rawValue*d;
-            BigInteger gapY = BigInteger.Abs(localY) - extent.Y.m_rawValue*d;
-            BigInteger gapZ = BigInteger.Abs(localZ) - extent.Z.m_rawValue*d;
-            bool inside = gapX < 0 && gapY < 0 && gapZ < 0;
-            gapX = BigInteger.Max(gapX, 0);
-            gapY = BigInteger.Max(gapY, 0);
-            gapZ = BigInteger.Max(gapZ, 0);
-            BigInteger scaledRadius = radius.m_rawValue*d;
-            bool expected = inside || gapX*gapX + gapY*gapY + gapZ*gapZ < scaledRadius*scaledRadius;
-            Assert.Equal(expected, WideOrientedBox.DoesSpherePenetrate(center, rotation, extent, point, radius));
-            Assert.Equal(expected, WideOrientedBox.DoesCenteredCapsulePenetrate(center, rotation, extent,
-                point, rotation, Vector3d.Up, Fixed64.Zero, radius));
-        }
+            foreach (Vector3d extent in extents)
+                foreach (Vector3d point in points)
+                    foreach (Fixed64 radius in new[] { Fixed64.Zero, Fixed64.MinIncrement, Fixed64.One, Fixed64.MaxValue })
+                    {
+                        BigInteger x = rotation.X.m_rawValue, y = rotation.Y.m_rawValue;
+                        BigInteger z = rotation.Z.m_rawValue, w = rotation.W.m_rawValue;
+                        BigInteger dx = (BigInteger)point.X.m_rawValue - center.X.m_rawValue;
+                        BigInteger dy = (BigInteger)point.Y.m_rawValue - center.Y.m_rawValue;
+                        BigInteger dz = (BigInteger)point.Z.m_rawValue - center.Z.m_rawValue;
+                        BigInteger d = x * x + y * y + z * z + w * w;
+                        BigInteger localX = dx * (x * x - y * y - z * z + w * w) + dy * 2 * (x * y + z * w) + dz * 2 * (x * z - y * w);
+                        BigInteger localY = dx * 2 * (x * y - z * w) + dy * (y * y - x * x - z * z + w * w) + dz * 2 * (y * z + x * w);
+                        BigInteger localZ = dx * 2 * (x * z + y * w) + dy * 2 * (y * z - x * w) + dz * (z * z - x * x - y * y + w * w);
+                        BigInteger gapX = BigInteger.Abs(localX) - extent.X.m_rawValue * d;
+                        BigInteger gapY = BigInteger.Abs(localY) - extent.Y.m_rawValue * d;
+                        BigInteger gapZ = BigInteger.Abs(localZ) - extent.Z.m_rawValue * d;
+                        bool inside = gapX < 0 && gapY < 0 && gapZ < 0;
+                        gapX = BigInteger.Max(gapX, 0);
+                        gapY = BigInteger.Max(gapY, 0);
+                        gapZ = BigInteger.Max(gapZ, 0);
+                        BigInteger scaledRadius = radius.m_rawValue * d;
+                        bool expected = inside || gapX * gapX + gapY * gapY + gapZ * gapZ < scaledRadius * scaledRadius;
+                        Assert.Equal(expected, WideOrientedBox.DoesSpherePenetrate(center, rotation, extent, point, radius));
+                        Assert.Equal(expected, WideOrientedBox.DoesCenteredCapsulePenetrate(center, rotation, extent,
+                            point, rotation, Vector3d.Up, Fixed64.Zero, radius));
+                    }
     }
 
     [Fact]

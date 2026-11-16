@@ -6,8 +6,8 @@
 //=======================================================================
 
 using System;
-using static FixedMathSharp.Geometry.CylinderContactAlgebra;
 using static FixedMathSharp.Geometry.ContactQuadratic;
+using static FixedMathSharp.Geometry.CylinderContactAlgebra;
 
 namespace FixedMathSharp.Geometry;
 
@@ -28,23 +28,23 @@ internal static partial class SegmentConeSurfaceCandidates
         Span<int> signs = stackalloc int[24];
         Span<ulong> root = stackalloc ulong[Words];
         for (int mode = -3; mode >= -4; mode--)
-        for (int branch = -1; branch <= 1; branch += 2)
-        {
-            if (!BuildMeridionalRim(geometry, mode, branch, values, signs, root))
-                continue;
-            ContactQuadratic margin = At(values, signs, 3, Words);
-            At(values, signs, 6, Words).CopyTo(margin); margin.Add(At(values, signs, 5, Words), -1);
-            ConeSurfacePointLocation location = At(values, signs, 5, Words).Sign(root) == 0 ? ConeSurfacePointLocation.Start
-                : margin.Sign(root) == 0 ? ConeSurfacePointLocation.End : ConeSurfacePointLocation.Interior;
-            bool zero = At(values, signs, 0, Words).Sign(root) == 0 && At(values, signs, 1, Words).Sign(root) == 0 && At(values, signs, 2, Words).Sign(root) == 0;
-            if (zero && !HasRimTouchDomain(geometry, new WideDirection3d(geometry.Edge.X, default, geometry.Edge.Z), branch,
-                    location == ConeSurfacePointLocation.Interior ? -1 : location == ConeSurfacePointLocation.Start ? 0 : 1))
-                continue;
-            selection.Add(new SegmentConeSurfaceCandidate(geometry.Input, ConeSurfaceFeature.Rim,
-                zero ? ConeSurfaceFamily.NormalCone : ConeSurfaceFamily.None, branch > 0 ? -2 : -3, mode, location));
-            if (IsZero(root))
-                break;
-        }
+            for (int branch = -1; branch <= 1; branch += 2)
+            {
+                if (!BuildMeridionalRim(geometry, mode, branch, values, signs, root))
+                    continue;
+                ContactQuadratic margin = At(values, signs, 3, Words);
+                At(values, signs, 6, Words).CopyTo(margin); margin.Add(At(values, signs, 5, Words), -1);
+                ConeSurfacePointLocation location = At(values, signs, 5, Words).Sign(root) == 0 ? ConeSurfacePointLocation.Start
+                    : margin.Sign(root) == 0 ? ConeSurfacePointLocation.End : ConeSurfacePointLocation.Interior;
+                bool zero = At(values, signs, 0, Words).Sign(root) == 0 && At(values, signs, 1, Words).Sign(root) == 0 && At(values, signs, 2, Words).Sign(root) == 0;
+                if (zero && !HasRimTouchDomain(geometry, new WideDirection3d(geometry.Edge.X, default, geometry.Edge.Z), branch,
+                        location == ConeSurfacePointLocation.Interior ? -1 : location == ConeSurfacePointLocation.Start ? 0 : 1))
+                    continue;
+                selection.Add(new SegmentConeSurfaceCandidate(geometry.Input, ConeSurfaceFeature.Rim,
+                    zero ? ConeSurfaceFamily.NormalCone : ConeSurfaceFamily.None, branch > 0 ? -2 : -3, mode, location));
+                if (IsZero(root))
+                    break;
+            }
     }
 
     // Slots 0..2 contain (p-q)*normalScale, 5..6 contain t, 7 normalScale.

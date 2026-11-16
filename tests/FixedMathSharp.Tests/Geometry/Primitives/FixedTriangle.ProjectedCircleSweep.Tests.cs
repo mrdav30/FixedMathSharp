@@ -12,15 +12,15 @@ public sealed class FixedTriangleProjectedCircleSweepTests
     public void GenericAffineSlabSweep_ShouldRespectTheRequestedMaterializationChart(bool bounded)
     {
         var frame = new ScaledRigidFrame3d(new(Fixed64.MinValue, Fixed64.Zero, Fixed64.Zero), FixedQuaternion.Identity,
-            new((Fixed64)1073741824, Fixed64.Zero, Fixed64.Zero), new(2,1,1), FixedQuaternion.Identity,
+            new((Fixed64)1073741824, Fixed64.Zero, Fixed64.Zero), new(2, 1, 1), FixedQuaternion.Identity,
             Vector3d.Zero, new(Fixed64.Half, Fixed64.One, Fixed64.One));
         // Placement cancels the minimum translation exactly. Physical world
         // points fit the bounded chart but not the distant host chart. Both
         // the early interior and final finite-feature witness use this origin.
         Vector3d origin = bounded ? Vector3d.Zero : frame.RigidOrigin;
-        FixedTriangle wall = new(new(1,-2,-2), new(1,2,-2), new(1,0,2));
+        FixedTriangle wall = new(new(1, -2, -2), new(1, 2, -2), new(1, 0, 2));
         Assert.Equal(bounded, WideOrientedBox.TryGetFiniteSlabProjectedCircleSweep(wall, frame, origin,
-            new FixedSegment2d(new(-2,0), new(2,0)), (Fixed64)4, Fixed64.Half,
+            new FixedSegment2d(new(-2, 0), new(2, 0)), (Fixed64)4, Fixed64.Half,
             Fixed64.Zero, Fixed64.Half, out Fixed64 distance, out FixedPointAnchor contact));
         if (bounded)
         {
@@ -30,7 +30,7 @@ public sealed class FixedTriangleProjectedCircleSweepTests
             Assert.InRange(contact.LocalPoint.Y.m_rawValue, -Fixed64.Half.m_rawValue, Fixed64.Half.m_rawValue);
             Assert.Equal(Fixed64.Zero, contact.LocalPoint.Z);
         }
-        FixedTriangle floor = new(new(-8,0,-8), new(8,0,-8), new(0,0,8));
+        FixedTriangle floor = new(new(-8, 0, -8), new(8, 0, -8), new(0, 0, 8));
         Assert.Equal(bounded, WideOrientedBox.TryGetFiniteSlabProjectedCircleSweep(floor, frame, origin,
             new FixedSegment2d(Vector2d.Zero, Vector2d.Zero), Fixed64.Zero, Fixed64.Zero,
             Fixed64.Zero, Fixed64.Half, out distance, out contact));
@@ -47,11 +47,11 @@ public sealed class FixedTriangleProjectedCircleSweepTests
     [InlineData(1)]
     public void AffineSlabSweep_ShouldRejectOutsideBarycentricCoordinatesBeforeSelectingTheFiniteRim(int side)
     {
-        FixedTriangle physical = new(new(-1,0,-1), new(1,0,-1), new(0,0,1));
+        FixedTriangle physical = new(new(-1, 0, -1), new(1, 0, -1), new(0, 0, 1));
         FixedTriangle authored = new(physical.A * Fixed64.Two, physical.B * Fixed64.Two, physical.C * Fixed64.Two);
         var frame = new ScaledRigidFrame3d(Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Zero,
             Vector3d.One * Fixed64.Half, FixedQuaternion.Identity, Vector3d.Zero, Vector3d.One);
-        var segment = new FixedSegment2d(new(3 * side,0), new(-3 * side,0));
+        var segment = new FixedSegment2d(new(3 * side, 0), new(-3 * side, 0));
         Assert.True(physical.TryGetFiniteSlabProjectedCircleSweep(Vector3d.Zero, FixedQuaternion.Identity,
             segment, (Fixed64)6, Fixed64.Half, Fixed64.Zero, Fixed64.One, out Fixed64 expected, out FixedPointAnchor expectedPoint));
         Assert.True(WideOrientedBox.TryGetFiniteSlabProjectedCircleSweep(authored, frame, frame.RigidOrigin, segment,
@@ -65,7 +65,7 @@ public sealed class FixedTriangleProjectedCircleSweepTests
     [InlineData(true, true)]
     public void SourceFrameSlabSweep_ShouldRetainTheFiniteEdgeFootInEitherWinding(bool rigid, bool reverse)
     {
-        Vector3d a = new(-1,0,-1), b = new(1,0,-1), c = new(0,0,1);
+        Vector3d a = new(-1, 0, -1), b = new(1, 0, -1), c = new(0, 0, 1);
         var frame = rigid ? ScaledRigidFrame3d.Rigid(Vector3d.Zero, FixedQuaternion.Identity)
             : new ScaledRigidFrame3d(Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Zero,
                 Vector3d.One * Fixed64.Half, FixedQuaternion.Identity, Vector3d.Zero, Vector3d.One);
@@ -73,16 +73,16 @@ public sealed class FixedTriangleProjectedCircleSweepTests
         FixedTriangle triangle = reverse ? new(c * multiplier, b * multiplier, a * multiplier)
             : new(a * multiplier, b * multiplier, c * multiplier);
         Assert.True(WideOrientedBox.TryGetFiniteSlabProjectedCircleSweep(triangle, frame, frame.RigidOrigin,
-            new FixedSegment2d(new(0,-3), new(0,3)), (Fixed64)6, Fixed64.Half,
+            new FixedSegment2d(new(0, -3), new(0, 3)), (Fixed64)6, Fixed64.Half,
             Fixed64.Zero, Fixed64.One, out Fixed64 distance, out FixedPointAnchor contact));
-        Assert.Equal(Fixed64.FromFraction(3,2), distance); Assert.Equal(a.Z, contact.LocalPoint.Z);
+        Assert.Equal(Fixed64.FromFraction(3, 2), distance); Assert.Equal(a.Z, contact.LocalPoint.Z);
         Assert.Equal(Fixed64.Zero, contact.LocalPoint.X); Assert.Equal(Fixed64.Zero, contact.LocalPoint.Y);
         Assert.True(WideOrientedBox.TryGetFiniteSlabProjectedCircleSweep(triangle, frame, frame.RigidOrigin,
             new FixedSegment2d(Vector2d.Zero, Vector2d.Zero), Fixed64.Zero, Fixed64.Zero,
             Fixed64.Zero, Fixed64.One, out distance, out contact));
         Assert.Equal(Fixed64.Zero, distance); Assert.Equal(Vector3d.Zero, contact.LocalPoint);
         Assert.False(WideOrientedBox.TryGetFiniteSlabProjectedCircleSweep(triangle, frame, frame.RigidOrigin,
-            new FixedSegment2d(new(0,-3), new(0,-3)), Fixed64.Zero, Fixed64.Half,
+            new FixedSegment2d(new(0, -3), new(0, -3)), Fixed64.Zero, Fixed64.Half,
             Fixed64.Zero, Fixed64.One, out _, out _));
     }
 

@@ -7,7 +7,6 @@
 
 using FluentAssertions;
 using FluentAssertions.Execution;
-using FluentAssertions.Numeric;
 
 namespace FixedMathSharp.Assertions;
 

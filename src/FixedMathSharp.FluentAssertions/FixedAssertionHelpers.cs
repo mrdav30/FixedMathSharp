@@ -5,10 +5,6 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-using FluentAssertions;
-using FluentAssertions.Execution;
-using FluentAssertions.Numeric;
-
 namespace FixedMathSharp.Assertions;
 
 internal static class FixedAssertionHelpers

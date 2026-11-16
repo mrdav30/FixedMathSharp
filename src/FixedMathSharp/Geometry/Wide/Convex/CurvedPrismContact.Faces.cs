@@ -6,8 +6,8 @@
 //=======================================================================
 
 using System;
-using static FixedMathSharp.Geometry.CylinderContactAlgebra;
 using static FixedMathSharp.Geometry.ContactQuadratic;
+using static FixedMathSharp.Geometry.CylinderContactAlgebra;
 
 namespace FixedMathSharp.Geometry;
 
@@ -37,7 +37,7 @@ internal static partial class CurvedPrismContact
         int gap = geometry.BuildPlaneCandidate(direction, directionSigns, axis, minimum, values, signs, out int feature);
         if (gap < 0) return false;
         var selection = new CurvedPrismContactSelection(values, signs)
-            { HasValue = true, GapSign = gap, Vertex = vertex, Feature = feature };
+        { HasValue = true, GapSign = gap, Vertex = vertex, Feature = feature };
         if (!TryGetAnalyticWitnesses(geometry, selection, center, rotation, prismOrigin,
                 out Vector3d normal, out FixedPointAnchor shape, out FixedPointAnchor target, out physical,
                 new FaceWindow(face, tangentClip, lowerY, upperY)) || !includeRecovery && !physical) return false;
@@ -67,8 +67,10 @@ internal static partial class CurvedPrismContact
         internal FaceWindow(int face, RationalSegmentInterval tangent, Fixed64 lower, Fixed64 upper)
         { Enabled = true; Face = face; SourceEdge = -1; Open = false; Tangent = tangent; Lower = lower; Upper = upper; }
         internal FaceWindow(in PrismCurvedEdgeWindow edge)
-        { Enabled = true; Face = -1; SourceEdge = edge.Edge; Open = !edge.Point;
-          Tangent = edge.Interval; Lower = Upper = default; }
+        {
+            Enabled = true; Face = -1; SourceEdge = edge.Edge; Open = !edge.Point;
+            Tangent = edge.Interval; Lower = Upper = default;
+        }
     }
 
     private static bool ClipFaceWindow(in CurvedPrismContactGeometry geometry, in FaceWindow window,
@@ -111,11 +113,15 @@ internal static partial class CurvedPrismContact
             Signed832 height = WideArithmetic.SubtractSigned832(WideDirection3d.Dot(up, geometry.Vertex(1)), bottom);
             Signed320 whole = Signed320.ExtendValue(WideArithmetic.AddSigned192(Signed192.Raw(half), Signed192.Raw(half)));
             if (lowerY > -half)
-            { normals[count] = ScaleAxis(up, whole); constants[count++] = SumProducts(bottom, whole, height,
-                Signed320.ExtendValue(WideArithmetic.AddSigned192(Signed192.Raw(lowerY), Signed192.Raw(half)))); }
+            {
+                normals[count] = ScaleAxis(up, whole); constants[count++] = SumProducts(bottom, whole, height,
+                Signed320.ExtendValue(WideArithmetic.AddSigned192(Signed192.Raw(lowerY), Signed192.Raw(half))));
+            }
             if (upperY < half)
-            { normals[count] = -ScaleAxis(up, whole); constants[count++] = WideArithmetic.SubtractSigned832(default, SumProducts(bottom, whole, height,
-                Signed320.ExtendValue(WideArithmetic.AddSigned192(Signed192.Raw(upperY), Signed192.Raw(half))))); }
+            {
+                normals[count] = -ScaleAxis(up, whole); constants[count++] = WideArithmetic.SubtractSigned832(default, SumProducts(bottom, whole, height,
+                Signed320.ExtendValue(WideArithmetic.AddSigned192(Signed192.Raw(upperY), Signed192.Raw(half)))));
+            }
         }
         return count;
     }
