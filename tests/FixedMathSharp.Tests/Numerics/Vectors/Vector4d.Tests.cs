@@ -289,6 +289,63 @@ public class Vector4dTests
         Assert.Equal(new Vector4d(5, 5, 5, 5), vector);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Lerp_ReturnsExactEndpointsInEitherOrder(bool reverse)
+    {
+        var start = new Vector4d(Fixed64.MinValue, Fixed64.MaxValue, Fixed64.Zero, Fixed64.One);
+        var end = new Vector4d(Fixed64.MaxValue, Fixed64.MinValue, Fixed64.One, Fixed64.Zero);
+        if (reverse)
+            (start, end) = (end, start);
+
+        Assert.Equal(start, Vector4d.Lerp(start, end, Fixed64.Zero));
+        Assert.Equal(start, start.Lerp(end, -Fixed64.One));
+        Assert.Equal(end, Vector4d.Lerp(start, end, Fixed64.One));
+        Assert.Equal(end, start.Lerp(end, new Fixed64(2)));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Lerp_RoundsTheFinalComponentToEvenInEitherOrder(bool reverse)
+    {
+        var start = new Vector4d(Fixed64.MinValue, Fixed64.MaxValue, Fixed64.FromRaw(1), Fixed64.FromRaw(-1));
+        var end = new Vector4d(Fixed64.MaxValue, Fixed64.MinValue, Fixed64.FromRaw(2), Fixed64.FromRaw(-2));
+        if (reverse)
+            (start, end) = (end, start);
+
+        var midpoint = new Vector4d(Fixed64.Zero, Fixed64.Zero, Fixed64.FromRaw(2), Fixed64.FromRaw(-2));
+        Assert.Equal(midpoint, Vector4d.Lerp(start, end, Fixed64.Half));
+    }
+
+    [Fact]
+    public void Lerp_InterpolatesMixedComponentsAcrossTheFullRangeAtAQuarter()
+    {
+        var start = new Vector4d(Fixed64.MinValue, Fixed64.MaxValue, Fixed64.Zero, Fixed64.One);
+        var end = new Vector4d(Fixed64.MaxValue, Fixed64.MinValue, Fixed64.One, Fixed64.Zero);
+        var quarter = Fixed64.Half * Fixed64.Half;
+        var expected = new Vector4d(Fixed64.FromRaw(-(1L << 62)), Fixed64.FromRaw((1L << 62) - 1), quarter, Fixed64.One - quarter);
+
+        Assert.Equal(expected, start.Lerp(end, quarter));
+    }
+
+    [Fact]
+    public void UnclampedLerp_ReturnsExactEndpointsAndPreservesExtrapolation()
+    {
+        var min = new Vector4d(Fixed64.MinValue);
+        var max = new Vector4d(Fixed64.MaxValue);
+        var expectedExtrapolation = new Vector4d(Fixed64.FromRaw(-1));
+        var extrapolationFactor = new Fixed64(2);
+
+        Assert.Equal(expectedExtrapolation, min.UnclampedLerp(max, extrapolationFactor));
+        Assert.Equal(expectedExtrapolation, max.UnclampedLerp(min, extrapolationFactor));
+        Assert.Equal(new Vector4d(new Fixed64(-1073741824)), min.UnclampedLerp(max, Fixed64.Half));
+        Assert.Equal(min, Vector4d.UnclampedLerp(min, max, Fixed64.Zero));
+        Assert.Equal(max, Vector4d.UnclampedLerp(min, max, Fixed64.One));
+        Assert.Equal(min, max.UnclampedLerp(min, Fixed64.One));
+    }
+
     [Fact]
     public void StaticHelpers_ReturnExpectedValues()
     {

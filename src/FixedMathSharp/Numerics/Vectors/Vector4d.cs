@@ -635,13 +635,15 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
     /// <param name="a">The starting vector.</param>
     /// <param name="b">The ending vector in the same coordinate space.</param>
     /// <param name="amount">The interpolation fraction, clamped to [0, 1].</param>
-    /// <returns>The result of <c>a + (b − a) * amount</c>, using saturating component arithmetic.</returns>
-    /// <remarks>Saturation of a component difference can prevent a factor of one from reaching the ending vector.</remarks>
-    public static Vector4d Lerp(Vector4d a, Vector4d b, Fixed64 amount)
-    {
-        amount = FixedMath.Clamp01(amount);
-        return UnclampedLerp(a, b, amount);
-    }
+    /// <returns>
+    /// <paramref name="a"/> for factors at or below zero, <paramref name="b"/> for factors at or above one,
+    /// or the interpolated vector rounded to nearest with ties to even per component.
+    /// </returns>
+    public static Vector4d Lerp(Vector4d a, Vector4d b, Fixed64 amount) =>
+        new(FixedMath.Lerp(a.X, b.X, amount),
+            FixedMath.Lerp(a.Y, b.Y, amount),
+            FixedMath.Lerp(a.Z, b.Z, amount),
+            FixedMath.Lerp(a.W, b.W, amount));
 
     /// <summary>
     /// Linearly interpolates between two vectors without clamping the interpolation amount.
@@ -649,10 +651,14 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
     /// <param name="a">The starting vector.</param>
     /// <param name="b">The ending vector in the same coordinate space.</param>
     /// <param name="t">The interpolation fraction. Values outside [0, 1] extrapolate.</param>
-    /// <returns>The result of <c>a + (b − a) * t</c>, using saturating component arithmetic.</returns>
+    /// <returns>
+    /// <paramref name="a"/> at zero, <paramref name="b"/> at one,
+    /// or the result of <c>a + (b − a) * t</c> using saturating component arithmetic.
+    /// </returns>
+    /// <remarks>A saturated component difference can cause results near a factor of one to differ sharply from the ending vector.</remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector4d UnclampedLerp(Vector4d a, Vector4d b, Fixed64 t) =>
-        new(a.X + ((b.X - a.X) * t),
+        t == Fixed64.One ? b : new(a.X + ((b.X - a.X) * t),
             a.Y + ((b.Y - a.Y) * t),
             a.Z + ((b.Z - a.Z) * t),
             a.W + ((b.W - a.W) * t));

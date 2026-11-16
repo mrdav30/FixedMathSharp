@@ -50,27 +50,6 @@ dotnet add artifacts/issue-repro/issue-repro.csproj reference src/FixedMathSharp
 dotnet run --project artifacts/issue-repro/issue-repro.csproj -c Release -p:UseLocalLsfStack=false
 ```
 
-### FMS-Issue-043: Vector4d interpolation misses representable endpoints
-
-- **Status:** Confirmed at `2a65963`. Split from FMS-Issue-041.
-- **Priority:** Medium.
-- **Affected area:**
-  [`Vector4d.Lerp` and `UnclampedLerp`](../../src/FixedMathSharp/Numerics/Vectors/Vector4d.cs)
-  and their
-  [extensions](../../src/FixedMathSharp/Numerics/Vectors/Vector4d.Extensions.cs).
-- **Evidence:** Let `a = new Vector4d(Fixed64.MinValue)` and
-  `b = new Vector4d(Fixed64.MaxValue)`. `Vector4d.Lerp(a, b, Fixed64.One)`
-  returns raw `-1` per component instead of `b`. Reversing the endpoints also
-  returns raw `-1`. At `Fixed64.Half` the forward interpolation returns
-  `-1073741824` per component, where nearest-even interpolation gives zero.
-  `UnclampedLerp` also misses the endpoint at one. The 2D and 3D clamped
-  interpolators reach their endpoints through `FixedMath.Lerp`.
-- **Impact:** A saturating component difference can distort an in-range result,
-  including the final value of a clamped interpolation.
-- **Next action:** Reuse the full-domain scalar interpolation for the clamped
-  API and verify both endpoint orders and midpoint rounding. Check the unclamped
-  endpoint contract separately and preserve extrapolation.
-
 ### FMS-Issue-044: Epsilon predicate changes meaning across vector dimensions
 
 - **Status:** Confirmed at `2a65963`. Split from FMS-Issue-041.
@@ -131,9 +110,11 @@ rerun or package release.
 <a id="fms-issue-041-fixed-point-rounding-and-vector-or-quaternion-edge-behavior"></a>
 <a id="fms-issue-041-decimal-rounding-introduces-raw-bias-and-can-reverse-sign"></a>
 <a id="fms-issue-042-vector3dangle-loses-scale-invariance-under-saturation"></a>
+<a id="fms-issue-043-vector4d-interpolation-misses-representable-endpoints"></a>
 
 | Issue                                                                                                      | Resolved/closed | Outcome                                                                                                                                                                                                   | Evidence                                                                                             |
 | ---------------------------------------------------------------------------------------------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| FMS-Issue-043                                                                                              | 2026-11-16      | Fixed full-range 4D clamped interpolation and made the unclamped endpoint at one exact.                                                                                                                   | [Record](done/2026-11-16-vector4d-interpolation.md)                                                  |
 | FMS-Issue-042                                                                                              | 2026-11-16      | Corrected saturated 3D angle inputs with scale-safe normalization and preserved the small-length-product behavior.                                                                                        | [Record](done/2026-11-16-vector3d-angle-saturation.md)                                               |
 | FMS-Issue-041                                                                                              | 2026-11-16      | Fixed decimal rounding bias and sign wrap with exact scaling and final saturation.                                                                                                                        | [Record](done/2026-11-16-decimal-rounding.md)                                                        |
 | FMS-Issue-039                                                                                              | 2026-11-15      | Verified caller requirements and preserved normalization and comparison contracts with characterization tests and guidance.                                                                               | [Record](done/2026-11-15-matrix-normalization-and-comparison.md)                                     |

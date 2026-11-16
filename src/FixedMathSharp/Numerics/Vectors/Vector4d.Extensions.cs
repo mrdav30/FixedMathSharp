@@ -30,8 +30,10 @@ public static partial class Vector4dExtensions
     /// <param name="start">The starting vector.</param>
     /// <param name="end">The ending vector in the same coordinate space.</param>
     /// <param name="amount">The interpolation fraction, clamped to [0, 1].</param>
-    /// <returns>The result of <c>start + (end − start) * amount</c>, using saturating component arithmetic.</returns>
-    /// <remarks>Saturation of a component difference can prevent a factor of one from reaching the ending vector.</remarks>
+    /// <returns>
+    /// <paramref name="start"/> for factors at or below zero, <paramref name="end"/> for factors at or above one,
+    /// or the interpolated vector rounded to nearest with ties to even per component.
+    /// </returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector4d Lerp(this Vector4d start, Vector4d end, Fixed64 amount) => Vector4d.Lerp(start, end, amount);
 
@@ -39,8 +41,11 @@ public static partial class Vector4dExtensions
     /// <param name="start">The starting vector.</param>
     /// <param name="end">The ending vector in the same coordinate space.</param>
     /// <param name="amount">The interpolation fraction. Values outside [0, 1] extrapolate.</param>
-    /// <returns>The result of <c>start + (end − start) * amount</c>, using saturating component arithmetic.</returns>
-    /// <remarks>Saturation of a component difference can prevent a factor of one from reaching the ending vector.</remarks>
+    /// <returns>
+    /// <paramref name="start"/> at zero, <paramref name="end"/> at one,
+    /// or the result of <c>start + (end − start) * amount</c> using saturating component arithmetic.
+    /// </returns>
+    /// <remarks>A saturated component difference can cause results near a factor of one to differ sharply from the ending vector.</remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector4d UnclampedLerp(this Vector4d start, Vector4d end, Fixed64 amount) =>
         Vector4d.UnclampedLerp(start, end, amount);
