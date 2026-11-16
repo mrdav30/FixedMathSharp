@@ -37,38 +37,7 @@ Work that requires staged implementation belongs in a focused feature-work plan.
 
 **Next issue ID:** `FMS-Issue-045`
 
-The numeric cases below originated in the API documentation pass at
-`1a9a270db3a6c79d4f501fc849883ef6ffd6ea12` and were reproduced at `2a65963` in
-`Release` and `ReleaseLean` with .NET SDK 10.0.302. To run the examples from the
-repository root, create a disposable console project, add the core project
-reference, and replace its `Program.cs` with the case under investigation.
-Include `using FixedMathSharp;` and `using FixedMathSharp.Geometry;` as needed.
-
-```bash
-dotnet new console --framework net10.0 --output artifacts/issue-repro
-dotnet add artifacts/issue-repro/issue-repro.csproj reference src/FixedMathSharp/FixedMathSharp.csproj
-dotnet run --project artifacts/issue-repro/issue-repro.csproj -c Release -p:UseLocalLsfStack=false
-```
-
-### FMS-Issue-044: Epsilon predicate changes meaning across vector dimensions
-
-- **Status:** Confirmed at `2a65963`. Split from FMS-Issue-041.
-- **Priority:** Medium.
-- **Affected area:** `AllComponentsGreaterThanEpsilon` in
-  [2D](../../src/FixedMathSharp/Numerics/Vectors/Vector2d.Equality.cs),
-  [3D](../../src/FixedMathSharp/Numerics/Vectors/Vector3d.cs), and
-  [4D](../../src/FixedMathSharp/Numerics/Vectors/Vector4d.cs).
-- **Evidence:** Vectors with every component equal to `-1` yield `true`, `true`,
-  and `false` in 2D, 3D, and 4D. The first two compare absolute magnitudes and
-  4D compares signed values. All three return `false` at either epsilon boundary
-  and `true` when every component is `1`.
-- **Impact:** Moving the same component test between vector dimensions can
-  change a branch decision. The current difference is documented, so making 4D
-  match the other overloads changes a public contract.
-- **Next action:** Make the existing predicate use strict magnitude comparison
-  across all dimensions. Add parity tests for negative components, exact
-  epsilon, mixed signs, and `Fixed64.MinValue`. Document the 4D behavior change.
-  Use an explicitly signed name if a caller needs a signed predicate.
+No active issues.
 
 ## Numeric API review from FMS-Issue-041 triage
 
@@ -111,9 +80,11 @@ rerun or package release.
 <a id="fms-issue-041-decimal-rounding-introduces-raw-bias-and-can-reverse-sign"></a>
 <a id="fms-issue-042-vector3dangle-loses-scale-invariance-under-saturation"></a>
 <a id="fms-issue-043-vector4d-interpolation-misses-representable-endpoints"></a>
+<a id="fms-issue-044-epsilon-predicate-changes-meaning-across-vector-dimensions"></a>
 
 | Issue                                                                                                      | Resolved/closed | Outcome                                                                                                                                                                                                   | Evidence                                                                                             |
 | ---------------------------------------------------------------------------------------------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| FMS-Issue-044                                                                                              | 2026-11-16      | Made the epsilon predicate use the same strict component magnitude test in 2D, 3D, and 4D.                                                                                                                | [Record](done/2026-11-16-vector-epsilon-parity.md)                                                   |
 | FMS-Issue-043                                                                                              | 2026-11-16      | Fixed full-range 4D clamped interpolation and made the unclamped endpoint at one exact.                                                                                                                   | [Record](done/2026-11-16-vector4d-interpolation.md)                                                  |
 | FMS-Issue-042                                                                                              | 2026-11-16      | Corrected saturated 3D angle inputs with scale-safe normalization and preserved the small-length-product behavior.                                                                                        | [Record](done/2026-11-16-vector3d-angle-saturation.md)                                               |
 | FMS-Issue-041                                                                                              | 2026-11-16      | Fixed decimal rounding bias and sign wrap with exact scaling and final saturation.                                                                                                                        | [Record](done/2026-11-16-decimal-rounding.md)                                                        |

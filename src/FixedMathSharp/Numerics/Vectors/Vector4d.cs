@@ -501,11 +501,11 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
     public readonly bool IsNormalized() =>
         !IsZero && FixedMath.Abs(MagnitudeSquared - Fixed64.One) <= Fixed64.Epsilon;
 
-    /// <summary>Checks all signed components against epsilon.</summary>
-    /// <returns><see langword="true"/> if every signed component strictly exceeds <see cref="Fixed64.Epsilon"/>, otherwise <see langword="false"/>.</returns>
+    /// <summary>Checks the absolute values of all components against epsilon.</summary>
+    /// <returns><see langword="true"/> if every component magnitude strictly exceeds <see cref="Fixed64.Epsilon"/>, otherwise <see langword="false"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public readonly bool AllComponentsGreaterThanEpsilon() =>
-        X > Fixed64.Epsilon && Y > Fixed64.Epsilon && Z > Fixed64.Epsilon && W > Fixed64.Epsilon;
+        X.Abs() > Fixed64.Epsilon && Y.Abs() > Fixed64.Epsilon && Z.Abs() > Fixed64.Epsilon && W.Abs() > Fixed64.Epsilon;
 
     /// <summary>
     /// Snaps components with absolute values below the threshold to zero.

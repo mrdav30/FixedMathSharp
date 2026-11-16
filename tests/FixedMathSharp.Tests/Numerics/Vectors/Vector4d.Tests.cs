@@ -549,6 +549,35 @@ public class Vector4dTests
         Assert.True(vector.AllComponentsGreaterThanEpsilon());
     }
 
+    [Theory]
+    [InlineData(-FixedMath.ONE_L)]
+    [InlineData(long.MinValue)]
+    public void AllComponentsGreaterThanEpsilon_AcceptsLargeNegativeComponentsInEveryDimension(long raw)
+    {
+        Fixed64 component = Fixed64.FromRaw(raw);
+
+        Assert.True(new Vector2d(component, component).AllComponentsGreaterThanEpsilon());
+        Assert.True(new Vector3d(component, component, component).AllComponentsGreaterThanEpsilon());
+        Assert.True(new Vector4d(component, component, component, component).AllComponentsGreaterThanEpsilon());
+    }
+
+    [Theory]
+    [InlineData(1, -1, false)]
+    [InlineData(1, 0, false)]
+    [InlineData(1, 1, true)]
+    [InlineData(-1, -1, false)]
+    [InlineData(-1, 0, false)]
+    [InlineData(-1, 1, true)]
+    public void AllComponentsGreaterThanEpsilon_UsesTheSameStrictBoundaryInEveryDimension(
+        int sign, int magnitudeOffset, bool expected)
+    {
+        Fixed64 component = Fixed64.FromRaw(sign * (Fixed64.Epsilon.m_rawValue + magnitudeOffset));
+
+        Assert.Equal(expected, new Vector2d(Fixed64.One, component).AllComponentsGreaterThanEpsilon());
+        Assert.Equal(expected, new Vector3d(Fixed64.One, Fixed64.One, component).AllComponentsGreaterThanEpsilon());
+        Assert.Equal(expected, new Vector4d(Fixed64.One, Fixed64.One, Fixed64.One, component).AllComponentsGreaterThanEpsilon());
+    }
+
     [Fact]
     public void SnapSmallComponentsToZero_CoversDefaultCustomBoundaryAndEachComponentDecision()
     {
