@@ -649,14 +649,24 @@ public class FixedQuaternionTests
     }
 
     [Fact]
-    public void FixedQuaternion_ToDirection_WorksCorrectly()
+    public void FixedQuaternion_ForwardDirections_ReturnCanonicalForwardForIdentity()
     {
         var quaternion = FixedQuaternion.Identity;
-        var result = quaternion.ToDirection();
+        Assert.Equal(Vector3d.Forward, quaternion.GetForwardDirection());
+        Assert.Equal(Vector3d.Forward, quaternion.GetWorldForwardInLocalFrame());
+    }
 
-        var expected = new Vector3d(0, 0, 1);  // Default forward direction
+    [Fact]
+    public void FixedQuaternion_ForwardDirections_DistinguishFramesForQuarterTurnAboutUp()
+    {
+        var quaternion = FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.HalfPi);
 
-        Assert.True(result.FuzzyEqual(expected), $"ToDirection returned {result}, expected {expected}.");
+        Assert.True(quaternion.GetForwardDirection().FuzzyEqual(Vector3d.Right));
+        Vector3d localForward = quaternion.GetWorldForwardInLocalFrame();
+        Assert.True(localForward.FuzzyEqual(Vector3d.Left));
+#pragma warning disable CS0618 // Verify that the obsolete alias preserves the inverse result.
+        Assert.Equal(localForward, quaternion.ToDirection());
+#pragma warning restore CS0618
     }
 
     [Fact]

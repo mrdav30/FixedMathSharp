@@ -47,8 +47,15 @@ FixedQuaternion quarterTurn = FixedQuaternion.FromAxisAngle(
     Vector3d.Up,
     Fixed64.HalfPi);
 
-Vector3d turned = quarterTurn.Rotate(Vector3d.Forward);
+Vector3d worldForward = quarterTurn.GetForwardDirection(); // +X
+Vector3d localWorldForward = quarterTurn.GetWorldForwardInLocalFrame(); // -X
 ```
+
+`GetForwardDirection()` applies the rotation to the object's local `+Z` axis.
+`GetWorldForwardInLocalFrame()` expresses canonical world `+Z` in the object's
+local axes. Replace calls to `ToDirection()` with
+`GetWorldForwardInLocalFrame()` to keep the same inverse result. `ToDirection()`
+remains callable and emits a deprecation warning with the replacement name.
 
 ## Matrix composition
 

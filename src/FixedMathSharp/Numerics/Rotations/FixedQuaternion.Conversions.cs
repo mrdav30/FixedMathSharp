@@ -5,6 +5,7 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
+using System;
 using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp;
@@ -59,15 +60,25 @@ public partial struct FixedQuaternion
             FixedMath.RadToDeg(roll));
     }
 
-    /// <summary>Expresses canonical forward in the local axes of a rotation.</summary>
+    /// <summary>Gets this rotation's local forward axis in world coordinates.</summary>
+    /// <returns>The rotated <see cref="Vector3d.Forward"/> direction.</returns>
+    /// <remarks>Uses <see cref="Rotate(Vector3d)"/>. A zero quaternion returns canonical forward.</remarks>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Vector3d GetForwardDirection() => Rotate(Vector3d.Forward);
+
+    /// <summary>Expresses canonical world forward in this rotation's local axes.</summary>
     /// <returns>For a unit quaternion, the inverse-rotated <see cref="Vector3d.Forward"/> direction.</returns>
     /// <remarks>The formula uses the supplied components directly. Normalize nonunit quaternions before using the result as a rotation direction. Zero returns canonical forward.</remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Vector3d ToDirection() =>
+    public Vector3d GetWorldForwardInLocalFrame() =>
         new(2 * (X * Z - W * Y),
             2 * (Y * Z + W * X),
             Fixed64.One - 2 * (X * X + Y * Y));
 
+    /// <inheritdoc cref="GetWorldForwardInLocalFrame()"/>
+    [Obsolete("Use " + nameof(GetWorldForwardInLocalFrame) + "() instead.")]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Vector3d ToDirection() => GetWorldForwardInLocalFrame();
 
     /// <summary>
     /// Converts the quaternion into a 3x3 rotation matrix.

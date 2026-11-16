@@ -35,14 +35,14 @@ Work that requires staged implementation belongs in a focused feature-work plan.
 
 ## Active Issues
 
-**Next issue ID:** `FMS-Issue-042`
+**Next issue ID:** `FMS-Issue-045`
 
-The entries below capture runtime behavior observed during the API documentation
-pass at revision `1a9a270db3a6c79d4f501fc849883ef6ffd6ea12`. Use .NET 10 and the
-Release package dependency graph. To run the examples from the repository root,
-create a disposable console project, add the core project reference, and replace
-its `Program.cs` with the case under investigation. Include
-`using FixedMathSharp;` and `using FixedMathSharp.Geometry;` as needed.
+The numeric cases below originated in the API documentation pass at
+`1a9a270db3a6c79d4f501fc849883ef6ffd6ea12` and were reproduced at `2a65963` in
+`Release` and `ReleaseLean` with .NET SDK 10.0.302. To run the examples from the
+repository root, create a disposable console project, add the core project
+reference, and replace its `Program.cs` with the case under investigation.
+Include `using FixedMathSharp;` and `using FixedMathSharp.Geometry;` as needed.
 
 ```bash
 dotnet new console --framework net10.0 --output artifacts/issue-repro
@@ -50,37 +50,121 @@ dotnet add artifacts/issue-repro/issue-repro.csproj reference src/FixedMathSharp
 dotnet run --project artifacts/issue-repro/issue-repro.csproj -c Release -p:UseLocalLsfStack=false
 ```
 
-### FMS-Issue-041: Fixed-point rounding and vector or quaternion edge behavior
+<a id="fms-issue-041-fixed-point-rounding-and-vector-or-quaternion-edge-behavior"></a>
 
-- **Status:** Confirmed behavior. Compatibility decision pending.
-- **Priority:** High for rounding wraparound, Medium for the other numeric cases
-- **Affected area:** [FixedMath](../../src/FixedMathSharp/Core/FixedMath.cs),
-  [Fixed64 conversions](../../src/FixedMathSharp/Numerics/Scalars/Fixed64.Conversions.cs),
-  vector operations, and
-  [FixedQuaternion rotation](../../src/FixedMathSharp/Numerics/Rotations/FixedQuaternion.cs).
-- **Evidence:**
-  - `RoundToPrecision(Fixed64.FromDecimal(0.2m), 1)` returns raw `858993460`,
-    one unit above the input. With `Fixed64.MaxValue` instead, the returned raw
-    value is `-922337203685477580`. `ToInt(-Fixed64.Half)` returns `-1`, while
-    `(int)(-Fixed64.Half)` returns `0`.
-  - `Vector3d.Angle(new(1000000, 0, 0), new(1, 1000000, 0))` returns zero under
-    saturation. `Vector3d.Reflect(Vector3d.Right, new(2, 0, 0))` returns
-    `(-7, 0, 0)`, demonstrating the unit-normal requirement. The scalar cross
-    products of `Vector2d.Forward, Vector2d.Right` and
-    `Vector3d.Up, Vector3d.Right` both return `-1`.
-  - `FixedQuaternion.Zero.Rotate(Vector3d.Forward)` returns the input.
-    `FixedQuaternion.Zero.TryRotate(Vector3d.Forward, out var result)` succeeds
-    with a zero result. For a positive quarter turn about Up, `ToDirection().X`
-    is negative and `Rotate(Vector3d.Forward).X` is positive.
-  - `Vector4d.Lerp(new Vector4d(Fixed64.MinValue), new Vector4d(Fixed64.MaxValue), Fixed64.One)`
-    misses the end value because subtraction saturates. For all components equal
-    to `-1`, `AllComponentsGreaterThanEpsilon` is true in 2D and 3D and false in
-    4D.
-- **Impact:** Rounding can change sign at the representable endpoint. The other
-  cases affect conversions and agreement between related math APIs.
-- **Next action:** Start with an exact raw-integer rounding oracle for
-  `RoundToPrecision`. Review caller expectations before aligning overloads or
-  dimensional variants. Confirm which of the observed differences are intended.
+### FMS-Issue-041: Decimal rounding introduces raw bias and can reverse sign
+
+- **Status:** Confirmed at `2a65963`.
+- **Priority:** High.
+- **Affected area:**
+  [`FixedMath.RoundToPrecision`](../../src/FixedMathSharp/Core/FixedMath.cs) and
+  its
+  [`Fixed64` extension](../../src/FixedMathSharp/Numerics/Scalars/Fixed64Extensions.cs).
+- **Evidence:** `FixedMath.RoundToPrecision(Fixed64.FromDecimal(0.2m), 1)`
+  returns raw `858993460`. Exact rounding to the decimal grid and then to Q32.32
+  gives raw `858993459`. Replacing the input with `new Fixed64(1_000_000_000)`
+  gives raw `-922337203685477580`, even though the correct result is the
+  original value. `Fixed64.MaxValue` gives the same negative result. Its exact
+  rounded value is one raw unit above the positive limit. `Fixed64.MinValue`
+  also gives `-922337203685477580`, though the exact decimal-grid result fits.
+- **Impact:** An already-rounded value can move by a raw unit, and intermediate
+  saturation followed by an unchecked raw addition can change the sign of a
+  valid input whose rounded result fits.
+- **Next action:** Add an exact raw-integer oracle for both midpoint rules, both
+  signs, and the domain limits. Widen decimal scaling, round once at each grid
+  boundary, and define the out-of-range result consistently with the saturation
+  contract of `FixedMath.Round`.
+
+### FMS-Issue-042: Vector3d.Angle loses scale invariance under saturation
+
+- **Status:** Confirmed at `2a65963`. Split from FMS-Issue-041.
+- **Priority:** Medium.
+- **Affected area:**
+  [`Vector3d.Angle`](../../src/FixedMathSharp/Numerics/Vectors/Vector3d.Statics.cs)
+  and its
+  [extension](../../src/FixedMathSharp/Numerics/Vectors/Vector3dExtensions.cs).
+- **Evidence:** `Vector3d.Angle(new(1, 0, 0), new(1, 1, 0))` gives `45°`. With
+  both vectors scaled by 256 it gives `0°`. The squared-length product saturates
+  and the computed cosine clamps to one. With `(1000000, 0, 0)` and
+  `(1, 1000000, 0)`, it also gives `0°` where the angle is about `89.999943°`.
+  Normalizing those directions first gives about `89.999943°`.
+- **Impact:** Distinct directions can appear parallel. The XML describes the
+  existing saturation and the normalize-first workaround.
+- **Next action:** Preserve the zero-vector result used by slope callers. Add
+  scale-invariance regressions and measure ordinary inputs before choosing an
+  exact or scale-safe kernel. Treat the behavior for tiny nonzero vectors as a
+  separate threshold decision.
+
+### FMS-Issue-043: Vector4d interpolation misses representable endpoints
+
+- **Status:** Confirmed at `2a65963`. Split from FMS-Issue-041.
+- **Priority:** Medium.
+- **Affected area:**
+  [`Vector4d.Lerp` and `UnclampedLerp`](../../src/FixedMathSharp/Numerics/Vectors/Vector4d.cs)
+  and their
+  [extensions](../../src/FixedMathSharp/Numerics/Vectors/Vector4d.Extensions.cs).
+- **Evidence:** Let `a = new Vector4d(Fixed64.MinValue)` and
+  `b = new Vector4d(Fixed64.MaxValue)`. `Vector4d.Lerp(a, b, Fixed64.One)`
+  returns raw `-1` per component instead of `b`. Reversing the endpoints also
+  returns raw `-1`. At `Fixed64.Half` the forward interpolation returns
+  `-1073741824` per component, where nearest-even interpolation gives zero.
+  `UnclampedLerp` also misses the endpoint at one. The 2D and 3D clamped
+  interpolators reach their endpoints through `FixedMath.Lerp`.
+- **Impact:** A saturating component difference can distort an in-range result,
+  including the final value of a clamped interpolation.
+- **Next action:** Reuse the full-domain scalar interpolation for the clamped
+  API and verify both endpoint orders and midpoint rounding. Check the unclamped
+  endpoint contract separately and preserve extrapolation.
+
+### FMS-Issue-044: Epsilon predicate changes meaning across vector dimensions
+
+- **Status:** Confirmed at `2a65963`. Split from FMS-Issue-041.
+- **Priority:** Medium.
+- **Affected area:** `AllComponentsGreaterThanEpsilon` in
+  [2D](../../src/FixedMathSharp/Numerics/Vectors/Vector2d.Equality.cs),
+  [3D](../../src/FixedMathSharp/Numerics/Vectors/Vector3d.cs), and
+  [4D](../../src/FixedMathSharp/Numerics/Vectors/Vector4d.cs).
+- **Evidence:** Vectors with every component equal to `-1` yield `true`, `true`,
+  and `false` in 2D, 3D, and 4D. The first two compare absolute magnitudes and
+  4D compares signed values. All three return `false` at either epsilon boundary
+  and `true` when every component is `1`.
+- **Impact:** Moving the same component test between vector dimensions can
+  change a branch decision. The current difference is documented, so making 4D
+  match the other overloads changes a public contract.
+- **Next action:** Make the existing predicate use strict magnitude comparison
+  across all dimensions. Add parity tests for negative components, exact
+  epsilon, mixed signs, and `Fixed64.MinValue`. Document the 4D behavior change.
+  Use an explicitly signed name if a caller needs a signed predicate.
+
+## Numeric API review from FMS-Issue-041 triage
+
+- Preserve the two integer conversions. `ToInt(-Fixed64.Half)` gives `-1` by
+  flooring, and `(int)(-Fixed64.Half)` gives `0` by truncating toward zero. Both
+  rounding policies are useful and already documented.
+  [Conversion contracts](../../src/FixedMathSharp/Numerics/Scalars/Fixed64.Conversions.cs)
+- Preserve the reflection precondition and the cross-product signs.
+  `Reflect(Right, (2, 0, 0))` gives `(-7, 0, 0)` under the supplied-normal
+  formula, and a unit `Right` normal gives `(-1, 0, 0)`. The signed 2D
+  determinant of `Forward, Right` is `-1`. In 3D, `Up × Right` is `-Forward` and
+  its component sum is `-1`.
+  [Reflection and 3D cross product](../../src/FixedMathSharp/Numerics/Vectors/Vector3d.Statics.cs),
+  [2D determinant](../../src/FixedMathSharp/Numerics/Vectors/Vector2d.cs)
+- **Direction API:** `GetForwardDirection()` returns local forward in world
+  axes. `GetWorldForwardInLocalFrame()` returns canonical world forward in local
+  axes. A positive quarter turn about `Up` gives `+X` and `-X`, respectively.
+  `ToDirection()` remains an obsolete forwarding alias for
+  `GetWorldForwardInLocalFrame()`, preserving its existing inverse result.
+  [Direction contract and migration](../api/guides/coordinate-conventions.md#rotations-and-angles)
+- **Proposed zero quaternion contract:** `Identity` represents an unchanged
+  direction. `Zero` and `default(FixedQuaternion)` are invalid rotations.
+  Checked rotation and point transforms would return `false` with a default
+  result for zero, and a throwing rotation would report the invalid receiver.
+  Currently `Zero.Rotate(Forward)` gives `Forward`, `Zero.TryRotate` succeeds
+  with zero, and `Zero.TryTransformPoint` succeeds with the origin. Audit
+  default initialization and callers that discard `Try*` results before changing
+  these contracts together.
+  [Rotation and transform methods](../../src/FixedMathSharp/Numerics/Rotations/FixedQuaternion.cs),
+  [zero regression](../../tests/FixedMathSharp.Tests/Numerics/Rotations/FixedQuaternion.Tests.cs)
 
 ## Resolved Issues
 
