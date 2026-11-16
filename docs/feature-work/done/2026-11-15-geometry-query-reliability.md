@@ -88,3 +88,39 @@ sampled fixtures on this host.
 | `RayIntersectsBox`     |  87.66 ns |   8.58 ns |
 | `SphereTransform`      | 199.34 ns | 414.09 ns |
 | `FrustumConstructOnly` |   2.14 µs |   4.35 µs |
+
+## Sphere transform performance follow-up
+
+The `SphereTransform` fixture applies 256 deterministic TRS matrices and merges
+each transformed sphere into an accumulator. A split probe of the `adcd7be`
+implementation measured about 30–40 ns per merge with precomputed transformed
+spheres after warmup. The transform accounted for most of the measured cost.
+
+The optimized transform retains the same Gram row-sum bound and outward
+rounding. It obtains the leading root bits with single-word integer Newton steps
+and recovers the remaining bits by comparing exact squares against the full
+radicand. On `net10.0`, the Gram calculation uses signed 128-bit arithmetic when
+the coefficient widths prove every row sum fits. Other matrices and
+`netstandard2.1` use the existing wide Gram calculation.
+
+A fixed-seed probe compared 32,768 affine cases with the `adcd7be` baseline. The
+`net10.0` and `netstandard2.1` outputs matched the baseline center and radius
+bits and overflow outcomes in all cases. The regression tests check both sides
+of the compact Gram cutoff and the floor and ceiling overflow boundaries.
+
+On the same Windows x64 and .NET 10.0.10 setup, four out-of-process runs
+alternated baseline, optimized, optimized, baseline. Each used four warmups and
+five measured iterations. The baseline means were 410.3 and 410.4 ns per
+transform plus merge. The optimized means were 261.7 and 266.6 ns, about 36%
+lower. All four children completed and reported zero managed allocation.
+
+```bash
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net10.0/FixedMathSharp.Benchmarks.dll \
+  bounds -j Short --launchCount 1 --warmupCount 4 --iterationCount 5 \
+  --filter '*SphereTransform'
+```
+
+Release and ReleaseLean solution tests passed. After switching the dot product
+to direct `Math.BigMul` calls, focused coverage exercised all 65 instrumented
+lines and 30 branch outcomes across the eight affected methods in each
+configuration.

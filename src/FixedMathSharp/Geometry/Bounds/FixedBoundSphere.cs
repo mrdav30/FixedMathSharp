@@ -844,19 +844,55 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
         // Multiplying by the squared raw radius gives a product smaller than 2^256.
         Signed320 product = WideArithmetic.MultiplySigned192(squaredStretch, squaredRadius);
 
-        // Divide the squared product by 2^64 to get squared raw radius units.
-        // The discarded fraction cannot affect the floor of the square root, but it affects the ceiling.
-        Signed320 squaredRawRadius = new(0UL, product.Word4, product.Word3, product.Word2, product.Word1);
-        Signed192 floor = WideArithmetic.GetFloorSquareRoot(squaredRawRadius, out Signed192 remainder);
-        ulong padding = product.Word0 != 0UL || !remainder.IsZero ? 1UL : 0UL;
+        // After division by 2^64 the radicand must be below 2^126 for its root to fit in Fixed64.
+        if ((product.Word4 | product.Word3 | (product.Word2 >> 62)) != 0UL)
+            throw new OverflowException("The transformed sphere radius is out of range.");
+
+        // Discarding the low word preserves the floor root. Any difference from its square rounds outward.
+        ulong floor = GetRadiusFloor(product.Word2, product.Word1);
+        Fixed64.Multiply64To128(floor, floor, out ulong squareHigh, out ulong squareLow);
+        ulong padding = (product.Word0 | (product.Word2 ^ squareHigh) | (product.Word1 ^ squareLow)) != 0UL ? 1UL : 0UL;
 
         // Rounding the center can move each coordinate by at most half a raw unit, so one raw unit covers the shift.
         if (HasCenterRounding(matrix))
             padding++;
-        if ((floor.High | floor.Middle) != 0UL || floor.Low > (ulong)long.MaxValue - padding)
+        if (floor > (ulong)long.MaxValue - padding)
             throw new OverflowException("The transformed sphere radius is out of range.");
 
-        return Fixed64.FromRaw((long)(floor.Low + padding));
+        return Fixed64.FromRaw((long)(floor + padding));
+    }
+
+    private static ulong GetRadiusFloor(ulong high, ulong low)
+    {
+        if ((high | low) == 0UL)
+            return 0UL;
+
+        // Drop complete bit pairs so the upper root bits can use single-word division.
+        int missingBits = (65 - Fixed64.CountLeadingZeroes(high)) >> 1;
+        int shift = missingBits * 2;
+        ulong prefix = shift == 0 ? low : (high << (64 - shift)) | (low >> shift);
+        int exponent = (65 - Fixed64.CountLeadingZeroes(prefix)) >> 1;
+        ulong upper = 1UL << exponent;
+        // The first integer Newton step uses a power-of-two divisor.
+        ulong root = (upper + (prefix >> exponent)) >> 1;
+        while (true)
+        {
+            ulong quotient = prefix / root;
+            if (quotient >= root)
+                break;
+            root = (root + quotient) >> 1;
+        }
+
+        // Restore the low bits by comparing trial squares to the full radicand.
+        root <<= missingBits;
+        for (ulong bit = (1UL << missingBits) >> 1; bit != 0UL; bit >>= 1)
+        {
+            ulong trial = root | bit;
+            Fixed64.Multiply64To128(trial, trial, out ulong squareHigh, out ulong squareLow);
+            if (squareHigh < high || (squareHigh == high && squareLow <= low))
+                root = trial;
+        }
+        return root;
     }
 
     private static Signed192 GetMaximumSquaredStretch(Fixed4x4 matrix)
@@ -867,6 +903,18 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
 
         // The largest absolute row sum of the Gram matrix bounds its largest eigenvalue.
         // For orthogonal rows, the Gram matrix is diagonal and the bound is exact.
+#if NET10_0_OR_GREATER
+        // With magnitudes up to 2^61, even a row sum of nine products fits in signed 128 bits.
+        if ((GetRowWidthBits(row0) | GetRowWidthBits(row1) | GetRowWidthBits(row2)) < (1L << 61))
+        {
+            Int128 off01 = Int128.Abs(GetDot128(row0, row1));
+            Int128 off02 = Int128.Abs(GetDot128(row0, row2));
+            Int128 off12 = Int128.Abs(GetDot128(row1, row2));
+            Int128 largestSum = Int128.Max(GetDot128(row0, row0) + off01 + off02,
+                Int128.Max(GetDot128(row1, row1) + off01 + off12, GetDot128(row2, row2) + off02 + off12));
+            return new Signed192(0UL, (ulong)(largestSum >> 64), unchecked((ulong)largestSum));
+        }
+#endif
         Signed192 cross01 = WideArithmetic.Absolute(GetExactDot(row0, row1));
         Signed192 cross02 = WideArithmetic.Absolute(GetExactDot(row0, row2));
         Signed192 cross12 = WideArithmetic.Absolute(GetExactDot(row1, row2));
@@ -877,6 +925,19 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
 
         return WideArithmetic.CompareMagnitude(largest, sum2) >= 0 ? largest : sum2;
     }
+
+#if NET10_0_OR_GREATER
+    private static long GetRowWidthBits(Vector3d row) =>
+        RemoveSignExtension(row.X.m_rawValue) | RemoveSignExtension(row.Y.m_rawValue) | RemoveSignExtension(row.Z.m_rawValue);
+
+    private static long RemoveSignExtension(long raw) => raw ^ (raw >> 63);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Int128 GetDot128(Vector3d left, Vector3d right) =>
+        Math.BigMul(left.X.m_rawValue, right.X.m_rawValue) +
+        Math.BigMul(left.Y.m_rawValue, right.Y.m_rawValue) +
+        Math.BigMul(left.Z.m_rawValue, right.Z.m_rawValue);
+#endif
 
     private static Signed192 GetExactDot(Vector3d left, Vector3d right) => WideArithmetic.AddSigned192(
         WideArithmetic.AddSigned192(

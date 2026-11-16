@@ -134,6 +134,33 @@ Avoid:
 - Using Unity, XNA, or MonoGame naming as proof that a convention is right for
   core FixedMathSharp.
 
+## Wide Math And .NET 10 Integer Helpers
+
+- Use the smallest integer width that preserves the exact intermediate result.
+  When 64 bits are insufficient, consider `Int128` for signed values or
+  `UInt128` for nonnegative values before choosing `Signed192` or a wider
+  representation. On .NET 10, use `Math.BigMul` directly for full-width 64-bit
+  products.
+- Prove the width of the entire calculation, including products, sums, sign
+  changes, shifts, and rounding terms. A representable final `Fixed64` does not
+  guarantee the intermediates fit. Check any input-dependent width bound before
+  entering the narrower path and use the existing wider arithmetic when the
+  check fails.
+- Guard .NET 10-specific code with `NET10_0_OR_GREATER` and retain an exact
+  `netstandard2.1` implementation. Build both targets and check that equivalent
+  inputs give the same raw results, rounding, and overflow behavior, including
+  at the width cutoff. Benchmark hot paths with representative inputs.
+- Keep operation-specific guards and helpers with their caller. Put reusable
+  integer mechanics in the existing
+  [`Numerics/Wide`](src/FixedMathSharp/Numerics/Wide) owners when multiple
+  production callers share the width and failure contract. Keep the range check
+  with any shared operation that depends on it.
+
+[`Fixed64.Multiply64To128`](src/FixedMathSharp/Numerics/Scalars/Fixed64.Arithmetic.cs)
+shows a .NET 10 product with a portable implementation.
+[`FixedBoundSphere.Transform`](src/FixedMathSharp/Geometry/Bounds/FixedBoundSphere.cs)
+shows a guarded `Int128` calculation with a `Signed192` fallback.
+
 ## Performance And Benchmarking Bar
 
 `ScaledRigidFrame3d` retains exact diagonal scale and separately rotated

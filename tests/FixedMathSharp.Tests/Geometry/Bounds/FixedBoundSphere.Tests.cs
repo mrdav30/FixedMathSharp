@@ -1001,6 +1001,52 @@ public class FixedBoundSphereTests
     }
 
     [Fact]
+    public void Transform_SelectsTheLargestWideOrthogonalScale()
+    {
+        var sphere = new FixedBoundSphere(Vector3d.Zero, Fixed64.One);
+        Fixed64 scale = Fixed64.FromRaw(1L << 61);
+
+        Assert.Equal(scale, sphere.Transform(Fixed4x4.CreateScale(Fixed64.One, scale, Fixed64.One)).Radius);
+        Assert.Equal(scale, sphere.Transform(Fixed4x4.CreateScale(Fixed64.One, Fixed64.One, scale)).Radius);
+    }
+
+    [Fact]
+    public void Transform_RoundsSubunitRadiusOutward()
+    {
+        var sphere = new FixedBoundSphere(Vector3d.Zero, Fixed64.FromRaw(5));
+        Assert.Equal(Fixed64.FromRaw(3), sphere.Transform(Fixed4x4.CreateScale(Fixed64.Half)).Radius);
+    }
+
+    [Theory]
+    [InlineData((1L << 61) - 1)]
+    [InlineData(1L << 61)]
+    public void Transform_RetainsLargeNegativeGramCrossTerm(long coefficient)
+    {
+        var sphere = new FixedBoundSphere(Vector3d.Zero, Fixed64.Half);
+        Fixed64 scale = Fixed64.FromRaw(coefficient);
+        Fixed4x4 matrix = Fixed4x4.Identity;
+        matrix.M11 = matrix.M12 = scale;
+        matrix.M21 = matrix.M22 = -scale;
+        matrix.M33 = Fixed64.Zero;
+
+        // The two opposed rows have maximum stretch 2 * scale.
+        Assert.Equal(scale, sphere.Transform(matrix).Radius);
+    }
+
+    [Fact]
+    public void Transform_ChecksOutwardRoundingAtMaximumRadius()
+    {
+        var unitSphere = new FixedBoundSphere(Vector3d.Zero, Fixed64.One);
+        Assert.Equal(Fixed64.MaxValue, unitSphere.Transform(Fixed4x4.CreateScale(Fixed64.MaxValue)).Radius);
+        Assert.Throws<OverflowException>(() => unitSphere.Transform(Fixed4x4.CreateScale(Fixed64.MinValue)));
+
+        var sphere = new FixedBoundSphere(Vector3d.Zero, Fixed64.FromRaw(long.MaxValue - int.MaxValue));
+        Fixed4x4 scale = Fixed4x4.CreateScale(Fixed64.One + Fixed64.MinIncrement);
+        // The exact radius is half a raw unit above MaxValue.
+        Assert.Throws<OverflowException>(() => sphere.Transform(scale));
+    }
+
+    [Fact]
     public void Transform_RetainsRepresentableRadiusWhenBasisMagnitudeDoesNotFit()
     {
         var sphere = new FixedBoundSphere(Vector3d.Zero, Fixed64.Quarter);
