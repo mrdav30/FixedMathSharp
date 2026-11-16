@@ -148,18 +148,18 @@ public partial struct Fixed4x4
     public static Fixed4x4 CreateScale(Fixed64 x, Fixed64 y, Fixed64 z) => CreateScale(new Vector3d(x, y, z));
 
     /// <summary>
-    /// Constructs a camera matrix from a position, target, and preferred up direction.
+    /// Creates a world-to-view matrix from a camera position, target, and preferred up direction.
     /// </summary>
     /// <remarks>
-    /// The matrix stores the normalized camera right, up, and forward vectors in rows.
-    /// Its translation is the negative dot product of each basis vector with the camera position.
-    /// For a rotated camera, this layout can map the camera position away from the origin when
-    /// used with <see cref="TransformPoint(Fixed4x4, Vector3d)"/>.
+    /// For row-vector transforms the camera basis is stored in columns, so each output
+    /// coordinate projects the input onto the corresponding camera axis. Translation
+    /// subtracts the camera position in view space. Basis construction and translation
+    /// use rounded, saturating fixed-point arithmetic.
     /// </remarks>
     /// <param name="cameraPosition">The camera position in world coordinates.</param>
     /// <param name="cameraTarget">The look target in world coordinates.</param>
     /// <param name="cameraUpVector">The preferred up direction in world coordinates.</param>
-    /// <returns>An affine matrix with right, up, and forward basis rows and a translation derived from the camera position.</returns>
+    /// <returns>A row-vector affine view matrix with +Z forward.</returns>
     /// <exception cref="ArgumentException">The view direction or its cross product with the up vector has zero squared magnitude.</exception>
     public static Fixed4x4 CreateLookAt(Vector3d cameraPosition, Vector3d cameraTarget, Vector3d cameraUpVector)
     {
@@ -178,9 +178,9 @@ public partial struct Fixed4x4
         Vector3d up = Vector3d.Cross(forward, right).NormalizeInPlace();
 
         return new Fixed4x4(
-            right.X, right.Y, right.Z, Fixed64.Zero,
-            up.X, up.Y, up.Z, Fixed64.Zero,
-            forward.X, forward.Y, forward.Z, Fixed64.Zero,
+            right.X, up.X, forward.X, Fixed64.Zero,
+            right.Y, up.Y, forward.Y, Fixed64.Zero,
+            right.Z, up.Z, forward.Z, Fixed64.Zero,
             -Vector3d.Dot(right, cameraPosition),
             -Vector3d.Dot(up, cameraPosition),
             -Vector3d.Dot(forward, cameraPosition),
@@ -260,7 +260,8 @@ public partial struct Fixed4x4
     /// <param name="nearPlaneDistance">The positive near plane distance along +Z.</param>
     /// <param name="farPlaneDistance">The far plane distance along +Z, strictly greater than the near plane distance.</param>
     /// <returns>A +Z-forward row-vector perspective matrix using the zero-to-one depth convention.</returns>
-    /// <remarks>Fixed-point rounding and saturation of the coefficients can affect the projected depth.</remarks>
+    /// <remarks>Each coefficient is rounded once, with saturation at the representable endpoints.
+    /// Applying the matrix is also subject to the range of the point-transform arithmetic.</remarks>
     /// <exception cref="ArgumentOutOfRangeException">The width, height, or near distance is nonpositive, or the far distance is at or below the near distance.</exception>
     public static Fixed4x4 CreatePerspective(
         Fixed64 width,
@@ -276,27 +277,26 @@ public partial struct Fixed4x4
 
         ValidatePerspectiveDepthRange(nearPlaneDistance, farPlaneDistance);
 
-        Fixed64 depth = farPlaneDistance - nearPlaneDistance;
-        Fixed64 twoNear = Fixed64.Two * nearPlaneDistance;
-
-        return new Fixed4x4(
-            twoNear / width, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
-            Fixed64.Zero, twoNear / height, Fixed64.Zero, Fixed64.Zero,
-            Fixed64.Zero, Fixed64.Zero, farPlaneDistance / depth, Fixed64.One,
-            Fixed64.Zero, Fixed64.Zero, -(nearPlaneDistance * farPlaneDistance) / depth, Fixed64.Zero);
+        return BuildPerspective(
+            Fixed64.MultiplyDivide(Fixed64.Two, nearPlaneDistance, width, out _),
+            Fixed64.MultiplyDivide(Fixed64.Two, nearPlaneDistance, height, out _),
+            Fixed64.Zero, Fixed64.Zero, nearPlaneDistance, farPlaneDistance);
     }
 
     /// <summary>
     /// Creates a perspective projection matrix from a vertical field of view.
     /// </summary>
-    /// <param name="fieldOfView">The vertical field of view in radians, strictly between zero and pi.</param>
+    /// <param name="fieldOfView">The vertical field of view in radians, strictly between zero and pi.
+    /// Its rounded half angle must be strictly between zero and pi/2.</param>
     /// <param name="aspectRatio">The positive ratio of width to height.</param>
     /// <param name="nearPlaneDistance">The positive near plane distance along +Z.</param>
     /// <param name="farPlaneDistance">The far plane distance along +Z, strictly greater than the near plane distance.</param>
     /// <returns>A +Z-forward row-vector perspective matrix using the zero-to-one depth convention.</returns>
-    /// <remarks>Fixed-point rounding and saturation of the coefficients can affect the projected depth.</remarks>
-    /// <exception cref="ArgumentOutOfRangeException">The field of view is outside its open interval, the aspect ratio or near distance is nonpositive, or the far distance is at or below the near distance.</exception>
-    /// <exception cref="DivideByZeroException">The tangent of the fixed-point half angle is zero.</exception>
+    /// <remarks>The horizontal and vertical coefficients are rounded and saturated independently
+    /// from the fixed-point sine and cosine of the half angle. Applying the matrix is also
+    /// subject to the range of the point-transform arithmetic.</remarks>
+    /// <exception cref="ArgumentOutOfRangeException">The field of view or its rounded half angle is outside
+    /// its open interval, the aspect ratio or near distance is nonpositive, or the far distance is at or below the near distance.</exception>
     public static Fixed4x4 CreatePerspectiveFieldOfView(
         Fixed64 fieldOfView,
         Fixed64 aspectRatio,
@@ -311,15 +311,19 @@ public partial struct Fixed4x4
 
         ValidatePerspectiveDepthRange(nearPlaneDistance, farPlaneDistance);
 
-        Fixed64 yScale = Fixed64.One / FixedMath.Tan(fieldOfView * Fixed64.Half);
-        Fixed64 xScale = yScale / aspectRatio;
-        Fixed64 depth = farPlaneDistance - nearPlaneDistance;
+        Fixed64 halfAngle = fieldOfView * Fixed64.Half;
+        if (halfAngle == Fixed64.Zero || halfAngle == Fixed64.HalfPi)
+            throw new ArgumentOutOfRangeException(nameof(fieldOfView), "The rounded half angle must be greater than zero and less than PI/2.");
 
-        return new Fixed4x4(
-            xScale, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
-            Fixed64.Zero, yScale, Fixed64.Zero, Fixed64.Zero,
-            Fixed64.Zero, Fixed64.Zero, farPlaneDistance / depth, Fixed64.One,
-            Fixed64.Zero, Fixed64.Zero, -(nearPlaneDistance * farPlaneDistance) / depth, Fixed64.Zero);
+        Fixed64 sine = FixedMath.Sin(halfAngle);
+        Fixed64 cosine = FixedMath.Sin(Fixed64.HalfPi - halfAngle);
+        Fixed64 yScale = cosine / sine;
+        // sin(halfAngle) * aspect has at most 95 raw bits at Q64.64 scale.
+        Signed192 horizontalDenominator = Signed192.NarrowValue(
+            WideArithmetic.MultiplySigned192(Signed192.Raw(sine), Signed192.Raw(aspectRatio)));
+        Fixed64 xScale = Fixed64.GetSignedRatio(
+            WideArithmetic.ShiftLeftSigned192By32(Signed192.Raw(cosine)), horizontalDenominator);
+        return BuildPerspective(xScale, yScale, Fixed64.Zero, Fixed64.Zero, nearPlaneDistance, farPlaneDistance);
     }
 
     /// <summary>
@@ -332,7 +336,8 @@ public partial struct Fixed4x4
     /// <param name="nearPlaneDistance">The positive near plane distance along +Z.</param>
     /// <param name="farPlaneDistance">The far plane distance along +Z, strictly greater than the near plane distance.</param>
     /// <returns>A +Z-forward row-vector perspective matrix using the zero-to-one depth convention.</returns>
-    /// <remarks>Fixed-point rounding and saturation of the coefficients can affect the projected depth.</remarks>
+    /// <remarks>Each coefficient is rounded once, with saturation at the representable endpoints.
+    /// Applying the matrix is also subject to the range of the point-transform arithmetic.</remarks>
     /// <exception cref="ArgumentOutOfRangeException">The horizontal or vertical endpoints coincide, the near distance is nonpositive, or the far distance is at or below the near distance.</exception>
     public static Fixed4x4 CreatePerspectiveOffCenter(
         Fixed64 left,
@@ -350,19 +355,10 @@ public partial struct Fixed4x4
 
         ValidatePerspectiveDepthRange(nearPlaneDistance, farPlaneDistance);
 
-        Fixed64 width = right - left;
-        Fixed64 height = top - bottom;
-        Fixed64 depth = farPlaneDistance - nearPlaneDistance;
-        Fixed64 twoNear = Fixed64.Two * nearPlaneDistance;
-
-        return new Fixed4x4(
-            twoNear / width, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
-            Fixed64.Zero, twoNear / height, Fixed64.Zero, Fixed64.Zero,
-            (left + right) / (left - right),
-            (top + bottom) / (bottom - top),
-            farPlaneDistance / depth,
-            Fixed64.One,
-            Fixed64.Zero, Fixed64.Zero, -(nearPlaneDistance * farPlaneDistance) / depth, Fixed64.Zero);
+        Signed192 twoNear = WideArithmetic.Double(Signed192.Raw(nearPlaneDistance));
+        GetPerspectiveAxis(left, right, twoNear, out Fixed64 xScale, out Fixed64 xOffset);
+        GetPerspectiveAxis(bottom, top, twoNear, out Fixed64 yScale, out Fixed64 yOffset);
+        return BuildPerspective(xScale, yScale, xOffset, yOffset, nearPlaneDistance, farPlaneDistance);
     }
 
     /// <summary>

@@ -65,6 +65,20 @@ Do not infer multiplication convention from field layout alone. When importing
 another library's matrix, verify its vector side, composition order, handedness,
 translation fields, and clip-space rules.
 
+### Camera and projection matrices
+
+`Fixed4x4.CreateLookAt` maps world points into camera space with `+Z` forward.
+Its columns project a row vector onto the camera's right, up, and forward axes.
+For the opposite mapping, `Fixed4x4.CreateWorld` stores those axes in rows. A
+point reaches clip space by multiplying by the view matrix and then the
+projection matrix.
+
+The perspective factories use a zero-to-one depth convention, with near at zero
+and far at one after division by W, subject to fixed-point arithmetic. They
+round and saturate the final coefficients. Applying the matrix has its own
+fixed-point range limits. The field-of-view overload takes radians and rejects
+angles whose rounded half is zero or pi/2.
+
 ## `FixedTransform`
 
 `FixedTransform` is an engine-neutral snapshot of local transform state. Its

@@ -344,6 +344,24 @@ public class Fixed4x4Tests
     }
 
     [Fact]
+    public void FixedMatrix4x4_CreateLookAt_MapsRotatedCameraBasisIntoViewSpace()
+    {
+        Vector3d eye = new(1, 2, 3);
+        Vector3d target = new(2, 2, 3);
+        Fixed4x4 view = Fixed4x4.CreateLookAt(eye, target, Vector3d.Up);
+
+        Assert.Equal(Vector3d.Zero, Fixed4x4.TransformPoint(view, eye));
+        Assert.Equal(Vector3d.Forward, Fixed4x4.TransformPoint(view, target));
+        Assert.Equal(Vector3d.Up, Fixed4x4.TransformPoint(view, eye + Vector3d.Up));
+        Assert.Equal(Vector3d.Right, Fixed4x4.TransformPoint(view, eye + Vector3d.Backward));
+
+        Vector3d forward = new(2, 1, 3);
+        Fixed4x4 world = Fixed4x4.CreateWorld(eye, forward, Vector3d.Up);
+        view = Fixed4x4.CreateLookAt(eye, eye + forward, Vector3d.Up);
+        Assert.True((world * view).FuzzyEqualAbsolute(Fixed4x4.Identity, Fixed64.Epsilon));
+    }
+
+    [Fact]
     public void FixedMatrix4x4_CreateWorld_DefaultBasisPreservesPositionAndAxes()
     {
         Fixed4x4 world = Fixed4x4.CreateWorld(new Vector3d(1, 2, 3), Vector3d.Forward, Vector3d.Up);
@@ -426,6 +444,71 @@ public class Fixed4x4Tests
         Assert.True(corners[0].FuzzyEqual(new Vector3d(0, 3, 1), Fixed64.FromDouble(0.0001)));
         Assert.True(corners[2].FuzzyEqual(new Vector3d(2, -1, 1), Fixed64.FromDouble(0.0001)));
         Assert.True(corners[6].FuzzyEqual(new Vector3d(10, -5, 5), Fixed64.FromDouble(0.0001)));
+    }
+
+    [Theory]
+    [InlineData(nameof(Fixed4x4.CreatePerspective))]
+    [InlineData(nameof(Fixed4x4.CreatePerspectiveFieldOfView))]
+    [InlineData(nameof(Fixed4x4.CreatePerspectiveOffCenter))]
+    public void FixedMatrix4x4_CreatePerspective_MapsLargeClipDistancesToZeroAndOne(string factory)
+    {
+        Fixed64 near = new(100000);
+        Fixed64 far = new(200000);
+        Fixed4x4 projection = factory switch
+        {
+            nameof(Fixed4x4.CreatePerspective) => Fixed4x4.CreatePerspective(Fixed64.Two, Fixed64.Two, near, far),
+            nameof(Fixed4x4.CreatePerspectiveFieldOfView) => Fixed4x4.CreatePerspectiveFieldOfView(Fixed64.HalfPi, Fixed64.One, near, far),
+            _ => Fixed4x4.CreatePerspectiveOffCenter(Fixed64.Zero, Fixed64.Two, -Fixed64.One, Fixed64.One, near, far)
+        };
+
+        Assert.Equal(Fixed64.Two, projection.M33);
+        Assert.Equal(-far, projection.M43);
+        Assert.Equal(Fixed64.Zero, Fixed4x4.TransformPoint(projection, new(Fixed64.Zero, Fixed64.Zero, near)).Z);
+        Assert.Equal(Fixed64.One, Fixed4x4.TransformPoint(projection, new(Fixed64.Zero, Fixed64.Zero, far)).Z);
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_CreatePerspective_PreservesRepresentableScaleWithWideNumerator()
+    {
+        Fixed64 near = new(1500000000);
+        Fixed4x4 projection = Fixed4x4.CreatePerspective(near, near, near, new Fixed64(2000000000));
+
+        Assert.Equal(Fixed64.Two, projection.M11);
+        Assert.Equal(Fixed64.Two, projection.M22);
+        Assert.Equal(Fixed64.MinValue, projection.M43);
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_CreatePerspectiveOffCenter_PreservesWideSpansAndCenterSums()
+    {
+        Fixed4x4 projection = Fixed4x4.CreatePerspectiveOffCenter(
+            new Fixed64(-1500000000), new Fixed64(1500000000),
+            new Fixed64(1200000000), new Fixed64(1600000000),
+            new Fixed64(100000), new Fixed64(200000));
+
+        Assert.Equal(Fixed64.One / 15000, projection.M11);
+        Assert.Equal(Fixed64.One / 2000, projection.M22);
+        Assert.Equal(Fixed64.Zero, projection.M31);
+        Assert.Equal(new Fixed64(-7), projection.M32);
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_CreatePerspectiveFieldOfView_PreservesHorizontalScaleWhenVerticalScaleSaturates()
+    {
+        Fixed4x4 projection = Fixed4x4.CreatePerspectiveFieldOfView(
+            Fixed64.FromRaw(2), new Fixed64(4), Fixed64.One, new Fixed64(10));
+
+        Assert.Equal(new Fixed64(1073741824), projection.M11);
+        Assert.Equal(Fixed64.MaxValue, projection.M22);
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_CreatePerspectiveFieldOfView_RejectsHalfAnglesRoundedToAnEndpoint()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>("fieldOfView", () =>
+            Fixed4x4.CreatePerspectiveFieldOfView(Fixed64.MinIncrement, Fixed64.One, Fixed64.One, new Fixed64(10)));
+        Assert.Throws<ArgumentOutOfRangeException>("fieldOfView", () =>
+            Fixed4x4.CreatePerspectiveFieldOfView(Fixed64.Pi - Fixed64.MinIncrement, Fixed64.One, Fixed64.One, new Fixed64(10)));
     }
 
     [Fact]

@@ -37,48 +37,17 @@ Work that requires staged implementation belongs in a focused feature-work plan.
 
 **Next issue ID:** `FMS-Issue-042`
 
-The four entries below capture runtime behavior observed during the API
-documentation pass at revision `1a9a270db3a6c79d4f501fc849883ef6ffd6ea12`. Use
-.NET 10 and the Release package dependency graph. To run the examples from the
-repository root, create a disposable console project, add the core project
-reference, and replace its `Program.cs` with the case under investigation.
-Include `using FixedMathSharp;` and `using FixedMathSharp.Geometry;` as needed.
+The entries below capture runtime behavior observed during the API documentation
+pass at revision `1a9a270db3a6c79d4f501fc849883ef6ffd6ea12`. Use .NET 10 and the
+Release package dependency graph. To run the examples from the repository root,
+create a disposable console project, add the core project reference, and replace
+its `Program.cs` with the case under investigation. Include
+`using FixedMathSharp;` and `using FixedMathSharp.Geometry;` as needed.
 
 ```bash
 dotnet new console --framework net10.0 --output artifacts/issue-repro
 dotnet add artifacts/issue-repro/issue-repro.csproj reference src/FixedMathSharp/FixedMathSharp.csproj
 dotnet run --project artifacts/issue-repro/issue-repro.csproj -c Release -p:UseLocalLsfStack=false
-```
-
-### FMS-Issue-038: Camera view mapping and perspective depth
-
-- **Status:** Confirmed
-- **Priority:** High for the view transform, Medium for projection range
-- **Affected area:**
-  [Fixed4x4 camera and projection factories](../../src/FixedMathSharp/Numerics/Matrices/Fixed4x4.Factories.cs)
-- **Impact:** A rotated camera can misplace all view-space points. Large valid
-  clip distances can move the near and far planes outside the expected depth
-  range, and a tiny positive field of view can reach division by zero.
-- **Next action:** Add a rotated-camera regression that maps the eye to zero and
-  the target to positive view Z. Verify perspective coefficients and range
-  behavior independently across all three factories.
-
-```csharp
-Vector3d eye = new(1, 2, 3);
-Vector3d target = new(2, 2, 3);
-Fixed4x4 view = Fixed4x4.CreateLookAt(eye, target, Vector3d.Up);
-Console.WriteLine(Fixed4x4.TransformPoint(view, eye));    // (6, 0, -2)
-Console.WriteLine(Fixed4x4.TransformPoint(view, target)); // (6, 0, -3)
-
-Fixed64 near = new(100000);
-Fixed64 far = new(200000);
-Fixed4x4 projection = Fixed4x4.CreatePerspective(new(2), new(2), near, far);
-Console.WriteLine(projection.TransformPoint(new(Fixed64.Zero, Fixed64.Zero, near)).Z);
-Console.WriteLine(projection.TransformPoint(new(Fixed64.Zero, Fixed64.Zero, far)).Z);
-// Approximately 1.7852516351 and 1.8926258176. The near * far term saturates.
-
-// Throws DivideByZeroException after the half-angle rounds to zero.
-Fixed4x4.CreatePerspectiveFieldOfView(Fixed64.FromRaw(1), Fixed64.One, Fixed64.One, new(10));
 ```
 
 ### FMS-Issue-039: Matrix normalization and comparison contracts
@@ -185,6 +154,7 @@ rerun or package release.
 
 | Issue                                                                                                      | Resolved/closed | Outcome                                                                                                                                                                                                   | Evidence                                                                                             |
 | ---------------------------------------------------------------------------------------------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| FMS-Issue-038                                                                                              | 2026-11-15      | Corrected rotated camera view mapping, perspective coefficients, and rounded half-angle validation.                                                                                                       | [Record](done/2026-11-15-camera-view-and-perspective.md)                                             |
 | FMS-Issue-037                                                                                              | 2026-10-31      | Aligned Chronicler and shim source/package identities to 1.0.0; reproduced the companion load failure and passed source/package Release and Lean validation.                                              | [Record](done/2026-10-31-chronicler-v1-dependency-alignment.md)                                      |
 | <a id="fms-issue-036-spherecapsule-prism-witnesses-can-miss-the-opposing-finite-support"></a>FMS-Issue-036 | 2026-10-25      | Matched finite sphere/capsule prism supports, completed missing rim/vertex contacts and retained exact radial scaling; downstream torque/replay and coordinated coverage pass.                            | [Record](done/2026-10-25-prism-capsule-finite-witnesses.md)                                          |
 | FMS-Issue-035                                                                                              | 2026-10-20      | Corrected contained sphere/capsule prism exit orientation and paired support signs; whole-shape clearance and downstream host response/replay pass, with separate finite witness matching tracked as 036. | [Record](done/2026-10-20-contained-prism-exit-orientation.md)                                        |
