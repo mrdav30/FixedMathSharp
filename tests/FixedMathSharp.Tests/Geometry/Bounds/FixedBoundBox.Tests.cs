@@ -11,6 +11,27 @@ namespace FixedMathSharp.Tests.Bounds;
 public class FixedBoundBoxTests
 {
     [Fact]
+    public void ClosestPointOnSurface_SelectsOneFaceWhenDistancesTie()
+    {
+        var box = FixedBoundBox.FromMinMax(new Vector3d(-2, -2, -2), new Vector3d(2, 2, 2));
+
+        Assert.Equal(new Vector3d(-2, 0, 0), box.ClosestPointOnSurface(Vector3d.Zero));
+        Assert.Equal(new Vector3d(-2, 0, 0), box.GetPointOnSurfaceTowardsObject(Vector3d.Zero));
+        Assert.Equal(new Vector3d(2, 2, 0), box.ClosestPointOnSurface(new Vector3d(3, 3, 0)));
+    }
+
+    [Fact]
+    public void ClosestPointOnSurface_RanksFullDomainDistancesBeforeSaturation()
+    {
+        var box = FixedBoundBox.FromMinMax(
+            new Vector3d(Fixed64.MinValue, Fixed64.MinValue, Fixed64.MinValue),
+            new Vector3d(Fixed64.MaxValue, Fixed64.MaxValue, Fixed64.MaxValue));
+
+        Assert.Equal(new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero),
+            box.ClosestPointOnSurface(Vector3d.Zero));
+    }
+
+    [Fact]
     public void FromFiniteConeClippedToDomain_NearUnitAxisConservativelyContainsBaseDiskSupports()
     {
         var axis = new Vector3d(

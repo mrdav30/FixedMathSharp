@@ -780,25 +780,24 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
         return Vector3d.Distance(Center, point) - Radius;
     }
 
-    /// <summary>Transforms the center and scales the radius by the largest basis-vector length.</summary>
-    /// <param name="matrix">
-    /// The matrix applied to the center. An affine transform with orthogonal basis vectors uses its largest axis
-    /// scale.
-    /// </param>
-    /// <returns>
-    /// The transformed center and the original radius multiplied by the largest length among the first three matrix
-    /// rows, using their XYZ components.
-    /// </returns>
+    /// <summary>Returns a sphere that encloses the affine image of this sphere.</summary>
+    /// <param name="matrix">The affine row-vector transform from this sphere's space to the output space.</param>
+    /// <returns>The transformed center and a conservative radius in output-space units.</returns>
     /// <remarks>
-    /// The radius uses fixed-point multiplication and length calculation. Shear can stretch a direction by more
-    /// than the selected scale.
+    /// The radius uses the largest axis scale for orthogonal basis rows and an upper bound on stretch for shear.
+    /// It rounds outward and accounts for rounding the center. The bound encloses the mathematical affine image
+    /// before any rounding of individual transformed points.
     /// </remarks>
+    /// <exception cref="ArgumentException"><paramref name="matrix"/> is not affine.</exception>
+    /// <exception cref="OverflowException">The rounded center or computed conservative radius is out of range.</exception>
     public FixedBoundSphere Transform(Fixed4x4 matrix)
     {
-        Vector3d center = Fixed4x4.TransformPoint(matrix, Center);
-        Fixed64 scale = GetMaxBasisScale(matrix);
+        if (!matrix.IsAffine)
+            throw new ArgumentException("The transform must be affine.", nameof(matrix));
+        if (!Fixed4x4.TryTransformAffinePoint(matrix, Center, out Vector3d center))
+            throw new OverflowException("The transformed sphere center is out of range.");
 
-        return new FixedBoundSphere(center, Radius * scale);
+        return new FixedBoundSphere(center, GetTransformedRadius(matrix));
     }
 
     /// <summary>
@@ -837,14 +836,62 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
             : FixedEnclosureType.Disjoint;
     }
 
-    private static Fixed64 GetMaxBasisScale(Fixed4x4 matrix)
+    private readonly Fixed64 GetTransformedRadius(Fixed4x4 matrix)
     {
-        Fixed64 row0 = matrix.M11 * matrix.M11 + matrix.M12 * matrix.M12 + matrix.M13 * matrix.M13;
-        Fixed64 row1 = matrix.M21 * matrix.M21 + matrix.M22 * matrix.M22 + matrix.M23 * matrix.M23;
-        Fixed64 row2 = matrix.M31 * matrix.M31 + matrix.M32 * matrix.M32 + matrix.M33 * matrix.M33;
+        Signed192 squaredStretch = GetMaximumSquaredStretch(matrix);
+        Signed192 squaredRadius = Fixed64.GetExactRawProduct(_radius, _radius);
+        // The Gram row sum is at most nine raw products, each of magnitude at most 2^126.
+        // Multiplying by the squared raw radius gives a product smaller than 2^256.
+        Signed320 product = WideArithmetic.MultiplySigned192(squaredStretch, squaredRadius);
 
-        return FixedMath.Sqrt(FixedMath.Max(row0, FixedMath.Max(row1, row2)));
+        // Divide the squared product by 2^64 to get squared raw radius units.
+        // The discarded fraction cannot affect the floor of the square root, but it affects the ceiling.
+        Signed320 squaredRawRadius = new(0UL, product.Word4, product.Word3, product.Word2, product.Word1);
+        Signed192 floor = WideArithmetic.GetFloorSquareRoot(squaredRawRadius, out Signed192 remainder);
+        ulong padding = product.Word0 != 0UL || !remainder.IsZero ? 1UL : 0UL;
+
+        // Rounding the center can move each coordinate by at most half a raw unit, so one raw unit covers the shift.
+        if (HasCenterRounding(matrix))
+            padding++;
+        if ((floor.High | floor.Middle) != 0UL || floor.Low > (ulong)long.MaxValue - padding)
+            throw new OverflowException("The transformed sphere radius is out of range.");
+
+        return Fixed64.FromRaw((long)(floor.Low + padding));
     }
+
+    private static Signed192 GetMaximumSquaredStretch(Fixed4x4 matrix)
+    {
+        Vector3d row0 = new(matrix.M11, matrix.M12, matrix.M13);
+        Vector3d row1 = new(matrix.M21, matrix.M22, matrix.M23);
+        Vector3d row2 = new(matrix.M31, matrix.M32, matrix.M33);
+
+        // The largest absolute row sum of the Gram matrix bounds its largest eigenvalue.
+        // For orthogonal rows, the Gram matrix is diagonal and the bound is exact.
+        Signed192 cross01 = WideArithmetic.Absolute(GetExactDot(row0, row1));
+        Signed192 cross02 = WideArithmetic.Absolute(GetExactDot(row0, row2));
+        Signed192 cross12 = WideArithmetic.Absolute(GetExactDot(row1, row2));
+        Signed192 sum0 = WideArithmetic.AddSigned192(GetExactDot(row0, row0), WideArithmetic.AddSigned192(cross01, cross02));
+        Signed192 sum1 = WideArithmetic.AddSigned192(GetExactDot(row1, row1), WideArithmetic.AddSigned192(cross01, cross12));
+        Signed192 sum2 = WideArithmetic.AddSigned192(GetExactDot(row2, row2), WideArithmetic.AddSigned192(cross02, cross12));
+        Signed192 largest = WideArithmetic.CompareMagnitude(sum0, sum1) >= 0 ? sum0 : sum1;
+
+        return WideArithmetic.CompareMagnitude(largest, sum2) >= 0 ? largest : sum2;
+    }
+
+    private static Signed192 GetExactDot(Vector3d left, Vector3d right) => WideArithmetic.AddSigned192(
+        WideArithmetic.AddSigned192(
+            Fixed64.GetExactRawProduct(left.X, right.X),
+            Fixed64.GetExactRawProduct(left.Y, right.Y)),
+        Fixed64.GetExactRawProduct(left.Z, right.Z));
+
+    private readonly bool HasCenterRounding(Fixed4x4 matrix) =>
+        (GetCoordinateFraction(Center, matrix.M11, matrix.M21, matrix.M31) |
+         GetCoordinateFraction(Center, matrix.M12, matrix.M22, matrix.M32) |
+         GetCoordinateFraction(Center, matrix.M13, matrix.M23, matrix.M33)) != 0U;
+
+    // Translation is already on the output grid. Only the low 32 bits of each exact dot product can cause center rounding.
+    private static uint GetCoordinateFraction(Vector3d center, Fixed64 x, Fixed64 y, Fixed64 z) => unchecked((uint)(
+        center.X.m_rawValue * x.m_rawValue + center.Y.m_rawValue * y.m_rawValue + center.Z.m_rawValue * z.m_rawValue));
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static Fixed64 NormalizeRadius(Fixed64 radius) => FixedMath.Abs(radius);

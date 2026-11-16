@@ -973,6 +973,81 @@ public class FixedBoundSphereTests
         Assert.Equal(new Fixed64(8), transformed.Radius);
     }
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(-1)]
+    public void Transform_EnclosesShearedInteriorPoint(int shearSign)
+    {
+        var sphere = new FixedBoundSphere(Vector3d.Zero, Fixed64.One);
+        var matrix = Fixed4x4.Identity;
+        matrix.M12 = new Fixed64(shearSign);
+        var point = new Vector3d(Fixed64.FromRaw(3L << 30), Fixed64.FromRaw(shearSign * (5L << 29)), Fixed64.Zero);
+
+        Assert.True(sphere.Contains(point));
+        Assert.True(sphere.Transform(matrix).Contains(matrix.TransformPoint(point)));
+    }
+
+    [Fact]
+    public void Transform_RetainsLargeOrthogonalRadius()
+    {
+        var sphere = new FixedBoundSphere(Vector3d.Zero, Fixed64.One);
+        Fixed64 scale = new(100_000);
+        Fixed4x4 matrix = Fixed4x4.CreateScale(scale);
+
+        FixedBoundSphere transformed = sphere.Transform(matrix);
+
+        Assert.Equal(scale, transformed.Radius);
+        Assert.True(transformed.Contains(matrix.TransformPoint(Vector3d.Right)));
+    }
+
+    [Fact]
+    public void Transform_RetainsRepresentableRadiusWhenBasisMagnitudeDoesNotFit()
+    {
+        var sphere = new FixedBoundSphere(Vector3d.Zero, Fixed64.Quarter);
+        Fixed4x4 matrix = Fixed4x4.Zero;
+        matrix.M11 = matrix.M12 = new Fixed64(2_000_000_000);
+        matrix.M44 = Fixed64.One;
+        var row = new Vector3d(matrix.M11, matrix.M12, Fixed64.Zero);
+
+        Assert.False(Vector3d.TryGetMagnitude(row, out _));
+        Vector3d endpoint = matrix.TransformPoint(Vector3d.Right * sphere.Radius);
+        Assert.True(endpoint.TryGetMagnitudeCeiling(out Fixed64 expectedRadius));
+
+        FixedBoundSphere transformed = sphere.Transform(matrix);
+
+        Assert.Equal(expectedRadius, transformed.Radius);
+        Assert.True(transformed.Contains(endpoint));
+    }
+
+    [Fact]
+    public void Transform_AccountsForRoundedCenter()
+    {
+        Fixed64 increment = Fixed64.MinIncrement;
+        var sphere = new FixedBoundSphere(new Vector3d(increment, increment, increment), increment);
+        Fixed4x4 matrix = Fixed4x4.CreateScale(Fixed64.Half);
+        // The image of center + one raw unit on X is (1, 0.5, 0.5) raw units.
+        FixedBoundSphere transformed = sphere.Transform(matrix);
+
+        Assert.Equal(Vector3d.Zero, transformed.Center);
+        Assert.True(transformed.Radius >= Fixed64.FromRaw(2));
+    }
+
+    [Fact]
+    public void Transform_RejectsProjectiveMatrixAndUnrepresentableBounds()
+    {
+        var sphere = new FixedBoundSphere(Vector3d.Right, Fixed64.One);
+        Fixed4x4 matrix = Fixed4x4.Identity;
+        matrix.M14 = Fixed64.One;
+        Assert.Throws<ArgumentException>("matrix", () => sphere.Transform(matrix));
+
+        Fixed4x4 doubling = Fixed4x4.CreateScale(Fixed64.Two);
+        var largeCenter = new FixedBoundSphere(new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero), Fixed64.One);
+        var largeRadius = new FixedBoundSphere(Vector3d.Zero, Fixed64.MaxValue);
+        Assert.Throws<OverflowException>(() => largeCenter.Transform(doubling));
+        Assert.Throws<OverflowException>(() => largeRadius.Transform(doubling));
+        Assert.Throws<OverflowException>(() => largeRadius.Transform(Fixed4x4.CreateScale(new Fixed64(3))));
+    }
+
     #endregion
 
     #region Test: Serialization

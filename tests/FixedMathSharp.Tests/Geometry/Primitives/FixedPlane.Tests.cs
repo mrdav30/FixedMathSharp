@@ -40,6 +40,80 @@ public class FixedPlaneTests
         Assert.Equal(new Fixed64(-2), plane.D);
     }
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(-1)]
+    public void Normalize_OneRawUnitAxis_PreservesOrientationAndDistance(int sign)
+    {
+        var normalComponent = Fixed64.MinIncrement * sign;
+        var plane = new FixedPlane(new Vector3d(normalComponent, Fixed64.Zero, Fixed64.Zero), -normalComponent);
+
+        plane.NormalizeInPlace();
+
+        Assert.Equal(new Vector3d(sign, 0, 0), plane.Normal);
+        Assert.Equal(new Fixed64(-sign), plane.D);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Normalize_Diagonal_UsesTheUnroundedLength(bool useLargestComponent)
+    {
+        var component = useLargestComponent ? Fixed64.MaxValue : Fixed64.MinIncrement;
+        var plane = FixedPlane.GetNormalized(new FixedPlane(new Vector3d(component, component, Fixed64.Zero), -component));
+        var expectedComponent = FixedMath.Sqrt(Fixed64.Half);
+
+        Assert.Equal(new Vector3d(expectedComponent, expectedComponent, Fixed64.Zero), plane.Normal);
+        Assert.Equal(-expectedComponent, plane.D);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Normalize_DistanceOutOfRange_ThrowsWithoutChangingPlane(bool diagonal)
+    {
+        var plane = new FixedPlane(
+            new Vector3d(Fixed64.MinIncrement, diagonal ? Fixed64.MinIncrement : Fixed64.Zero, Fixed64.Zero),
+            Fixed64.One);
+        var original = plane;
+
+        Assert.Throws<OverflowException>(() => plane.NormalizeInPlace());
+        Assert.Equal(original, plane);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Normalize_MinimumDistanceNearUnitLength_RoundsToMinimum(bool tilt)
+    {
+        var plane = new FixedPlane(new Vector3d(-Fixed64.One, tilt ? Fixed64.MinIncrement : Fixed64.Zero, Fixed64.Zero),
+            Fixed64.MinValue);
+
+        Assert.Equal(plane, FixedPlane.GetNormalized(plane));
+    }
+
+    [Fact]
+    public void Normalize_MinimumDistanceRoundingOutOfRange_Throws()
+    {
+        // The normal's squared raw length is 2^64 - 2, so the magnitude of the
+        // normalized raw offset exceeds 2^63 + 0.5 and rounds outside the signed range.
+        var normal = new Vector3d(Fixed64.One - Fixed64.MinIncrement, Fixed64.FromRaw(12683), Fixed64.FromRaw(91810));
+        var plane = new FixedPlane(normal, Fixed64.MinValue);
+
+        Assert.Throws<OverflowException>(() => FixedPlane.GetNormalized(plane));
+    }
+
+    [Theory]
+    [InlineData(1, 0)]
+    [InlineData(3, 2)]
+    [InlineData(-3, -2)]
+    public void Normalize_HalfRawUnitDistance_RoundsToEven(long rawOffset, long expectedRawOffset)
+    {
+        var plane = new FixedPlane(new Vector3d(0, 2, 0), Fixed64.FromRaw(rawOffset));
+
+        Assert.Equal(Fixed64.FromRaw(expectedRawOffset), FixedPlane.GetNormalized(plane).D);
+    }
+
     [Fact]
     public void Normalize_InstanceScalesPlaneInPlace()
     {

@@ -50,45 +50,6 @@ dotnet add artifacts/issue-repro/issue-repro.csproj reference src/FixedMathSharp
 dotnet run --project artifacts/issue-repro/issue-repro.csproj -c Release -p:UseLocalLsfStack=false
 ```
 
-### FMS-Issue-040: Geometry query ties, shear bounds, and representability
-
-- **Status:** Confirmed behavior. The frustum plane test is a conservative
-  classification, and the listed protocols need individual acceptance checks.
-- **Priority:** High for conservative bounds and invalid hit points, Medium for
-  closest features and extreme plane normals
-- **Affected area:**
-  [Box](../../src/FixedMathSharp/Geometry/Bounds/FixedBoundBox.cs),
-  [sphere](../../src/FixedMathSharp/Geometry/Bounds/FixedBoundSphere.cs),
-  [frustum](../../src/FixedMathSharp/Geometry/Bounds/FixedBoundFrustum.cs),
-  [ray](../../src/FixedMathSharp/Geometry/Primitives/Rays/FixedRay.cs), and
-  [plane](../../src/FixedMathSharp/Geometry/Primitives/FixedPlane.cs) queries.
-- **Evidence:**
-  - For `FixedBoundBox.FromMinMax(new(-2, -2, -2), new(2, 2, 2))`,
-    `ClosestPointOnSurface(Vector3d.Zero)` returns `(-2, -2, -2)`. Squared
-    distance is 12, versus 4 for a face point. For the same box and B with min
-    `(3, -1, -1)` and max `(4, 1, 1)`, `FindClosestPointsBetweenBoxes(A, B)`
-    searches B's corners and returns the single point `(2, -1, -1)` on A.
-  - Start with a unit sphere at zero and set `M12 = Fixed64.One` on
-    `Fixed4x4.Identity`. `sphere.Transform(matrix)` returns radius about 1.4142.
-    The source point `(0.75, 0.625, 0)` is inside, but `TransformPoint` maps it
-    to `(0.75, 1.375, 0)`, outside the result.
-  - Construct a `FixedBoundFrustum` from six planes with normals
-    `-Z, +Z, -X, +X, +Y, -Y` in constructor order and `D = -1` for each. This is
-    the cube `[-1, 1]³`. A sphere at `(2, 2, 0)` with radius 1.25 passes the
-    plane test. Its squared distance to the cube is 2, versus squared radius
-    1.5625.
-  - A ray from zero with direction `(Fixed64.FromRaw(1), 0, 0)` reports
-    `Fixed64.MaxValue` against a box from `(1, -1, -1)` to `(2, 1, 1)`.
-    `GetPoint(MaxValue)` is approximately `(0.5, 0, 0)`, outside the box.
-  - Call `FixedPlane.GetNormalized` with normal `(Fixed64.FromRaw(1), 0, 0)` and
-    `D = 0`. The output normal is `(0.5, 0, 0)` because the reciprocal
-    saturates.
-- **Impact:** These results matter when callers require minimum distance, a
-  conservative transformed bound, a usable hit witness, or unit plane normals.
-- **Next action:** Add exact face, shear, slab, and tiny-normal regression
-  oracles in the respective owners. Check broad-phase callers before changing
-  the conservative frustum test.
-
 ### FMS-Issue-041: Fixed-point rounding and vector or quaternion edge behavior
 
 - **Status:** Confirmed behavior. Compatibility decision pending.
@@ -131,6 +92,7 @@ rerun or package release.
 | Issue                                                                                                      | Resolved/closed | Outcome                                                                                                                                                                                                   | Evidence                                                                                             |
 | ---------------------------------------------------------------------------------------------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | FMS-Issue-039                                                                                              | 2026-11-15      | Verified caller requirements and preserved normalization and comparison contracts with characterization tests and guidance.                                                                               | [Record](done/2026-11-15-matrix-normalization-and-comparison.md)                                     |
+| FMS-Issue-040                                                                                              | 2026-11-15      | Fixed nearest box faces, saturated ray slabs, affine sphere underbounds and plane normalization. Preserved the conservative frustum query and box corner scan.                                            | [Record](done/2026-11-15-geometry-query-reliability.md)                                              |
 | FMS-Issue-038                                                                                              | 2026-11-15      | Corrected rotated camera view mapping, perspective coefficients, and rounded half-angle validation.                                                                                                       | [Record](done/2026-11-15-camera-view-and-perspective.md)                                             |
 | FMS-Issue-037                                                                                              | 2026-10-31      | Aligned Chronicler and shim source/package identities to 1.0.0; reproduced the companion load failure and passed source/package Release and Lean validation.                                              | [Record](done/2026-10-31-chronicler-v1-dependency-alignment.md)                                      |
 | <a id="fms-issue-036-spherecapsule-prism-witnesses-can-miss-the-opposing-finite-support"></a>FMS-Issue-036 | 2026-10-25      | Matched finite sphere/capsule prism supports, completed missing rim/vertex contacts and retained exact radial scaling; downstream torque/replay and coordinated coverage pass.                            | [Record](done/2026-10-25-prism-capsule-finite-witnesses.md)                                          |

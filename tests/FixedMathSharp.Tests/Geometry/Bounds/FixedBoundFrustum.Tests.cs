@@ -151,6 +151,21 @@ public class FixedBoundFrustumTests
     }
 
     [Fact]
+    public void Contains_BoundingSphere_RejectsSphereBeyondTinyScaledPlane()
+    {
+        var baseline = new FixedBoundFrustum(Fixed4x4.Identity);
+        var scaledRight = new FixedPlane(new Vector3d(Fixed64.MinIncrement, Fixed64.Zero, Fixed64.Zero), -Fixed64.MinIncrement);
+        var frustum = new FixedBoundFrustum(baseline.Near, baseline.Far, baseline.Left, scaledRight, baseline.Top, baseline.Bottom);
+        var sphere = new FixedBoundSphere(
+            new Vector3d(Fixed64.FromDouble(2.25), Fixed64.Zero, Fixed64.Half), Fixed64.FromDouble(0.75));
+
+        Assert.Equal(FixedEnclosureType.Disjoint, baseline.Contains(sphere));
+        Assert.Equal(FixedEnclosureType.Disjoint, frustum.Contains(sphere));
+        Assert.False(frustum.Intersects(sphere));
+        Assert.Equal(baseline.Right, frustum.Right);
+    }
+
+    [Fact]
     public void Intersects_FixedPlane_ClassifiesAllCorners()
     {
         var frustum = new FixedBoundFrustum(Fixed4x4.Identity);

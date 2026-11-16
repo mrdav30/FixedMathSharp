@@ -117,19 +117,27 @@ public partial struct FixedRay : IEquatable<FixedRay>
         return t < Fixed64.Zero ? null : t;
     }
 
-    /// <summary>Tests the ray against the bound using fixed-point slabs.</summary>
+    /// <summary>Finds the first forward intersection with the axis-aligned box.</summary>
     /// <param name="box">The box in the same coordinate space as this instance.</param>
     /// <returns>
-    /// The computed nonnegative entry parameter, or <see langword="null"/> when the computed interval is empty.
+    /// The entry parameter rounded half to even, or <see langword="null"/> when the exact
+    /// intersection is empty within [0, <see cref="Fixed64.MaxValue"/>].
     /// Starting inside or on the boundary returns zero.
     /// </returns>
     /// <remarks>
-    /// The slab endpoint differences and division use saturating fixed-point arithmetic. A reported parameter can
-    /// be <see cref="Fixed64.MaxValue"/> when the geometric entry lies beyond the scalar range.
+    /// Clipping uses exact slab ratios. The rounded parameter can fall on either side of
+    /// a boundary whose exact entry is between two representable parameters.
     /// </remarks>
     public Fixed64? Intersects(FixedBoundBox box)
     {
-        return IntersectsBoxLike(box.Min, box.Max);
+        Vector3d min = box.Min;
+        Vector3d max = box.Max;
+        RaySlabInterval interval = RaySlabInterval.Forward;
+        return interval.Clip(Position.X, Direction.X, min.X, max.X)
+            && interval.Clip(Position.Y, Direction.Y, min.Y, max.Y)
+            && interval.Clip(Position.Z, Direction.Z, min.Z, max.Z)
+            ? interval.RoundEntry()
+            : null;
     }
 
     /// <summary>
@@ -263,54 +271,6 @@ public partial struct FixedRay : IEquatable<FixedRay>
     public Fixed64? Intersects(FixedBoundFrustum frustum)
     {
         return frustum.Intersects(this);
-    }
-
-    private Fixed64? IntersectsBoxLike(Vector3d min, Vector3d max)
-    {
-        Fixed64 tMin = Fixed64.Zero;
-        Fixed64 tMax = Fixed64.MaxValue;
-
-        if (!ClipAxis(Position.X, Direction.X, min.X, max.X, ref tMin, ref tMax))
-            return null;
-
-        if (!ClipAxis(Position.Y, Direction.Y, min.Y, max.Y, ref tMin, ref tMax))
-            return null;
-
-        if (!ClipAxis(Position.Z, Direction.Z, min.Z, max.Z, ref tMin, ref tMax))
-            return null;
-
-        return tMin;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool ClipAxis(
-        Fixed64 position,
-        Fixed64 direction,
-        Fixed64 min,
-        Fixed64 max,
-        ref Fixed64 tMin,
-        ref Fixed64 tMax)
-    {
-        if (direction == Fixed64.Zero)
-            return position >= min && position <= max;
-
-        Fixed64 t1 = (min - position) / direction;
-        Fixed64 t2 = (max - position) / direction;
-
-        if (t1 > t2)
-        {
-            Fixed64 temp = t1;
-            t1 = t2;
-            t2 = temp;
-        }
-
-        if (t1 > tMin)
-            tMin = t1;
-
-        if (t2 < tMax)
-            tMax = t2;
-
-        return tMin <= tMax;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

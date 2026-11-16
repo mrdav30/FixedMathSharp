@@ -116,11 +116,12 @@ public partial struct FixedPlane : IEquatable<FixedPlane>
     }
 
     /// <summary>
-    /// Rescales this plane in place using the reciprocal of its normal length.
+    /// Divides this plane's coefficients by its normal length in place.
     /// </summary>
     /// <exception cref="ArithmeticException">The normal length is zero.</exception>
+    /// <exception cref="OverflowException">The rounded constant term is outside the <see cref="Fixed64"/> range.</exception>
     /// <remarks>
-    /// Uses the rounded, saturating scale of <see cref="GetNormalized(FixedPlane)"/>.
+    /// Uses the same coefficient rounding as <see cref="GetNormalized(FixedPlane)"/>.
     /// The plane is replaced only after the calculation succeeds.
     /// </remarks>
     public void NormalizeInPlace()
@@ -129,24 +130,81 @@ public partial struct FixedPlane : IEquatable<FixedPlane>
     }
 
     /// <summary>
-    /// Rescales a plane using the reciprocal of its normal length.
+    /// Divides a plane's coefficients by its normal length.
     /// </summary>
     /// <param name="value">The plane to normalize.</param>
-    /// <returns>A copy with both the normal and constant term multiplied by the fixed-point reciprocal.</returns>
+    /// <returns>A copy with a unit-length normal and matching constant term, rounded to the nearest representable coefficients.</returns>
     /// <remarks>
-    /// The reciprocal and products use rounded, saturating fixed-point arithmetic. In particular,
-    /// a very small normal length can saturate the reciprocal and produce a normal shorter than one.
+    /// Both the normal and the constant term use the same unrounded length. Each coefficient is rounded to
+    /// the nearest <see cref="Fixed64"/> value, with midpoint ties rounded to even. The resulting normal
+    /// can differ from exact unit length by coefficient rounding.
     /// </remarks>
     /// <exception cref="ArithmeticException">The normal length is zero.</exception>
+    /// <exception cref="OverflowException">The rounded constant term is outside the <see cref="Fixed64"/> range.</exception>
     public static FixedPlane GetNormalized(FixedPlane value)
     {
-        Fixed64 length = value.Normal.Magnitude;
+        Signed192 x = Signed192.Raw(value.Normal.X);
+        Signed192 y = Signed192.Raw(value.Normal.Y);
+        Signed192 z = Signed192.Raw(value.Normal.Z);
+        Signed192 d = Signed192.Raw(value.D);
+        Signed320 lengthSquare = WideGeometry.GetSquaredMagnitude(x, y, z,
+            out Signed320 xSquare, out Signed320 ySquare, out Signed320 zSquare);
 
-        if (length == Fixed64.Zero)
+        if (lengthSquare.IsZero)
             throw new ArithmeticException("Cannot normalize a plane with a zero-length normal.");
 
-        Fixed64 factor = Fixed64.One / length;
-        return new FixedPlane(value.Normal * factor, value.D * factor);
+        // Unit normals need no coefficient scaling. For other integral raw lengths,
+        // direct division avoids the square-root ratio required for irrational lengths.
+        if (lengthSquare.Equals(new Signed320(0UL, 0UL, 0UL, 1UL, 0UL)))
+            return value;
+
+        Signed192 length = WideArithmetic.GetFloorSquareRoot(lengthSquare, out Signed192 remainder);
+        if (remainder.IsZero)
+            return new FixedPlane(new Vector3d(DivideCoefficient(x), DivideCoefficient(y), DivideCoefficient(z)), DivideCoefficient(d));
+
+        // Three signed 64-bit squares sum to less than 2^128.
+        Signed192 denominator = Signed192.NarrowValue(lengthSquare);
+        return new FixedPlane(
+            new Vector3d(NormalizeCoefficient(x, xSquare, denominator),
+                NormalizeCoefficient(y, ySquare, denominator), NormalizeCoefficient(z, zSquare, denominator)),
+            NormalizeCoefficient(d, WideArithmetic.MultiplySigned192(d, d), denominator));
+
+        Fixed64 DivideCoefficient(Signed192 coefficient)
+        {
+            if (Fixed64.TryGetSignedRawRatio(WideArithmetic.ShiftLeftSigned192By32(coefficient), length, out Fixed64 rounded))
+                return rounded;
+
+            throw new OverflowException("The normalized plane constant term is outside the Fixed64 range.");
+        }
+    }
+
+    private static Fixed64 NormalizeCoefficient(Signed192 coefficient, Signed320 square, Signed192 lengthSquare)
+    {
+        if (coefficient.IsZero)
+            return Fixed64.Zero;
+
+        // Squaring the raw ratio gives (coefficient^2 << 64) / length^2.
+        // Compare four times its numerator with length^2 * (2 * floor + 1)^2
+        // to round without first rounding the length. This path has an irrational
+        // length, so a nonzero coefficient cannot give an exact midpoint tie.
+        ReadOnlySpan<ulong> numerator = stackalloc ulong[] { 0UL, square.Word0, square.Word1 };
+        ReadOnlySpan<ulong> denominator = stackalloc ulong[] { lengthSquare.Low, lengthSquare.Middle, 0UL };
+        bool negative = coefficient.Sign < 0;
+        ulong limit = negative ? 1UL << 63 : (ulong)long.MaxValue;
+        ulong floor = WideArithmetic.GetRatioFloorSquareRoot(numerator, denominator, limit);
+        var doubledMidpoint = new Signed192(0UL, floor >> 63, (floor << 1) | 1UL);
+        Signed192 midpointSquare = Signed192.NarrowValue(WideArithmetic.MultiplySigned192(doubledMidpoint, doubledMidpoint));
+        Signed320 threshold = WideArithmetic.MultiplySigned192(lengthSquare, midpointSquare);
+        var fourTimesNumerator = new Signed320(0UL, square.Word1 >> 62,
+            (square.Word1 << 2) | (square.Word0 >> 62), square.Word0 << 2, 0UL);
+        if (WideArithmetic.SubtractSigned320(fourTimesNumerator, threshold).Sign > 0)
+        {
+            if (floor == limit)
+                throw new OverflowException("The normalized plane constant term is outside the Fixed64 range.");
+            floor++;
+        }
+
+        return Fixed64.FromRaw(unchecked((long)(negative ? 0UL - floor : floor)));
     }
 
     /// <summary>

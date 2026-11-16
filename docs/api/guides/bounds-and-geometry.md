@@ -137,6 +137,11 @@ model behind these contracts.
 intersection, clamping, projection, merging, and cross-type relations with
 spheres, frustums, planes, and rays.
 
+`ClosestPointOnSurface` clamps exterior points and projects an interior point
+onto one nearest face. Equal distances prefer the X, Y, then Z axis and the
+minimum face on the selected axis. `FindClosestPointsBetweenBoxes` searches the
+second box's corners. Use its result as a candidate from that search.
+
 `FixedOrientedBox` stores a center, a normalized quaternion, and strictly
 positive half-extents:
 
@@ -160,10 +165,34 @@ two stored quaternion signs are different values.
 Support and corner features are center-relative. Materialization returns `false`
 when the final world point is outside the coordinate domain.
 
+## Transformed spheres and frustum planes
+
+`FixedBoundSphere.Transform` encloses the affine image of the sphere. It uses
+the largest axis scale for orthogonal basis rows and a conservative stretch
+bound for shear. The radius rounds outward and includes an allowance for center
+rounding. This covers the mathematical image before individual points are
+rounded. The method throws `ArgumentException` for projective matrices and
+`OverflowException` if the rounded center or computed radius is out of range.
+
+`FixedPlane.GetNormalized` and `NormalizeInPlace` divide the normal and constant
+term by the same unrounded length, then round each coefficient to Q32.32. A zero
+normal throws `ArithmeticException`. A rounded constant term outside `Fixed64`
+throws `OverflowException` before the plane is replaced.
+
+Frustum sphere queries test the individual face planes. A sphere can pass every
+plane and still miss the volume near an edge or corner, so use a positive result
+as a conservative broad-phase decision.
+
 ## Rays and segments
 
 Rays do not normalize their direction. A returned ray parameter is a physical
 distance only when the caller supplied a normalized direction.
+
+Ray-box and ray-area queries clip the exact closed forward parameter interval to
+`[Fixed64.Zero, Fixed64.MaxValue]`. They return `null` for an empty interval.
+The entry rounds to the nearest representable parameter, with ties to even, so
+the point obtained from it can lie slightly to either side of the entry
+boundary.
 
 ```csharp
 FixedRay ray = new(origin, Vector3d.Right);

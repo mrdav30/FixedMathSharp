@@ -604,46 +604,35 @@ public partial struct FixedBoundBox : IEquatable<FixedBoundBox>
     /// <param name="point">The point in the same coordinate space as this box.</param>
     /// <returns>A point on the box surface. Points outside the box are clamped per axis.</returns>
     /// <remarks>
-    /// For a point inside the box, every axis tied for the nearest face distance is snapped to its corresponding
-    /// face, preferring the minimum face within each axis. Multiple tied axes can produce an edge or a corner.
+    /// For a point inside the box, sets one coordinate to the nearest face. Ties prefer X, then Y, then Z,
+    /// and the minimum face within the selected axis.
     /// </remarks>
     public Vector3d ClosestPointOnSurface(Vector3d point)
     {
-        if (Contains(point))
-        {
-            // Calculate distances to each face and return the closest face.
-            Fixed64 distToMinX = point.X - Min.X;
-            Fixed64 distToMaxX = Max.X - point.X;
-            Fixed64 distToMinY = point.Y - Min.Y;
-            Fixed64 distToMaxY = Max.Y - point.Y;
-            Fixed64 distToMinZ = point.Z - Min.Z;
-            Fixed64 distToMaxZ = Max.Z - point.Z;
+        if (!Contains(point))
+            return ClampPoint(point);
 
-            Fixed64 minDistToFace = FixedMath.Min(distToMinX,
-                FixedMath.Min(distToMaxX,
-                FixedMath.Min(distToMinY,
-                FixedMath.Min(distToMaxY,
-                FixedMath.Min(distToMinZ, distToMaxZ)))));
+        Vector3d min = Min;
+        Vector3d max = Max;
+        // The distances are nonnegative and may span the entire unsigned raw range.
+        ulong minX = unchecked((ulong)(point.X.m_rawValue - min.X.m_rawValue));
+        ulong maxX = unchecked((ulong)(max.X.m_rawValue - point.X.m_rawValue));
+        ulong minY = unchecked((ulong)(point.Y.m_rawValue - min.Y.m_rawValue));
+        ulong maxY = unchecked((ulong)(max.Y.m_rawValue - point.Y.m_rawValue));
+        ulong minZ = unchecked((ulong)(point.Z.m_rawValue - min.Z.m_rawValue));
+        ulong maxZ = unchecked((ulong)(max.Z.m_rawValue - point.Z.m_rawValue));
+        ulong x = Math.Min(minX, maxX);
+        ulong y = Math.Min(minY, maxY);
+        ulong z = Math.Min(minZ, maxZ);
 
-            // Adjust the closest point based on the face.
-            if (minDistToFace == distToMinX) point.X = Min.X;
-            else if (minDistToFace == distToMaxX) point.X = Max.X;
+        if (x <= y && x <= z)
+            point.X = minX <= maxX ? min.X : max.X;
+        else if (y <= z)
+            point.Y = minY <= maxY ? min.Y : max.Y;
+        else
+            point.Z = minZ <= maxZ ? min.Z : max.Z;
 
-            if (minDistToFace == distToMinY) point.Y = Min.Y;
-            else if (minDistToFace == distToMaxY) point.Y = Max.Y;
-
-            if (minDistToFace == distToMinZ) point.Z = Min.Z;
-            else if (minDistToFace == distToMaxZ) point.Z = Max.Z;
-
-            return point;
-        }
-
-        // If the point is outside the box, clamp to the nearest surface.
-        return new Vector3d(
-            FixedMath.Clamp(point.X, Min.X, Max.X),
-            FixedMath.Clamp(point.Y, Min.Y, Max.Y),
-            FixedMath.Clamp(point.Z, Min.Z, Max.Z)
-        );
+        return point;
     }
 
     /// <summary>

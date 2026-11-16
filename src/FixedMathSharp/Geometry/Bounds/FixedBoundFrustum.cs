@@ -15,8 +15,8 @@ namespace FixedMathSharp.Geometry;
 /// </summary>
 /// <remarks>
 /// Construction and matrix assignment rescale each clipping plane with
-/// <see cref="FixedPlane.GetNormalized(FixedPlane)"/>. This fixed-point operation
-/// can retain non-unit normals when the scale or its products round or saturate.
+/// <see cref="FixedPlane.GetNormalized(FixedPlane)"/>. Plane coefficients are
+/// rounded to the nearest fixed-point values after scaling to unit normal length.
 /// </remarks>
 public struct FixedBoundFrustum : IEquatable<FixedBoundFrustum>
 {
@@ -67,6 +67,7 @@ public struct FixedBoundFrustum : IEquatable<FixedBoundFrustum>
     /// <param name="matrix">The combined view-projection matrix in the library's row-vector convention.</param>
     /// <exception cref="InvalidOperationException">The clipping planes do not yield unique corner intersections.</exception>
     /// <exception cref="ArithmeticException">A clipping plane has a zero-length normal.</exception>
+    /// <exception cref="OverflowException">A rounded normalized plane constant is outside the <see cref="Fixed64"/> range.</exception>
     public FixedBoundFrustum(Fixed4x4 matrix)
     {
         this = default;
@@ -84,6 +85,7 @@ public struct FixedBoundFrustum : IEquatable<FixedBoundFrustum>
     /// <param name="bottom">The bottom clipping plane with its normal pointing outward.</param>
     /// <exception cref="InvalidOperationException">The clipping planes do not yield unique corner intersections.</exception>
     /// <exception cref="ArithmeticException">A clipping plane has a zero-length normal.</exception>
+    /// <exception cref="OverflowException">A rounded normalized plane constant is outside the <see cref="Fixed64"/> range.</exception>
     public FixedBoundFrustum(
         FixedPlane near,
         FixedPlane far,
@@ -107,6 +109,7 @@ public struct FixedBoundFrustum : IEquatable<FixedBoundFrustum>
     /// <exception cref="ArgumentNullException"><paramref name="planes"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="planes"/> does not contain exactly six elements.</exception>
     /// <exception cref="ArithmeticException">A clipping plane has a zero-length normal.</exception>
+    /// <exception cref="OverflowException">A rounded normalized plane constant is outside the <see cref="Fixed64"/> range.</exception>
     public FixedBoundFrustum(FixedPlane[] planes)
     {
         if (planes is null)
@@ -142,6 +145,7 @@ public struct FixedBoundFrustum : IEquatable<FixedBoundFrustum>
     /// assignment throws, reconstruct the frustum before using its geometry.
     /// </remarks>
     /// <exception cref="ArithmeticException">A clipping plane has a zero-length normal.</exception>
+    /// <exception cref="OverflowException">A rounded normalized plane constant is outside the <see cref="Fixed64"/> range.</exception>
     /// <exception cref="InvalidOperationException">
     /// The getter has no matrix source, or the supplied matrix does not define unique corner intersections.
     /// </exception>
