@@ -79,6 +79,23 @@ round and saturate the final coefficients. Applying the matrix has its own
 fixed-point range limits. The field-of-view overload takes radians and rejects
 angles whose rounded half is zero or pi/2.
 
+### Basis normalization and matrix comparisons
+
+`Fixed3x3.GetNormalized` normalizes the first two rows and rebuilds the third
+with their cross product. `Fixed4x4.NormalizeRotationMatrix` normalizes all
+three rows independently and returns an affine matrix with zero translation.
+When rows one and two are both nonzero, both operations preserve the angle
+between them to fixed-point precision. Rebuilding the third row can change the
+handedness of a 3×3 basis. Use `Fixed4x4.Decompose` for strict TRS validation
+that rejects shear or a degenerate basis.
+
+Use `FuzzyEqualAbsolute` for a fixed per-entry tolerance, such as a transform
+round-trip check. `FuzzyEqual` instead scales the tolerance by the magnitude of
+each entry in the first matrix. Entries whose magnitude is below
+`Fixed64.Epsilon` use the fraction as an absolute tolerance. The default
+fraction is `Fixed64.Epsilon` (2⁻²⁴). Pass an explicit fraction such as 0.01
+when the caller's error budget is 1%.
+
 ## `FixedTransform`
 
 `FixedTransform` is an engine-neutral snapshot of local transform state. Its

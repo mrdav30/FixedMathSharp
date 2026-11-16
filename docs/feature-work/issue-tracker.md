@@ -50,30 +50,6 @@ dotnet add artifacts/issue-repro/issue-repro.csproj reference src/FixedMathSharp
 dotnet run --project artifacts/issue-repro/issue-repro.csproj -c Release -p:UseLocalLsfStack=false
 ```
 
-### FMS-Issue-039: Matrix normalization and comparison contracts
-
-- **Status:** Confirmed behavior. Compatibility decision pending.
-- **Priority:** Medium
-- **Affected area:**
-  [Fixed3x3](../../src/FixedMathSharp/Numerics/Matrices/Fixed3x3.cs),
-  [Fixed4x4 decomposition](../../src/FixedMathSharp/Numerics/Matrices/Fixed4x4.Decomposition.cs)
-  and the matrix extensions.
-- **Evidence:** Set `M21 = Fixed64.One` on `Fixed4x4.Identity` and pass it to
-  `NormalizeRotationMatrix`. The first two basis rows still have a dot product
-  of approximately `0.7071`. For `Fixed3x3.GetNormalized`, use the rows `Right`,
-  `(1, 1, 0)`, and `Forward`. The first two rows retain the same nonzero dot
-  product while the third is rebuilt from their cross product. For either size,
-  increment identity's `M11` by `Fixed64.FromDecimal(0.001m)`.
-  `identity.FuzzyEqual(changed)` returns false, while an explicit
-  `Fixed64.FromDecimal(0.01m)` returns true.
-- **Impact:** Callers that used the older orthogonality or 1% descriptions can
-  get a skewed basis or a failed approximate comparison.
-- **Next action:** Check callers that need an orthonormal basis and decide
-  whether they need a distinct operation. Preserve the confirmed row-vector
-  conventions in regression tests. `M41 = 1` on identity remains affine,
-  `M14 = 1` makes it projective, and index 1 reads `M21`. An identity pose with
-  scale `(1, 0, 1)` has a valid X/Z inverse even though its 3D inverse fails.
-
 ### FMS-Issue-040: Geometry query ties, shear bounds, and representability
 
 - **Status:** Confirmed behavior. The frustum plane test is a conservative
@@ -154,6 +130,7 @@ rerun or package release.
 
 | Issue                                                                                                      | Resolved/closed | Outcome                                                                                                                                                                                                   | Evidence                                                                                             |
 | ---------------------------------------------------------------------------------------------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| FMS-Issue-039                                                                                              | 2026-11-15      | Verified caller requirements and preserved normalization and comparison contracts with characterization tests and guidance.                                                                               | [Record](done/2026-11-15-matrix-normalization-and-comparison.md)                                     |
 | FMS-Issue-038                                                                                              | 2026-11-15      | Corrected rotated camera view mapping, perspective coefficients, and rounded half-angle validation.                                                                                                       | [Record](done/2026-11-15-camera-view-and-perspective.md)                                             |
 | FMS-Issue-037                                                                                              | 2026-10-31      | Aligned Chronicler and shim source/package identities to 1.0.0; reproduced the companion load failure and passed source/package Release and Lean validation.                                              | [Record](done/2026-10-31-chronicler-v1-dependency-alignment.md)                                      |
 | <a id="fms-issue-036-spherecapsule-prism-witnesses-can-miss-the-opposing-finite-support"></a>FMS-Issue-036 | 2026-10-25      | Matched finite sphere/capsule prism supports, completed missing rim/vertex contacts and retained exact radial scaling; downstream torque/replay and coordinated coverage pass.                            | [Record](done/2026-10-25-prism-capsule-finite-witnesses.md)                                          |
