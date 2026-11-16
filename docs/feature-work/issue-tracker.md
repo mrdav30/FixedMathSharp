@@ -50,26 +50,6 @@ dotnet add artifacts/issue-repro/issue-repro.csproj reference src/FixedMathSharp
 dotnet run --project artifacts/issue-repro/issue-repro.csproj -c Release -p:UseLocalLsfStack=false
 ```
 
-### FMS-Issue-042: Vector3d.Angle loses scale invariance under saturation
-
-- **Status:** Confirmed at `2a65963`. Split from FMS-Issue-041.
-- **Priority:** Medium.
-- **Affected area:**
-  [`Vector3d.Angle`](../../src/FixedMathSharp/Numerics/Vectors/Vector3d.Statics.cs)
-  and its
-  [extension](../../src/FixedMathSharp/Numerics/Vectors/Vector3dExtensions.cs).
-- **Evidence:** `Vector3d.Angle(new(1, 0, 0), new(1, 1, 0))` gives `45°`. With
-  both vectors scaled by 256 it gives `0°`. The squared-length product saturates
-  and the computed cosine clamps to one. With `(1000000, 0, 0)` and
-  `(1, 1000000, 0)`, it also gives `0°` where the angle is about `89.999943°`.
-  Normalizing those directions first gives about `89.999943°`.
-- **Impact:** Distinct directions can appear parallel. The XML describes the
-  existing saturation and the normalize-first workaround.
-- **Next action:** Preserve the zero-vector result used by slope callers. Add
-  scale-invariance regressions and measure ordinary inputs before choosing an
-  exact or scale-safe kernel. Treat the behavior for tiny nonzero vectors as a
-  separate threshold decision.
-
 ### FMS-Issue-043: Vector4d interpolation misses representable endpoints
 
 - **Status:** Confirmed at `2a65963`. Split from FMS-Issue-041.
@@ -150,9 +130,11 @@ rerun or package release.
 
 <a id="fms-issue-041-fixed-point-rounding-and-vector-or-quaternion-edge-behavior"></a>
 <a id="fms-issue-041-decimal-rounding-introduces-raw-bias-and-can-reverse-sign"></a>
+<a id="fms-issue-042-vector3dangle-loses-scale-invariance-under-saturation"></a>
 
 | Issue                                                                                                      | Resolved/closed | Outcome                                                                                                                                                                                                   | Evidence                                                                                             |
 | ---------------------------------------------------------------------------------------------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| FMS-Issue-042                                                                                              | 2026-11-16      | Corrected saturated 3D angle inputs with scale-safe normalization and preserved the small-length-product behavior.                                                                                        | [Record](done/2026-11-16-vector3d-angle-saturation.md)                                               |
 | FMS-Issue-041                                                                                              | 2026-11-16      | Fixed decimal rounding bias and sign wrap with exact scaling and final saturation.                                                                                                                        | [Record](done/2026-11-16-decimal-rounding.md)                                                        |
 | FMS-Issue-039                                                                                              | 2026-11-15      | Verified caller requirements and preserved normalization and comparison contracts with characterization tests and guidance.                                                                               | [Record](done/2026-11-15-matrix-normalization-and-comparison.md)                                     |
 | FMS-Issue-040                                                                                              | 2026-11-15      | Fixed nearest box faces, saturated ray slabs, affine sphere underbounds and plane normalization. Preserved the conservative frustum query and box corner scan.                                            | [Record](done/2026-11-15-geometry-query-reliability.md)                                              |

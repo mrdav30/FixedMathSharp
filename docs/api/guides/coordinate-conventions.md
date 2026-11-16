@@ -57,6 +57,11 @@ local axes. Replace calls to `ToDirection()` with
 `GetWorldForwardInLocalFrame()` to keep the same inverse result. `ToDirection()`
 remains callable and emits a deprecation warning with the replacement name.
 
+`Vector3d.Angle(from, to)` estimates the smaller angle in degrees. When a
+squared length or the product of squared lengths reaches the fixed-point range
+limit, the method normalizes both directions before computing the angle. A zero
+vector or an original computed length product below epsilon still returns zero.
+
 ## Matrix composition
 
 Because transforms use row vectors, a child-to-root hierarchy multiplies in that

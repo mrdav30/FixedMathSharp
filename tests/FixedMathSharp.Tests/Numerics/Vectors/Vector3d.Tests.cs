@@ -1294,6 +1294,49 @@ public class Vector3dTests
         FixedMathTestHelper.AssertWithinRelativeTolerance(expected, result);
     }
 
+    [Theory]
+    [InlineData(45)]
+    [InlineData(135)]
+    public void Angle_RetainsDirectionWhenSquaredLengthProductSaturates(int expectedDegrees)
+    {
+        var from = new Vector3d(expectedDegrees == 45 ? 256 : -256, 0, 0);
+        var to = new Vector3d(256, 256, 0);
+
+        FixedMathTestHelper.AssertWithinRelativeTolerance(new Fixed64(expectedDegrees), Vector3d.Angle(from, to));
+        Assert.Equal(Vector3d.Angle(from, to), Vector3d.Angle(to, from));
+    }
+
+    [Fact]
+    public void Angle_RetainsDirectionWhenOnlyOneSquaredLengthSaturates()
+    {
+        var from = new Vector3d(Fixed64.MinValue, Fixed64.Zero, Fixed64.Zero);
+        var to = new Vector3d(Fixed64.Quarter, Fixed64.Quarter, Fixed64.Zero);
+
+        Fixed64 angle = from.Angle(to);
+        FixedMathTestHelper.AssertWithinRelativeTolerance(new Fixed64(135), angle);
+        Assert.Equal(angle, to.Angle(from));
+    }
+
+    [Fact]
+    public void Angle_RetainsNearRightAngleForMillionScaleInputs()
+    {
+        var from = new Vector3d(1_000_000, 0, 0);
+        var to = new Vector3d(1, 1_000_000, 0);
+
+        FixedMathTestHelper.AssertWithinRelativeTolerance(Fixed64.FromDecimal(89.9999427m), from.Angle(to),
+            Fixed64.FromDecimal(0.0000001m));
+    }
+
+    [Fact]
+    public void Angle_PreservesZeroForUnderflowingLengthProduct()
+    {
+        var tiny = new Vector3d(Fixed64.Zero, Fixed64.MinIncrement, Fixed64.Zero);
+        var large = new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero);
+
+        Assert.Equal(Fixed64.Zero, Vector3d.Angle(Vector3d.Right, tiny));
+        Assert.Equal(Fixed64.Zero, Vector3d.Angle(large, tiny));
+    }
+
     [Fact]
     public void Midpoint_CalculatesCorrectly()
     {

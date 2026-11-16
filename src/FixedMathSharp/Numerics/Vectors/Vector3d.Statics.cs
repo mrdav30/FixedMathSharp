@@ -1118,14 +1118,27 @@ public partial struct Vector3d
     /// <param name="to">The target vector.</param>
     /// <returns>The angle in degrees in [0, 180], or zero when the computed product of the lengths is below <see cref="Fixed64.Epsilon"/>.</returns>
     /// <remarks>
-    /// The dot product and squared-length product use rounded, saturating fixed-point arithmetic.
-    /// Normalize the directions first when the lengths are too small or the squared-length product can saturate.
+    /// If a squared length or their product reaches <see cref="Fixed64.MaxValue"/>, the directions are normalized
+    /// before computing the cosine. The small-length-product check uses the original vectors.
     /// </remarks>
     public static Fixed64 Angle(Vector3d from, Vector3d to)
     {
-        Fixed64 denominator = FixedMath.Sqrt(from.MagnitudeSquared * to.MagnitudeSquared);
+        Fixed64 fromSquared = from.MagnitudeSquared;
+        Fixed64 toSquared = to.MagnitudeSquared;
+        Fixed64 squaredProduct = fromSquared * toSquared;
 
-        if (denominator.Abs() < Fixed64.Epsilon)
+        if (squaredProduct == Fixed64.MaxValue || fromSquared == Fixed64.MaxValue || toSquared == Fixed64.MaxValue)
+        {
+            if (FixedMath.Sqrt(squaredProduct) < Fixed64.Epsilon)
+                return Fixed64.Zero;
+
+            from = GetNormalized(from);
+            to = GetNormalized(to);
+            squaredProduct = from.MagnitudeSquared * to.MagnitudeSquared;
+        }
+
+        Fixed64 denominator = FixedMath.Sqrt(squaredProduct);
+        if (denominator < Fixed64.Epsilon)
             return Fixed64.Zero;
 
         Fixed64 dot = FixedMath.Clamp(Dot(from, to) / denominator, -Fixed64.One, Fixed64.One);
