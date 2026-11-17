@@ -667,6 +667,58 @@ public sealed class FixedTransformTests
     }
 
     [Fact]
+    public void FixedTransform_StrictWorldPosition_ChecksDependentHierarchyBeforePublishing()
+    {
+        var root = new FixedTransform(Vector3d.Zero, FixedQuaternion.Identity, Vector3d.One);
+        var position = new Vector3d((Fixed64)1_000_000_000, Fixed64.Zero, Fixed64.Zero);
+        var child = new FixedTransform(position, FixedQuaternion.Identity, Vector3d.One, root);
+
+        Assert.True(root.TrySetWorldPositionWithStrictHierarchy(Vector3d.Zero, root));
+        Assert.True(root.TrySetWorldPositionWithStrictHierarchy(Vector3d.Zero));
+        Assert.True(root.TrySetWorldPositionWithStrictHierarchy(position, child));
+        Assert.False(root.TrySetWorldPositionWithStrictHierarchy(
+            new Vector3d((Fixed64)1_500_000_000, Fixed64.Zero, Fixed64.Zero), child));
+
+        Assert.Equal(position, root.LocalPosition);
+        Assert.True(child.TryGetLocalToWorldMatrix(out Fixed4x4 matrix));
+        Assert.Equal(position + position, matrix.Translation);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void FixedTransform_StrictWorldPosition_RejectsUnrepresentableHierarchy(bool singular)
+    {
+        var ancestor = new FixedTransform(new Vector3d(-1_000_000_000, 0, 0),
+            FixedQuaternion.Identity, Vector3d.One);
+        var parent = new FixedTransform(new Vector3d(1_000_000_000, 0, 0),
+            FixedQuaternion.Identity, singular ? Vector3d.Zero : Vector3d.One, ancestor);
+        var child = new FixedTransform(Vector3d.Zero, FixedQuaternion.Identity, Vector3d.One, parent);
+
+        Assert.False(child.TrySetWorldPositionWithStrictHierarchy(new Vector3d(1_500_000_000, 0, 0)));
+        Assert.Equal(Vector3d.Zero, child.LocalPosition);
+    }
+
+    [Fact]
+    public void FixedTransform_StrictWorldPosition_RejectsChildFirstRoundingOutsideTolerance()
+    {
+        var scale = new FixedTransform(Vector3d.Zero, FixedQuaternion.Identity,
+            new Vector3d((Fixed64)2048, Fixed64.One, Fixed64.One));
+        var parent = new FixedTransform(Vector3d.Zero, FixedQuaternion.Identity,
+            new Vector3d(Fixed64.One + Fixed64.Quarter, Fixed64.One, Fixed64.One), scale);
+        var child = new FixedTransform(Vector3d.Zero, FixedQuaternion.Identity, Vector3d.One, parent);
+        var target = new Vector3d(Fixed64.FromRaw(2560), Fixed64.Zero, Fixed64.Zero);
+
+        Assert.True(child.TrySetWorldPosition(target));
+        Assert.True(child.TryGetLocalToWorldMatrix(out Fixed4x4 matrix));
+        Assert.Equal(Fixed64.FromRaw(2048), matrix.Translation.X);
+        child.LocalPosition = Vector3d.Zero;
+
+        Assert.False(child.TrySetWorldPositionWithStrictHierarchy(target));
+        Assert.Equal(Vector3d.Zero, child.LocalPosition);
+    }
+
+    [Fact]
     public void FixedTransform_TrySetWorldPose_SaturatedLocalTranslationFailsAtomically()
     {
         var parent = new FixedTransform(

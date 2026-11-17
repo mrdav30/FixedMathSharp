@@ -186,15 +186,19 @@ public class FixedTransform
     /// <param name="matrix">The composed row-vector matrix on success, or <see cref="Fixed4x4.Zero"/> on failure.</param>
     /// <returns><see langword="true"/> if each local matrix and intermediate product is representable.</returns>
     /// <remarks>Failure returns a zero matrix and does not mutate this transform or any ancestor.</remarks>
-    public bool TryGetLocalToWorldMatrix(out Fixed4x4 matrix)
+    public bool TryGetLocalToWorldMatrix(out Fixed4x4 matrix) =>
+        TryGetLocalToWorldMatrix(out matrix, null, default);
+
+    private bool TryGetLocalToWorldMatrix(
+        out Fixed4x4 matrix, FixedTransform? translatedTransform, in Vector3d localPosition)
     {
-        if (!TryGetStrictLocalMatrix(out matrix))
+        if (!TryGetStrictLocalMatrix(out matrix, translatedTransform, localPosition))
             return false;
 
         FixedTransform? ancestor = _parent;
         while (ancestor != null)
         {
-            if (!ancestor.TryGetStrictLocalMatrix(out Fixed4x4 localMatrix)
+            if (!ancestor.TryGetStrictLocalMatrix(out Fixed4x4 localMatrix, translatedTransform, localPosition)
                 || !Fixed4x4.TryMultiply(matrix, localMatrix, out Fixed4x4 combined))
             {
                 matrix = Fixed4x4.Zero;
@@ -545,22 +549,41 @@ public class FixedTransform
     /// <remarks>Failure leaves local position unchanged.</remarks>
     public bool TrySetWorldPosition(Vector3d position)
     {
+        if (!TryResolveLocalPosition(position, out Vector3d localPosition))
+            return false;
+
+        _localPosition = localPosition;
+        return true;
+    }
+
+    /// <summary>Sets world position only if strict hierarchy composition represents the requested position.</summary>
+    /// <remarks>The dependent transform may contain this transform in its ancestry.</remarks>
+    internal bool TrySetWorldPositionWithStrictHierarchy(
+        Vector3d position, FixedTransform? dependentTransform = null)
+    {
+        if (!TryResolveLocalPosition(position, out Vector3d localPosition)
+            || !TryGetLocalToWorldMatrix(out Fixed4x4 matrix, this, localPosition)
+            || !matrix.Translation.FuzzyEqualAbsolute(position, Fixed64.Epsilon)
+            || (dependentTransform != null && !ReferenceEquals(dependentTransform, this)
+                && !dependentTransform.TryGetLocalToWorldMatrix(out _, this, localPosition)))
+            return false;
+
+        _localPosition = localPosition;
+        return true;
+    }
+
+    private bool TryResolveLocalPosition(Vector3d position, out Vector3d localPosition)
+    {
+        localPosition = position;
         if (_parent == null)
-        {
-            _localPosition = position;
             return true;
-        }
 
         Fixed4x4 parentWorld = _parent.LocalToWorldMatrix;
         if (!TryGetVerifiedInverse(parentWorld, out Fixed4x4 parentInverse))
             return false;
 
-        Vector3d localPosition = Fixed4x4.TransformPoint(parentInverse, position);
-        if (!Fixed4x4.TransformPoint(parentWorld, localPosition).FuzzyEqualAbsolute(position, Fixed64.Epsilon))
-            return false;
-
-        _localPosition = localPosition;
-        return true;
+        localPosition = Fixed4x4.TransformPoint(parentInverse, position);
+        return Fixed4x4.TransformPoint(parentWorld, localPosition).FuzzyEqualAbsolute(position, Fixed64.Epsilon);
     }
 
     /// <summary>
@@ -672,8 +695,11 @@ public class FixedTransform
         return true;
     }
 
-    private bool TryGetStrictLocalMatrix(out Fixed4x4 matrix) =>
-        Fixed4x4.TryCreateTransform(_localPosition, _localRotation.ToMatrix3x3(), _localScale, out matrix);
+    private bool TryGetStrictLocalMatrix(
+        out Fixed4x4 matrix, FixedTransform? translatedTransform, in Vector3d localPosition) =>
+        Fixed4x4.TryCreateTransform(
+            ReferenceEquals(this, translatedTransform) ? localPosition : _localPosition,
+            _localRotation.ToMatrix3x3(), _localScale, out matrix);
 
     private void ValidateParent(FixedTransform? parent)
     {
