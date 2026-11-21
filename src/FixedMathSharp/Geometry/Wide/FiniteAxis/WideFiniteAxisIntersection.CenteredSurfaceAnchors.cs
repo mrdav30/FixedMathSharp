@@ -5,8 +5,6 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-using System;
-
 namespace FixedMathSharp.Geometry;
 
 /// <content>
@@ -315,8 +313,8 @@ internal static partial class WideFiniteAxisIntersection
 
     private static Vector3d RotateSurfaceNormal(FixedQuaternion rotation, Vector3d localNormal)
     {
-        if (!rotation.TryRotate(localNormal, out Vector3d rotatedNormal))
-            throw new InvalidOperationException("The local surface normal cannot be rotated.");
+        // Nonzero admitted frames and normals bounded by 2 keep rotated components representable.
+        _ = rotation.TryRotate(localNormal, out Vector3d rotatedNormal);
         return WideNormalization.GetNormalized(rotatedNormal);
     }
 

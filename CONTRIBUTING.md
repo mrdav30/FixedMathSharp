@@ -21,6 +21,27 @@ vulnerability reports.
 5. Exclude generated build, test, coverage, package, and benchmark artifacts
    from the pull request.
 
+## Coverage validation
+
+Require 100% reported line, branch and executable-method coverage for the CI
+coverage scope: `FixedMathSharp` and `FixedMathSharp.FluentAssertions`,
+collected by the core test project. Chronicler tests run separately; its
+assembly is not part of this coverage scope. Use a fresh results directory for
+each configuration:
+
+```powershell
+dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Release --collect:"XPlat Code Coverage" --settings tests/FixedMathSharp.Tests/coverlet.runsettings --results-directory artifacts/coverage/Release
+./.assets/scripts/assert-full-coverage.ps1 -CoverageDirectory artifacts/coverage/Release
+```
+
+Repeat with `ReleaseLean` in both configuration and output path. The same raw
+Cobertura gate runs in every Windows/Linux standard/Lean build/test job and
+before Pages publication. It requires both expected assemblies, meaningful
+coverage data, and zero uncovered lines, branch outcomes or executable methods.
+The complexity exception register justifies complexity only. Close reported gaps
+with behavioral tests, or prove and remove unreachable runtime branches; do not
+waive gaps through the register or new exclusions.
+
 ## Commit messages and versions
 
 [`GitVersion.yml`](GitVersion.yml) recognizes Conventional Commits, including

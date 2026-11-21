@@ -947,6 +947,41 @@ public class FixedQuaternionTests
     }
 
     [Fact]
+    public void FixedQuaternion_TryRotate_PreservesBoundedDirectionsAtAdmissionAndWidthLimits()
+    {
+        Fixed64 admittedComponent = Fixed64.One + Fixed64.FromRaw(128);
+        Vector3d admittedAxis = new(admittedComponent, Fixed64.Zero, Fixed64.Zero);
+        var admittedRotation = new FixedQuaternion(Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, admittedComponent);
+        Assert.True(admittedAxis.IsNormalized());
+        Assert.True(admittedRotation.IsNormalized());
+        Assert.False(new Vector3d(admittedComponent + Fixed64.MinIncrement, Fixed64.Zero, Fixed64.Zero).IsNormalized());
+
+        Vector3d[] directions = { Vector3d.Zero, admittedAxis, -admittedAxis, Vector3d.Up, Vector3d.Forward };
+        Fixed64[] scalarRotations =
+        {
+            Fixed64.MinIncrement, -Fixed64.MinIncrement,
+            admittedComponent, -admittedComponent, Fixed64.MaxValue, Fixed64.MinValue
+        };
+        foreach (Fixed64 w in scalarRotations)
+        {
+            var rotation = new FixedQuaternion(Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, w);
+            foreach (Vector3d direction in directions)
+            {
+                Assert.True(rotation.TryRotate(direction, out Vector3d rotated));
+                Assert.Equal(direction, rotated);
+            }
+        }
+
+        // Equal quaternion components rotate the coordinate axes cyclically, even at the raw limit.
+        var cyclicRotation = new FixedQuaternion(Fixed64.MinValue, Fixed64.MinValue, Fixed64.MinValue, Fixed64.MinValue);
+        foreach (Vector3d direction in directions)
+        {
+            Assert.True(cyclicRotation.TryRotate(direction, out Vector3d rotated));
+            Assert.Equal(new Vector3d(direction.Z, direction.X, direction.Y), rotated);
+        }
+    }
+
+    [Fact]
     public void FixedQuaternion_ExactPointOperations_DeferNarrowingAndFailAtomically()
     {
         var rotation = new FixedQuaternion(

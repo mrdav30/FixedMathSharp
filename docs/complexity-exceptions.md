@@ -6,6 +6,8 @@ cyclomatic complexity review threshold.
 ## Policy
 
 - Review threshold: cyclomatic complexity greater than 10.
+- Register only methods above that threshold. Entries justify complexity, never
+  uncovered code or an exception to the coverage gate.
 - Source-size warning: roughly 1,200 lines is a hard review warning, not a
   target or automatic split point. Owner cohesion and an independent reason to
   change determine whether code stays together or moves; file-count reduction
@@ -14,10 +16,11 @@ cyclomatic complexity review threshold.
   30 requires immediate test hardening or refactoring. A fully covered method's
   score cannot fall below its cyclomatic complexity, so documented complexity
   floors are reviewed rather than mechanically refactored.
-- Coverage requirement: registered methods remain at 100% reachable line and
-  branch coverage. Refresh the per-method coverage column whenever a listed
-  implementation changes. Aggregate test and coverage counts belong in generated
-  reports rather than this long-lived register.
+- Coverage requirement: registered methods remain at 100% reported line, branch,
+  and executable-method coverage in Release and ReleaseLean. Refresh the
+  per-method coverage column whenever a listed implementation changes. Aggregate
+  test and coverage counts belong in generated reports rather than this
+  long-lived register.
 - Keep this register evergreen and self-contained: record current rationale,
   invariants and revisit criteria, without dated validation summaries, artifact
   references, feature-work links or references to other libraries'
@@ -888,9 +891,9 @@ The native planar capsule relations retain two focused branch-heavy methods:
 - For fixed-point arithmetic and trigonometric routines, prefer benchmark-backed
   refactors over structural changes made only to reduce the reported complexity
   number.
-- If a method remains above the complexity threshold and below full branch
-  coverage, prefer adding focused tests for reachable branches before
-  refactoring.
+- A reported coverage gap fails acceptance even for a registered method. Add
+  focused behavioral tests for reachable paths; prove and remove unreachable
+  runtime branches instead of retaining uncovered guards or adding exclusions.
 - Re-run coverage and CRAP analysis after any changes that touch the methods
   listed above, then update this register.
 

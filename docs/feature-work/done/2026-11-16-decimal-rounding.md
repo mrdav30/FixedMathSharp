@@ -164,3 +164,164 @@ The existing `QuaternionBenchmarks.RotateVector` benchmark averaged 33.57 µs
 before the change and 33.95 µs after it per batch of 256 ordinary rotations.
 Both builds had two successful out-of-process launches and allocated zero bytes.
 The difference is within the reported measurement uncertainty.
+
+### Coverage follow-up (2026-11-21)
+
+A clean package-mode `Release` coverage run at
+`3da3a8ad9964d3e0413080737fec12ba107b48e4` passed all 7,442 core tests but
+covered 68,858 of 68,860 lines and 22,881 of 22,884 branch outcomes.
+ReportGenerator displayed both totals as 99.9%. The only misses were the
+exception at `FixedSegment.CenteredAxis.cs:1385` and its two failure outcomes,
+and the exception at `WideFiniteAxisIntersection.CenteredSurfaceAnchors.cs:319`
+and its failure outcome. Both guards were introduced by the strict rotation
+rollout in `30d76f1b9d7dcc7c5939574353da36e0492dff3c`; the coverage workflow and
+exclusions had not changed.
+
+These failures cannot occur for admitted inputs. Capsule contact validates both
+rotations and unit axes before rotating them. Capsule, cylinder, and cone
+surface queries supply bounded directions and nonzero admitted frame rotations,
+including the committed collider frames used by Gravitas. An exact rational
+rotation preserves vector length. Directions have component magnitudes below two
+before rotation, including zero in degenerate cases, so the final components
+remain far below the fixed-point representation limit.
+
+The correction removes only the redundant failure branches and their throws. It
+retains the `TryRotate` calls, their exact rational rounding, subsequent
+normalization, and the existing public argument checks. Substituting `Rotate`
+would use different arithmetic. Existing valid-input and invalid-input tests
+remain the behavioral controls; no test fabricates invalid internal state to
+reach an impossible exception. Revisit this proof if a caller starts supplying
+unnormalized directions or bypassing frame admission.
+
+The raw baseline and final configuration reports are under
+`tests/FixedMathSharp.Tests/TestResults/coverage-analysis/`. Reproduce each
+configuration with the existing CI collector settings:
+
+```powershell
+dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Release -p:UseLocalLsfStack=false -p:DisableTransitiveProjectReferences=false --collect:"XPlat Code Coverage" --settings tests/FixedMathSharp.Tests/coverlet.runsettings --results-directory tests/FixedMathSharp.Tests/TestResults/coverage-analysis/release/raw
+dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c ReleaseLean -p:UseLocalLsfStack=false -p:DisableTransitiveProjectReferences=false --collect:"XPlat Code Coverage" --settings tests/FixedMathSharp.Tests/coverlet.runsettings --results-directory tests/FixedMathSharp.Tests/TestResults/coverage-analysis/lean/raw
+```
+
+Initial local validation on Windows with SDK 10.0.302, Coverlet 10.0.1, and
+ReportGenerator 5.5.10 restored exact 100% line, branch, and method coverage in
+both configurations. The CI coverage scope remains the core test project,
+including the core and FluentAssertions assemblies.
+
+| Configuration | Core tests passed |   Covered lines | Covered branch outcomes | Fully covered methods |
+| ------------- | ----------------: | --------------: | ----------------------: | --------------------: |
+| Release       |             7,442 | 68,858 / 68,858 |         22,878 / 22,878 |         5,358 / 5,358 |
+| ReleaseLean   |             7,421 | 68,951 / 68,951 |         22,878 / 22,878 |         5,354 / 5,354 |
+
+Raw reports contain zero uncovered line or branch points. Both solution builds
+compiled `netstandard2.1` and `net10.0` with zero warnings and errors; all 49
+Chronicler tests passed in each configuration. The .NET format verification,
+repository-wide Prettier check, and independent code review passed. No coverage
+exclusions changed. That initial pass did not rerun hosted Linux CI, downstream
+suites, or benchmarks. The follow-up below verifies the downstream callers and
+closes the missing CI gate.
+
+#### Safety and enforcement verification
+
+An independent follow-up checked both the final range and every intermediate:
+
+- `FixedQuaternion.TryRotate` fails only for a zero quaternion or an
+  unrepresentable rounded result. Its exact rational basis `B / D` satisfies
+  `B^T B = D^2 I` for every nonzero quaternion, even when its magnitude is only
+  within the normalization tolerance. The denominator is positive.
+- `Vector3d.IsNormalized` uses nonnegative saturating squares and sums. A
+  component with magnitude at least two cannot pass the near-one squared-length
+  check; saturation cannot wrap it into the admitted range. Wide surface-normal
+  builders also bound each component below two. Degenerate zero normals remain
+  valid inputs to a nonzero rotation.
+- Full-domain quaternion raw products are at most `2^126`; the denominator and
+  basis coefficients are at most `2^128`, within `Signed192`. Multiplication by
+  these bounded direction components and three-term accumulation stay below
+  `2^163`, within `Signed320`, before exact extension to `Signed576`.
+- Orthogonality bounds the final component magnitude below `sqrt(12)`, with
+  rounding still below `2^34` raw units versus the scalar limit near `2^63`.
+  Neither intermediate overflow nor final narrowing can trigger the removed
+  failures. No production precondition was weakened.
+
+The added quaternion test covers the exact admission cutoff
+`One + FromRaw(128)`, rejects the next raw axis value, preserves zero and
+bounded directions through positive/negative scalar quaternions from one raw
+unit to both scalar limits, and checks a cyclic rotation with all quaternion
+components at `MinValue`. Existing public invalid-rotation and full-domain
+surface tests remain controls.
+
+The Gravitas audit used source at `becdd5d61cd8608f508af4ef9933433a7cbf107c`:
+
+- Sphere surface calls use identity, while capsule, cylinder and cone calls use
+  committed collider rotation; all use canonical unit axis/fallback directions.
+- `LSCollider.PublishPreparedShape` is the only writer of committed rotation.
+  Requested body snapshots and reconfigurations must pass checked scaled-point
+  transformation; bodyless snapshots require successful matrix decomposition;
+  compound snapshots normalize their composed rotation.
+- Fresh bodies and omitted resets use identity. Explicit zero pose rotations
+  reject before publication. Schema 1 loads migrate legacy zero to identity
+  before rebuilding colliders. Compound authored zero normalizes to identity.
+  CCD and temporary pose handoffs still prepare valid snapshots before
+  publication. `ChronicleGuard.ThrowIfArgument` throws on invalid input in both
+  build profiles; it is not a debug-only check. The direct callers therefore
+  never observe a zero frame.
+
+The guard regression slipped through because `build-and-test.yml` ran tests
+without collecting coverage, and `coverage.yml` only generated and published the
+post-main report. There was no executable full-coverage assertion. The
+complexity register contained no partial-coverage waivers: all 514 entries
+claimed full coverage and exceeded complexity ten. Its "reachable" policy was
+ambiguous, but neither removed guard was justified by a registered exception.
+
+Following the SwiftCollections correction at
+`e4f784ce623aa7e6777f11aef9fac394af6812aa`, the policy now requires all reported
+lines, branches and executable methods. Complexity exceptions cannot waive
+coverage. Every standard/Lean Windows/Linux build/test lane and the Pages
+workflow use `.assets/scripts/assert-full-coverage.ps1` on raw Cobertura data.
+The existing measured assemblies remain core and FluentAssertions; Chronicler
+tests still run separately. No new coverage exclusion was added.
+
+Disposable gate controls rejected the original two-line/three-outcome baseline,
+missing reports, a missing expected assembly, invalid counts, an uncovered
+method point, an inconsistent branch point and a package without executable
+methods. Both previous full reports passed. These probes remain generated
+diagnostic output, not maintained tests of test infrastructure.
+
+Source-stack Gravitas checks passed 224 selected tests in `Release` and 201 in
+`ReleaseLean`. The selected fixtures cover explicit zero rejection and atomic
+failure, initialization/reset, legacy serialization, compound parts, scalar-face
+surface queries, and sphere/capsule/cylinder/cone contacts:
+
+```powershell
+dotnet test tests/Gravitas.Tests/Gravitas.Tests.csproj -c Release -p:UseLocalLsfStack=true -p:DisableTransitiveProjectReferences=true -m:1 --filter "FullyQualifiedName~SolidBodyIntegrationTests|FullyQualifiedName~SolidBodySerializationTests|FullyQualifiedName~CompoundColliderTests|FullyQualifiedName~ColliderSurfaceDomainTests|FullyQualifiedName~CollisionDetectionShapePairTests"
+```
+
+Repeat for `ReleaseLean`. The test dependency manifests selected
+`0.0.0-fms-local-lsf`; each test host's copied FixedMathSharp DLL matched the
+corresponding local source output by SHA-256:
+
+- Release: `3C1E0B9F6D8772CDDC3084284A5861E104CC29372B0D21D4E39E3D2CDA6748CB`.
+- ReleaseLean:
+  `422677D994E33187BF826099CA391B17B4FE33692E43ADBA23FF18C56EF72CF0`.
+
+The stale Gravitas host guide was also corrected: explicit zero pose rotations
+reject, while fresh/default resets and legacy schema 1 loading retain their
+documented identity behavior. No Gravitas runtime code changed.
+
+The refreshed package-mode core suites and the new raw-count gate passed:
+
+| Configuration | Core tests passed |   Covered lines | Covered branch outcomes | Fully covered methods |
+| ------------- | ----------------: | --------------: | ----------------------: | --------------------: |
+| Release       |             7,443 | 68,858 / 68,858 |         22,878 / 22,878 |         5,358 / 5,358 |
+| ReleaseLean   |             7,422 | 68,951 / 68,951 |         22,878 / 22,878 |         5,354 / 5,354 |
+
+Fresh raw and generated reports are under the coverage-analysis directory's
+`followup-release` and `followup-lean` subdirectories. Both multi-target
+solution builds passed with zero warnings/errors, and all 49 Chronicler tests
+passed in each profile. The repository-wide Prettier check passed. A no-restore
+formatter check initially loaded sibling source references and proposed
+unrelated import removals; explicit package-mode restore and verification
+scanned 1,189 files with zero changes. No unrelated formatting edits were
+applied. Independent reviews found no remaining actionable issues. Hosted
+Linux/Windows CI, full downstream coverage suites, and performance benchmarks
+remain unrun in this follow-up; the targeted downstream counts above are the
+executed evidence.

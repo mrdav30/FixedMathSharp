@@ -333,16 +333,22 @@ dotnet restore FixedMathSharp.slnx --property:Configuration=ReleaseLean
 dotnet test FixedMathSharp.slnx --configuration ReleaseLean --no-restore
 ```
 
-Coverage uses `tests/FixedMathSharp.Tests/coverlet.runsettings` and currently
-runs only the core test project; it does not include the separate Chronicler
-test project. CI runs the complete solution in Release and ReleaseLean on Linux
-and Windows through
+Coverage uses `tests/FixedMathSharp.Tests/coverlet.runsettings` and runs only
+the core test project, measuring `FixedMathSharp` and
+`FixedMathSharp.FluentAssertions`; the separate Chronicler test project still
+runs but its assembly is outside this coverage scope. Require 100% reported
+line, branch and executable-method coverage in Release and ReleaseLean. The
+complexity exception register justifies complexity only and cannot waive a
+coverage gap. Prove and remove unreachable branches rather than accepting
+uncovered guards or adding exclusions. Run
+`.assets/scripts/assert-full-coverage.ps1` against fresh results for each
+configuration. Every Linux/Windows build/test lane enforces it through
 [`.github/workflows/build-and-test.yml`](.github/workflows/build-and-test.yml).
-After a successful `main` push, the coverage workflow publishes the DocFX API
-site, conceptual guides, and coverage report as one GitHub Pages artifact. The
-coverage workflow depends on the `build-and-test` workflow name. DocFX builds
-with warnings treated as errors and validates generated pages, local links, and
-assets before deployment.
+After a successful `main` push, the coverage workflow enforces the same gate
+before publishing the DocFX API site, conceptual guides, and coverage report as
+one GitHub Pages artifact. The coverage workflow depends on the `build-and-test`
+workflow name. DocFX builds with warnings treated as errors and validates
+generated pages, local links, and assets before deployment.
 
 Runtime version selection is centralized in `Directory.Build.props`. Package
 mode consumes GitVersion values when present and otherwise falls back to
