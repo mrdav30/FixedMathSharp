@@ -18,8 +18,10 @@ namespace FixedMathSharp.Geometry;
 /// <content>Authored-frame SAT ingress retaining scale residuals through axis and interval selection.</content>
 internal static partial class WideOrientedBox
 {
-    internal static ReadOnlySpan<int> BoxHullTriangles => new int[]
+    // Cache topology because Debug materializes a field handle for each constant-span lookup.
+    private static readonly int[] BoxHullTriangleIndices =
         { 0,2,3, 0,3,1, 4,5,7, 4,7,6, 0,1,5, 0,5,4, 2,6,7, 2,7,3, 0,4,6, 0,6,2, 1,3,7, 1,7,5 };
+    internal static ReadOnlySpan<int> BoxHullTriangles => BoxHullTriangleIndices;
     internal static ReadOnlySpan<int> BoxHullEdges => new int[]
         { 0,1, 0,2, 0,4, 1,3, 1,5, 2,3, 2,6, 3,7, 4,5, 4,6, 5,7, 6,7 };
 

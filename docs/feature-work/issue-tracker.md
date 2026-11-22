@@ -21,8 +21,9 @@ Work that requires staged implementation belongs in a focused feature-work plan.
 - Link an active implementation plan instead of duplicating its task details.
 - After verification, replace the active entry with a compact `Resolved Issues`
   row: the same ID, resolution/closure date, brief outcome and an evidence link.
-  Keep detailed root causes, decisions and validation in an existing completion
-  record, regression or fix commit rather than duplicating them in this index.
+  Keep brief resolutions self-contained with essential root cause and validation
+  context. Larger investigations can link an existing completion record,
+  regression or fix commit; ignored artifacts remain supplemental.
 - Distinguish verified fixes, mitigations and investigations closed without a
   reproduced defect. A closed investigation does not establish a runtime fix or
   an attributed cause; preserve its limits and recurrence guidance in the
@@ -37,54 +38,7 @@ Work that requires staged implementation belongs in a focused feature-work plan.
 
 **Next issue ID:** `FMS-Issue-046`
 
-### FMS-Issue-045 — Debug whole-hull assertion conflicts with incomplete-topology rejection test
-
-- **Status:** Open; verified baseline Debug test failure. Contract/test
-  disposition is required before choosing a fix.
-- **Priority:** Medium; affects Debug validation and assertion handling, with no
-  demonstrated contact defect for valid closed hulls.
-- **Source:** `b501340558c6132484be2f40957233c1b3d29cab`, reproduced 2026-11-22
-  from a pristine `git archive` export built separately in package mode. The
-  affected owner and test are unchanged in the current worktree.
-- **Affected members:**
-  `src/FixedMathSharp/Geometry/Wide/Convex/ConvexHullCylinderContact.cs`,
-  internal `TryGetContact`, especially Debug.Fail at line 188; test
-  `ConvexHullCylinderContactTests.WholeHull_RejectsSmoothCornerSeparationAndIncompleteFiniteWitnesses`
-  in
-  `tests/FixedMathSharp.Tests/Geometry/Primitives/ConvexHullCylinderContact.Tests.cs:264`.
-- **Inputs:** The existing test calls the internal owner with a rigid identity
-  frame at the origin, the eight vertices returned by
-  `WideOrientedBox.GetBoxHullVertices(Vector3d.One, points)`, deliberately
-  incomplete triangle indices `{ 2, 6, 7 }`, cylinder center
-  `(Fixed64.Half, Fixed64.Zero, -Fixed64.Half)`, identity rotation, height
-  `Fixed64.Half` and radius `Fixed64.Quarter`.
-- **Reproducer:** From a clean checkout or export of the source revision:
-
-  ```powershell
-  dotnet build tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Debug -p:UseLocalLsfStack=false -p:DisableTransitiveProjectReferences=false
-  dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Debug --no-build -p:UseLocalLsfStack=false -p:DisableTransitiveProjectReferences=false --filter FullyQualifiedName~WholeHull_RejectsSmoothCornerSeparationAndIncompleteFiniteWitnesses
-  ```
-
-- **Expected/observed:** The test expects false when the incomplete topology
-  cannot supply a finite matching witness. Debug instead reaches
-  `Debug.Fail("A whole-hull minimum must have a finite matching witness.")`
-  before the fallback false return. xUnit reports a Trace/Debug.Assert failure:
-  failed 1, passed 0, skipped 0, process exit 1. The baseline Debug build
-  passes.
-- **Control environment:** Windows 11 x64, SDK 10.0.302 and .NET 10.0.10.
-  Pristine Debug `FixedMathSharp.dll` SHA-256:
-  `27019648e3d36503107d0f4f2e5f7a9ba8633f9043ce49979f531bc3bf15581e`.
-- **Impact and limits:** The internal owner documents validated closed-hull
-  inputs, while this test deliberately supplies incomplete topology. Release's
-  fallback declines it; Debug invokes host assertion handling. This establishes
-  a Debug test/precondition conflict, not an incorrect contact for an admitted
-  closed hull. No valid-closed-hull caller failure has been reproduced.
-- **Next action:** Clarify whether rejection of incomplete topology is part of
-  the internal contract or whether the test violates its closed-hull
-  precondition. Align the test or the specific invariant only after that
-  disposition, preserving valid closed-hull contact behavior and strict
-  coverage. No source fix, assertion suppression or coverage waiver is made by
-  this intake.
+None.
 
 ## Resolved Issues
 
@@ -93,6 +47,7 @@ records. Dates reflect recorded resolution/closure, which can precede the commit
 date. Evidence describes verification at closure; it does not claim a fresh
 rerun or package release.
 
+<a id="fms-issue-045--debug-whole-hull-assertion-conflicts-with-incomplete-topology-rejection-test"></a>
 <a id="fms-issue-041-fixed-point-rounding-and-vector-or-quaternion-edge-behavior"></a>
 <a id="fms-issue-041-decimal-rounding-introduces-raw-bias-and-can-reverse-sign"></a>
 <a id="fms-issue-042-vector3dangle-loses-scale-invariance-under-saturation"></a>
@@ -101,6 +56,7 @@ rerun or package release.
 
 | Issue                                                                                                      | Resolved/closed | Outcome                                                                                                                                                                                                   | Evidence                                                                                             |
 | ---------------------------------------------------------------------------------------------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| FMS-Issue-045                                                                                              | 2026-11-22      | Aligned raw finite-witness rejection in Debug with Release, preserved the validated whole-hull assertion, and removed repeated box-topology allocation.                                                   | [Resolution](#fms-issue-045-resolution)                                                              |
 | FMS-Issue-044                                                                                              | 2026-11-16      | Made the epsilon predicate use the same strict component magnitude test in 2D, 3D, and 4D.                                                                                                                | [Record](done/2026-11-16-vector-epsilon-parity.md)                                                   |
 | FMS-Issue-043                                                                                              | 2026-11-16      | Fixed full-range 4D clamped interpolation and made the unclamped endpoint at one exact.                                                                                                                   | [Record](done/2026-11-16-vector4d-interpolation.md)                                                  |
 | FMS-Issue-042                                                                                              | 2026-11-16      | Corrected saturated 3D angle inputs with scale-safe normalization and preserved the small-length-product behavior.                                                                                        | [Record](done/2026-11-16-vector3d-angle-saturation.md)                                               |
@@ -150,6 +106,39 @@ rerun or package release.
 advances the counter from 032 to 033, but no committed numbered entry or
 verified identity survives. Keep this slot reserved; do not infer a fix or
 assign it to an unrelated closed diagnostic.
+
+### FMS-Issue-045 resolution
+
+- **Cause and fix:** At `0a81be7b59920d367692eff35e19d4dda1bb2b4b`, Debug
+  reproduced the incomplete-topology assertion failure first recorded at
+  `b501340558c6132484be2f40957233c1b3d29cab`. The raw
+  `ConvexHullCylinderContact.TryGetContact` correctly declines a missing finite
+  witness, but a misplaced `Debug.Fail` interrupted its false/default return.
+  Removed that failure assertion and documented the raw rejection contract. The
+  validated closed-hull wrapper's `Debug.Assert(found)` remains. Both Gravitas
+  production callers require closed convex topology before using it.
+- **Regression:**
+  `IncompleteTopology_DeclinesMissingFiniteWitnessWithoutFabricatingContact`
+  verifies a complete-hull contact first, then requires incomplete topology to
+  return false and clear the previous contact.
+- **Related allocation fix:** The existing cylinder-polytope guard's 576 B came
+  from eight box queries at 72 B each. Debug constant-span initialization
+  materialized fresh runtime field-handle objects. Caching the existing
+  canonical topology behind its read-only span removes that repeated cost; the
+  retained 36-integer array costs 168 B under the x64 object layout.
+  `CylinderPolytope_AllocatesNothingAfterWarmup` remains unchanged and passes at
+  0 B in Debug, Release and ReleaseLean.
+- **Validation:** Windows x64, SDK 10.0.302 / runtime 10.0.10. FixedMathSharp
+  passes 7,461 Debug / 7,461 Release / 7,439 Lean core tests plus 49 companion
+  tests per configuration. Frozen sibling-source Gravitas passes 8,572 Release /
+  8,495 Lean tests. Both libraries retain 100% reported Release/Lean line,
+  branch and executable-method coverage. All 184 `Debug.Assert` sites executed
+  in the baseline; partial predicate coverage did not identify unhit assertions.
+  CI and coverage acceptance remain Release/ReleaseLean.
+- **Supplemental evidence:** Detailed captures and the investigation report are
+  ignored artifacts under `artifacts/rca-045`. No standalone tracked plan is
+  required for this resolution. Hosted CI/ARM64, released consumer packages and
+  throughput benchmarks were not rerun.
 
 ## Issue Template
 

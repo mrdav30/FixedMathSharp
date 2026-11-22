@@ -248,7 +248,7 @@ public sealed class ConvexHullCylinderContactTests
     }
 
     [Fact]
-    public void WholeHull_RejectsSmoothCornerSeparationAndIncompleteFiniteWitnesses()
+    public void WholeHull_RejectsSmoothCornerSeparationAndPreservesZeroRadiusContact()
     {
         Vector3d[] points = { new((Fixed64)5.25m,(Fixed64)5.25m,Fixed64.Zero),
             new((Fixed64)4.75m,(Fixed64)6,Fixed64.Zero), new((Fixed64)6,(Fixed64)4.75m,Fixed64.Zero), new(6,6,1) };
@@ -259,10 +259,22 @@ public sealed class ConvexHullCylinderContactTests
         Assert.True(Contact(frame, Cube(Vector3d.One), Vector3d.Zero, FixedQuaternion.Identity,
             Fixed64.Half, Fixed64.Zero, out var axisContact));
         Assert.Equal(Fixed64.One, axisContact.Depth);
-        // An incomplete topology cannot supply a witness on the omitted side
-        // of the hull. Decline it rather than project outside its finite face.
-        Assert.False(ConvexHullCylinderContact.TryGetContact(frame, Cube(Vector3d.One), new[] { 2, 6, 7 },
-            new Vector3d(Fixed64.Half, Fixed64.Zero, -Fixed64.Half), FixedQuaternion.Identity, Fixed64.Half, Fixed64.Quarter, out _));
+    }
+
+    [Fact]
+    public void IncompleteTopology_DeclinesMissingFiniteWitnessWithoutFabricatingContact()
+    {
+        var frame = ScaledRigidFrame3d.Rigid(Vector3d.Zero, FixedQuaternion.Identity);
+        Vector3d[] points = Cube(Vector3d.One);
+        Vector3d center = new(Fixed64.Half, Fixed64.Zero, -Fixed64.Half);
+        Assert.True(ConvexHullCylinderContact.TryGetContactWithContainedCenter(frame, points, WideOrientedBox.BoxHullTriangles,
+            center, FixedQuaternion.Identity, Fixed64.Half, Fixed64.Quarter, out var contact));
+        AssertContact(frame, points, center, FixedQuaternion.Identity, Fixed64.Half, Fixed64.Quarter, contact);
+
+        // The omitted support side cannot supply a finite witness, even though the point set overlaps.
+        Assert.False(ConvexHullCylinderContact.TryGetContact(frame, points, new[] { 2, 6, 7 },
+            center, FixedQuaternion.Identity, Fixed64.Half, Fixed64.Quarter, out contact));
+        Assert.Equal(default, contact);
     }
 
     [Theory]

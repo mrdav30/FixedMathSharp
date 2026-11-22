@@ -10,7 +10,7 @@ using static FixedMathSharp.Geometry.CylinderContactAlgebra;
 
 namespace FixedMathSharp.Geometry;
 
-/// <summary>Whole-volume contact between a validated closed convex hull and a finite cylinder or stadium slab.</summary>
+/// <summary>Finite-witness contact construction between convex support points and a finite cylinder or stadium slab.</summary>
 internal static class ConvexHullCylinderContact
 {
     /// <summary>
@@ -29,6 +29,12 @@ internal static class ConvexHullCylinderContact
         return found;
     }
 
+    /// <summary>Attempts contact using the supplied convex support points and finite triangle features.</summary>
+    /// <remarks>
+    /// Indices and primitive arguments must be valid. Complete closed convex topology is required
+    /// for whole-volume classification and minimum-exit guarantees; this owner does not validate closure.
+    /// A missing finite matching witness returns false with a default contact.
+    /// </remarks>
     internal static bool TryGetContact(in ScaledRigidFrame3d source, ReadOnlySpan<Vector3d> points,
         ReadOnlySpan<int> triangles, Vector3d center, FixedQuaternion rotation, Fixed64 height, Fixed64 radius,
         out FixedContactAnchors contact, Vector2d coreDirection = default, Fixed64 coreLength = default)
@@ -185,7 +191,7 @@ internal static class ConvexHullCylinderContact
                     analyticNormal, depth, clamped);
                 return true;
             }
-        System.Diagnostics.Debug.Fail("A whole-hull minimum must have a finite matching witness.");
+        // A support minimum alone does not certify a point on the supplied finite topology.
         return false;
     }
 

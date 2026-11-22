@@ -43,12 +43,7 @@ internal static partial class WideOrientedBox
                 (index & 2) == 0 ? -halfExtents.Y : halfExtents.Y,
                 (index & 4) == 0 ? -halfExtents.Z : halfExtents.Z));
         }
-        ReadOnlySpan<int> triangles = stackalloc int[]
-        {
-            0, 1, 3, 0, 3, 2, 4, 6, 7, 4, 7, 5,
-            0, 4, 5, 0, 5, 1, 2, 3, 7, 2, 7, 6,
-            0, 2, 6, 0, 6, 4, 1, 5, 7, 1, 7, 3
-        };
+        ReadOnlySpan<int> triangles = BoxHullTriangles;
         for (int index = 0; index < triangles.Length; index += 3)
         {
             if (DoesCylinderTrianglePenetrate(frame, vertices[triangles[index]],

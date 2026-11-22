@@ -45,65 +45,23 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net10.0/FixedMathSharp.Benchm
 
 ## Active Signals
 
-### Warmed Debug cylinder-polytope strict-overlap workload allocates 576 bytes
-
-- **Status:** Reproduced baseline allocation signal; allocation source remains
-  unattributed. No runtime change or allocation-tolerance change is accepted.
-- **Priority:** Medium; the observation is Debug-specific and does not establish
-  a Release or Lean regression.
-- **Source:** Existing allocation guard
-  `CenteredCylinderPolytopeStrictOverlapTests.CylinderPolytope_AllocatesNothingAfterWarmup`
-  in
-  `tests/FixedMathSharp.Tests/Geometry/Primitives/CenteredCylinderPolytopeStrictOverlap.Tests.cs:228`.
-  It exercises `WideOrientedBox.DoesCenteredCylinderPenetrateBox`,
-  `DoesCenteredCylinderPenetrateConvexHull` and
-  `DoesCenteredCylinderPenetrateTriangle`.
-- **Revision/control:** `b501340558c6132484be2f40957233c1b3d29cab`, reproduced
-  2026-11-22 from a pristine `git archive` export built separately in package
-  mode. The affected test, allocation helper and owning strict-overlap source
-  files are unchanged in the current worktree. Pristine Debug
-  `FixedMathSharp.dll` SHA-256:
-  `27019648e3d36503107d0f4f2e5f7a9ba8633f9043ce49979f531bc3bf15581e`.
-- **Environment:** Windows 11 x64, SDK 10.0.302, .NET 10.0.10, Debug, the test
-  project's blocking GC and existing no-inline
-  `FixedMathTestHelper.MeasureWarmedAllocations` boundary. No timing or profiler
-  claim is made.
-- **Workload:** Eight repetitions of three queries per measured action. Box/hull
-  queries use cylinder center `(3,0,0)`, height 4, radius 1; cylinder and
-  box/hull rotations are normalized quaternion `(2,3,5,7)`; box/hull origin is
-  zero with half-extents `(2,2,2)`. The closed hull uses the existing test's
-  eight cube vertices and complete CubeTriangles indices. The triangle query
-  uses cylinder center zero, identity rotation, height 10, radius 5 and triangle
-  `(0,7,-5)`, `(10,1,-5)`, `(5,4,5)` in an identity frame. Geometry and
-  delegates are prepared before the helper warms and measures the action.
-- **Reproducer:** From a clean checkout or export of the source revision:
-
-  ```powershell
-  dotnet build tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Debug -p:UseLocalLsfStack=false -p:DisableTransitiveProjectReferences=false
-  dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Debug --no-build -p:UseLocalLsfStack=false -p:DisableTransitiveProjectReferences=false --filter FullyQualifiedName~CylinderPolytope_AllocatesNothingAfterWarmup
-  ```
-
-- **Expected/observed:** The existing guard requires 0 B; the full Debug suite
-  and the isolated pristine control both report **576 B per measured 24-query
-  action**, failed 1, passed 0, skipped 0, process exit 1. The pristine build
-  passes. Release and ReleaseLean guards remain at 0 B in current validation; no
-  new source regression is claimed.
-- **Impact and limits:** Debug hosts running this strict-overlap workload can
-  incur the measured allocation. Its origin has not been separated between the
-  three production paths, Debug-only work or measurement interaction; 576 B is
-  not a per-query attribution. These paths are separate from the new 2D bounds
-  and BVH arithmetic.
-- **Next isolation step:** Measure the three existing query calls separately
-  behind the same warmed helper, then inspect the responsible Debug-only path or
-  measurement boundary. Preserve Release/Lean controls and caller results; do
-  not widen allocation tolerances or add runtime caching without an attributed
-  cause and a representative improvement.
+No active signals.
 
 ## Experimental Signals
 
 No experimental signals currently open.
 
 ## Archived Signals
+
+### Debug cylinder-polytope topology allocation
+
+- **Status:** Resolved 2026-11-22. The unchanged warmed guard now passes at 0 B
+  in Debug, Release and ReleaseLean. The Debug box query's constant-span
+  initialization materialized a fresh runtime field handle, allocating 72 B per
+  call (576 B for the guard's eight box calls). Reusing the canonical topology
+  through one private retained array removes that repeated cost.
+- **Record:**
+  [Attribution, retained cost, controls and validation](issue-tracker.md#fms-issue-045-resolution).
 
 ### Penetrating oblique cone/cylinder-prism contact throughput
 
