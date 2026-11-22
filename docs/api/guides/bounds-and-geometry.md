@@ -72,6 +72,19 @@ Derived `Size`/`Proportions` values throw when the exact positive span does not
 fit in `Fixed64`. `Scope` rounds outward when needed so it does not
 underestimate the stored endpoints.
 
+`FixedBoundArea.Area` multiplies exact endpoint spans and rounds once to the
+nearest-even Q32.32 square-coordinate value. It throws if that rounded area
+cannot fit in `Fixed64`. It does not read Size: a full-width, zero-height line
+has zero area even when Size is unrepresentable. The derived getter is excluded
+from JSON and MemoryPack, so the existing endpoint state remains unchanged.
+
+For spatial-index insertion heuristics, use `GetAreaExpansionCost(other)`. It
+subtracts exact widened current area from union area before flooring to integer
+square-coordinate units and clamping the final result to long.MaxValue. It
+supports the full endpoint domain independently of checked Size/Area; contained
+bounds and growth below one square unit can return zero. Neither operation
+mutates the input bounds.
+
 Circle and sphere radii are normalized by absolute value during construction,
 assignment, and serialized-state load.
 

@@ -117,6 +117,41 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     }
 
     /// <summary>
+    /// Gets the area in square coordinate units, rounded to the nearest-even Q32.32 value.
+    /// </summary>
+    /// <value>The nonnegative product of the exact endpoint spans, rounded once.</value>
+    /// <remarks>
+    /// Uses widened endpoint arithmetic without materializing <see cref="Size"/>.
+    /// A zero span therefore produces zero even when the other span is not representable.
+    /// Reading this property does not change the bounds or their serialized state.
+    /// </remarks>
+    /// <exception cref="OverflowException">
+    /// The rounded area exceeds <see cref="Fixed64.MaxValue"/>, including a rounding carry.
+    /// </exception>
+    [JsonIgnore]
+    [MemoryPackIgnore]
+    public Fixed64 Area
+    {
+        get
+        {
+            GetRawArea(Min, Max, out ulong high, out ulong low);
+            if (high > 0x7FFF_FFFFUL)
+                throw new OverflowException("The area is outside the representable Fixed64 range.");
+
+            // The unsigned Q64.64 product loses 32 fractional bits when narrowed to Q32.32.
+            ulong raw = (high << 32) | (low >> 32);
+            uint remainder = (uint)low;
+            if (remainder > 0x8000_0000U
+                || (remainder == 0x8000_0000U && (raw & 1UL) != 0UL))
+            {
+                raw++;
+            }
+
+            return Fixed64.FromRaw(checked((long)raw));
+        }
+    }
+
+    /// <summary>
     /// The smallest representable half-extent that conservatively contains the
     /// area around <see cref="Center"/>.
     /// </summary>
@@ -335,6 +370,31 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     #region Spatial Queries
 
     /// <summary>
+    /// Gets the extra area needed to enclose another area, floored to integer square coordinate units.
+    /// </summary>
+    /// <param name="other">The normalized area in the same coordinate space, copied without mutation.</param>
+    /// <returns>
+    /// The exact union-area increase rounded down and clamped to <see cref="long.MaxValue"/>;
+    /// zero for contained areas or growth smaller than one square coordinate unit.
+    /// </returns>
+    /// <remarks>
+    /// Subtracts exact widened areas before rounding or clamping. Supports the full endpoint domain,
+    /// including bounds whose <see cref="Size"/> or <see cref="Area"/> cannot be represented.
+    /// Neither input nor its serialized state changes.
+    /// </remarks>
+    public long GetAreaExpansionCost(FixedBoundArea other)
+    {
+        GetRawArea(Min, Max, out ulong areaHigh, out ulong areaLow);
+        GetRawArea(ComponentMin(Min, other.Min), ComponentMax(Max, other.Max),
+            out ulong unionHigh, out ulong unionLow);
+
+        // Union contains this area, so subtraction is nonnegative; shifting by 64 floors to square units.
+        ulong borrow = unionLow < areaLow ? 1UL : 0UL;
+        ulong growth = unchecked(unionHigh - areaHigh - borrow);
+        return growth > long.MaxValue ? long.MaxValue : (long)growth;
+    }
+
+    /// <summary>
     /// Determines whether the point is inside this area, including the boundary.
     /// </summary>
     /// <param name="point">The point in the same coordinate space as this area.</param>
@@ -532,6 +592,14 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     #endregion
 
     #region Helpers
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void GetRawArea(Vector2d min, Vector2d max, out ulong high, out ulong low)
+    {
+        ulong x = unchecked((ulong)max.X.m_rawValue - (ulong)min.X.m_rawValue);
+        ulong y = unchecked((ulong)max.Y.m_rawValue - (ulong)min.Y.m_rawValue);
+        Fixed64.Multiply64To128(x, y, out high, out low);
+    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool HasPositiveArea()

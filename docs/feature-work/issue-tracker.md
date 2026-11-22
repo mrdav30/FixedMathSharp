@@ -35,9 +35,56 @@ Work that requires staged implementation belongs in a focused feature-work plan.
 
 ## Active Issues
 
-**Next issue ID:** `FMS-Issue-045`
+**Next issue ID:** `FMS-Issue-046`
 
-No active issues.
+### FMS-Issue-045 — Debug whole-hull assertion conflicts with incomplete-topology rejection test
+
+- **Status:** Open; verified baseline Debug test failure. Contract/test
+  disposition is required before choosing a fix.
+- **Priority:** Medium; affects Debug validation and assertion handling, with no
+  demonstrated contact defect for valid closed hulls.
+- **Source:** `b501340558c6132484be2f40957233c1b3d29cab`, reproduced 2026-11-22
+  from a pristine `git archive` export built separately in package mode. The
+  affected owner and test are unchanged in the current worktree.
+- **Affected members:**
+  `src/FixedMathSharp/Geometry/Wide/Convex/ConvexHullCylinderContact.cs`,
+  internal `TryGetContact`, especially Debug.Fail at line 188; test
+  `ConvexHullCylinderContactTests.WholeHull_RejectsSmoothCornerSeparationAndIncompleteFiniteWitnesses`
+  in
+  `tests/FixedMathSharp.Tests/Geometry/Primitives/ConvexHullCylinderContact.Tests.cs:264`.
+- **Inputs:** The existing test calls the internal owner with a rigid identity
+  frame at the origin, the eight vertices returned by
+  `WideOrientedBox.GetBoxHullVertices(Vector3d.One, points)`, deliberately
+  incomplete triangle indices `{ 2, 6, 7 }`, cylinder center
+  `(Fixed64.Half, Fixed64.Zero, -Fixed64.Half)`, identity rotation, height
+  `Fixed64.Half` and radius `Fixed64.Quarter`.
+- **Reproducer:** From a clean checkout or export of the source revision:
+
+  ```powershell
+  dotnet build tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Debug -p:UseLocalLsfStack=false -p:DisableTransitiveProjectReferences=false
+  dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Debug --no-build -p:UseLocalLsfStack=false -p:DisableTransitiveProjectReferences=false --filter FullyQualifiedName~WholeHull_RejectsSmoothCornerSeparationAndIncompleteFiniteWitnesses
+  ```
+
+- **Expected/observed:** The test expects false when the incomplete topology
+  cannot supply a finite matching witness. Debug instead reaches
+  `Debug.Fail("A whole-hull minimum must have a finite matching witness.")`
+  before the fallback false return. xUnit reports a Trace/Debug.Assert failure:
+  failed 1, passed 0, skipped 0, process exit 1. The baseline Debug build
+  passes.
+- **Control environment:** Windows 11 x64, SDK 10.0.302 and .NET 10.0.10.
+  Pristine Debug `FixedMathSharp.dll` SHA-256:
+  `27019648e3d36503107d0f4f2e5f7a9ba8633f9043ce49979f531bc3bf15581e`.
+- **Impact and limits:** The internal owner documents validated closed-hull
+  inputs, while this test deliberately supplies incomplete topology. Release's
+  fallback declines it; Debug invokes host assertion handling. This establishes
+  a Debug test/precondition conflict, not an incorrect contact for an admitted
+  closed hull. No valid-closed-hull caller failure has been reproduced.
+- **Next action:** Clarify whether rejection of incomplete topology is part of
+  the internal contract or whether the test violates its closed-hull
+  precondition. Align the test or the specific invariant only after that
+  disposition, preserving valid closed-hull contact behavior and strict
+  coverage. No source fix, assertion suppression or coverage waiver is made by
+  this intake.
 
 ## Resolved Issues
 
